@@ -1,0 +1,9 @@
+Analyzing seedling...                                           
+
+   info - Invalid use of a private type in a public API - lib\screens\auth\auth_screen.dart:13:3 - library_private_types_in_public_api
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:76:54 - invalid_constant
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:108:55 - invalid_constant
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:123:49 - invalid_constant
+   info - Invalid use of a private type in a public API - lib\screens\settings\subscription_screen.dart:12:3 - library_private_types_in_public_api
+
+5 issues found. (ran in 1.3s)

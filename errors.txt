@@ -1,0 +1,14 @@
+﻿Analyzing seedling...                                           
+
+warning - This default clause is covered by the previous cases - lib\screens\learning.dart:159:7 - unreachable_switch_default
+  error - The name 'CsvToListConverter' isn't a class - lib\services\vocabulary_service.dart:14:24 - creation_with_non_type
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1754:23 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1755:28 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1759:22 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1760:27 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1763:26 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1764:31 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1765:10 - curly_braces_in_flow_control_structures
+   info - Statements in a while should be enclosed in a block - lib\widgets\quizzes.dart:2020:30 - curly_braces_in_flow_control_structures
+
+

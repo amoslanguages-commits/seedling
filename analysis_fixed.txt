@@ -1,0 +1,38 @@
+Analyzing seedling...                                           
+
+  error - The method 'initialize' isn't defined for the type 'SyncManager' - lib\main.dart:23:23 - undefined_method
+   info - Invalid use of a private type in a public API - lib\screens\auth\auth_screen.dart:13:3 - library_private_types_in_public_api
+warning - Unused import: '../../widgets/mascot.dart' - lib\screens\home\enhanced_home.dart:5:8 - unused_import
+warning - Unused import: '../../widgets/cards.dart' - lib\screens\home\enhanced_home.dart:6:8 - unused_import
+warning - Unused import: '../../providers/app_providers.dart' - lib\screens\home\enhanced_home.dart:8:8 - unused_import
+warning - Unused import: '../../models/gamification.dart' - lib\screens\home\enhanced_home.dart:9:8 - unused_import
+warning - Unused import: '../stubs.dart' - lib\screens\home\enhanced_home.dart:11:8 - unused_import
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:81:54 - invalid_constant
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:113:55 - invalid_constant
+  error - Invalid constant value - lib\screens\home\enhanced_home.dart:128:49 - invalid_constant
+   info - Invalid use of a private type in a public API - lib\screens\settings\subscription_screen.dart:12:3 - library_private_types_in_public_api
+warning - Unused import: 'dart:io' - lib\services\sync_manager.dart:3:8 - unused_import
+warning - Unused import: 'package:supabase_flutter/supabase_flutter.dart' - lib\services\sync_manager.dart:6:8 - unused_import
+warning - The operand can't be 'null', so the condition is always 'true' - lib\services\sync_manager.dart:78:15 - unnecessary_null_comparison
+  error - The method 'updateWordProgress' isn't defined for the type 'DatabaseHelper' - lib\services\sync_manager.dart:125:18 - undefined_method
+  error - The method 'updateUserStats' isn't defined for the type 'DatabaseHelper' - lib\services\sync_manager.dart:140:18 - undefined_method
+warning - The value of the local variable 'jsonList' isn't used - lib\services\sync_manager.dart:187:11 - unused_local_variable
+
+flutter : 17 issues 
+found. (ran in 1.3s)
+At line:1 char:1
++ flutter analyze > 
+analysis_output.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (17 issues    
+ found. (ran in 1.    
+3s):String) [], R    
+emoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 

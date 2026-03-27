@@ -1,0 +1,36 @@
+﻿Analyzing seedling...                                           
+
+   info - Statements in an if should be enclosed in a block - lib\screens\word_detail.dart:428:19 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\word_detail.dart:429:12 - curly_braces_in_flow_control_structures
+  error - The named parameter 'color' is required, but there's no corresponding argument - lib\widgets\buttons.dart:71:22 - missing_required_argument
+  error - The named parameter 'isPressed' is required, but there's no corresponding argument - lib\widgets\buttons.dart:71:22 - missing_required_argument
+  error - The named parameter 'progress' isn't defined - lib\widgets\buttons.dart:72:15 - undefined_named_parameter
+  error - The named parameter 'isPrimary' isn't defined - lib\widgets\buttons.dart:73:15 - undefined_named_parameter
+  error - Missing concrete implementation of 'abstract class CustomPainter extends Listenable.shouldRepaint' - lib\widgets\buttons.dart:96:7 - non_abstract_class_inherits_abstract_member
+  error - Expected to find ';' - lib\widgets\buttons.dart:109:9 - expected_token
+  error - Undefined name 'path' - lib\widgets\buttons.dart:109:9 - undefined_identifier
+  error - Expected an identifier - lib\widgets\buttons.dart:109:13 - missing_identifier
+  error - Unexpected text ';' - lib\widgets\buttons.dart:109:13 - unexpected_token
+  error - Undefined name 'isPrimary' - lib\widgets\buttons.dart:110:9 - undefined_identifier
+  error - Expected to find ';' - lib\widgets\buttons.dart:110:62 - expected_token
+  error - Expected an identifier - lib\widgets\buttons.dart:110:75 - missing_identifier
+  error - Unexpected text ';' - lib\widgets\buttons.dart:110:75 - unexpected_token
+  error - Undefined name 'progress' - lib\widgets\buttons.dart:111:16 - undefined_identifier
+  error - Expected to find ';' - lib\widgets\buttons.dart:111:30 - expected_token
+  error - Expected an identifier - lib\widgets\buttons.dart:111:31 - missing_identifier
+  error - Unexpected text ';' - lib\widgets\buttons.dart:111:31 - unexpected_token
+  error - Expected to find ';' - lib\widgets\buttons.dart:112:9 - expected_token
+  error - Expected an identifier - lib\widgets\buttons.dart:112:13 - missing_identifier
+  error - Expected to find ';' - lib\widgets\buttons.dart:112:13 - expected_token
+  error - Unexpected text ';' - lib\widgets\buttons.dart:112:13 - unexpected_token
+  error - Expected an identifier - lib\widgets\buttons.dart:113:7 - missing_identifier
+  error - Unexpected text ';' - lib\widgets\buttons.dart:113:7 - unexpected_token
+   info - Unnecessary empty statement - lib\widgets\buttons.dart:113:8 - empty_statements
+  error - Can't have modifier 'covariant' here - lib\widgets\buttons.dart:118:22 - extraneous_modifier
+  error - The getter 'progress' isn't defined for the type 'OrganicButtonPainter' - lib\widgets\buttons.dart:119:19 - undefined_getter
+  error - Undefined name 'progress' - lib\widgets\buttons.dart:119:31 - undefined_identifier
+  error - Expected a method, getter, setter or operator declaration - lib\widgets\buttons.dart:120:1 - expected_executable
+   info - Use 'const' with the constructor to improve performance - lib\widgets\gamification_widgets.dart:132:11 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\widgets\gamification_widgets.dart:150:11 - prefer_const_constructors
+   info - Use 'const' for final variables initialized to a constant value - lib\widgets\overlays.dart:178:7 - prefer_const_declarations
+

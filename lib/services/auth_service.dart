@@ -1,0 +1,156 @@
+import 'dart:async';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/supabase_config.dart';
+import 'sync_manager.dart';
+
+// ================ AUTHENTICATION SERVICE ================
+
+class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
+  
+  final _authStateController = StreamController<AuthState>.broadcast();
+  Stream<AuthState> get authStateChanges => _authStateController.stream;
+  
+  User? get currentUser => SupabaseConfig.client.auth.currentUser;
+  bool get isAuthenticated => currentUser != null;
+  String? get userId => currentUser?.id;
+  
+  Future<void> initialize() async {
+    // Listen to auth state changes
+    SupabaseConfig.client.auth.onAuthStateChange.listen((data) {
+      _authStateController.add(data);
+    });
+
+    // Seed the initial state
+    final session = SupabaseConfig.client.auth.currentSession;
+    _authStateController.add(AuthState(
+      session == null ? AuthChangeEvent.signedOut : AuthChangeEvent.initialSession,
+      session,
+    ));
+  }
+  
+  // Email/Password Sign Up
+  Future<AuthResponse> signUpWithEmail({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    try {
+      final response = await SupabaseConfig.client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'display_name': displayName},
+      );
+      
+      if (response.user != null) {
+        // Create user profile in database
+        await _createUserProfile(response.user!.id, displayName, email);
+      }
+      
+      return response;
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+  
+  // Email/Password Sign In
+  Future<AuthResponse> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await SupabaseConfig.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (response.user != null) {
+        // Sync in background to not block the UI
+        SyncManager().syncFromCloud().then((_) {
+          SyncManager().syncToCloud();
+        });
+      }
+      
+      return response;
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+  
+  // Google Sign In
+  Future<AuthResponse> signInWithGoogle() async {
+    try {
+      await SupabaseConfig.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.seedling.app://callback',
+      );
+      
+      return AuthResponse();
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+  
+  // Apple Sign In
+  Future<AuthResponse> signInWithApple() async {
+    try {
+      await SupabaseConfig.client.auth.signInWithOAuth(
+        OAuthProvider.apple,
+        redirectTo: 'io.seedling.app://callback',
+      );
+      
+      return AuthResponse();
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+  
+  // Anonymous Sign In (for offline-first experience)
+  Future<AuthResponse> signInAnonymously() async {
+    try {
+      final response = await SupabaseConfig.client.auth.signInAnonymously();
+      return response;
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+  
+  // Sign Out
+  Future<void> signOut() async {
+    // Sync before sign out
+    if (isAuthenticated) {
+      await SyncManager().syncToCloud();
+    }
+    
+    await SupabaseConfig.client.auth.signOut();
+  }
+  
+  // Password Reset
+  Future<void> resetPassword(String email) async {
+    await SupabaseConfig.client.auth.resetPasswordForEmail(email);
+  }
+  
+  // Create user profile in database
+  Future<void> _createUserProfile(
+    String userId,
+    String displayName,
+    String email,
+  ) async {
+    await SupabaseConfig.client.from('profiles').insert({
+      'id': userId,
+      'display_name': displayName,
+      'email': email,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+  
+  Exception _handleAuthError(dynamic error) {
+    if (error is AuthException) {
+      return Exception(error.message);
+    }
+    return Exception('Authentication failed. Please try again.');
+  }
+}
