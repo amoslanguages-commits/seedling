@@ -36,10 +36,20 @@ enum _SessionPhase {
 class LearningSessionScreen extends ConsumerStatefulWidget {
   /// Optional category filter (e.g., 'food', 'travel').
   final String? categoryId;
+  /// Optional domain filter (Theme)
+  final String? domain;
+  /// Optional sub-domain filter (Sub-theme)
+  final String? subDomain;
   /// Optional POS filter
   final String? partOfSpeech;
 
-  const LearningSessionScreen({super.key, this.categoryId, this.partOfSpeech});
+  const LearningSessionScreen({
+    super.key, 
+    this.categoryId, 
+    this.domain,
+    this.subDomain,
+    this.partOfSpeech,
+  });
 
   @override
   ConsumerState<LearningSessionScreen> createState() =>
@@ -70,20 +80,29 @@ class _LearningSessionScreenState
     final targetLang = ref.read(currentLanguageProvider);
     final nativeLang = ref.read(nativeLanguageProvider);
 
-    // Load SRS-due words (mastery > 0, review overdue)
-    final due = await db.getSRSDueWords(
-      nativeLang,
-      targetLang,
-      limit: 15,
-      categoryId: widget.categoryId,
-      partOfSpeech: widget.partOfSpeech,
-    );
+    // Check if user has learned any words yet (global progress for this language)
+    final totalLearned = await db.getTotalWordsLearned(targetLang);
+    final isBrandNew = totalLearned == 0;
 
-    // Load one new word to plant after the session
+    // Load one new word from the SELECTED context (category/domain/subDomain/POS)
     final newWord = await db.getNewWordToPlant(
       nativeLang,
       targetLang,
       categoryId: widget.categoryId,
+      domain: widget.domain,
+      subDomain: widget.subDomain,
+      partOfSpeech: widget.partOfSpeech,
+    );
+
+    // Load SRS-due words (mastery > 0, review overdue)
+    // 🪴 CHANGE: We now pull reviews from ANY category ('alongside'),
+    // even if we are currently in a specific category for the 'new' word.
+    final due = await db.getSRSDueWords(
+      nativeLang,
+      targetLang,
+      limit: 15,
+      // Pass null category here to pull reviews globally as requested
+      categoryId: null, 
       partOfSpeech: widget.partOfSpeech,
     );
 
@@ -92,23 +111,22 @@ class _LearningSessionScreenState
     setState(() {
       _dueWords = due;
       _newWordToPlant = newWord;
+      _isFirstSession = isBrandNew;
 
-      if (due.isEmpty && newWord == null) {
-        // Nothing at all to learn/review in this context
-        if (_batchIndex == 0) { // First time loading
-           _isFirstSession = true;
-           _phase = _SessionPhase.noWordsYet;
-        } else {
-           _forceEndSession();
-        }
-      } else if (due.isEmpty && _batchIndex == 0) {
-        // Brand-new user or complete completely empty due queue — go straight to planting (plant 3 words first)
-        _isFirstSession = true;
+      if (isBrandNew) {
+        // Brand-new user with 0 words globally: go to planting phase (will plant 3)
         _phase = _SessionPhase.noWordsYet;
+      } else if (due.isEmpty && newWord == null) {
+        // Nothing at all to learn/review in this context
+        if (_batchIndex == 0) {
+          _forceEndSession();
+        } else {
+          _forceEndSession();
+        }
       } else {
-        // Ready to quiz
+        // Ready to quiz existing user
         _phase = _SessionPhase.quiz;
-        // 🌿 Start ambient garden soundscape for the quiz session
+        // 🌿 Start ambient garden soundscape
         AudioService.instance.startAmbient();
       }
     });
@@ -116,8 +134,12 @@ class _LearningSessionScreenState
 
   // Called continuously by QuizManager
   void _onProgressUpdate(int correct, int total) {
-    _correctAnswers = correct;
-    _totalQuestions = total;
+    if (mounted) {
+      setState(() {
+        _correctAnswers = correct;
+        _totalQuestions = total;
+      });
+    }
   }
 
   // Called when the user clicks the exit/close button or session ends naturally
@@ -180,12 +202,12 @@ class _LearningSessionScreenState
     switch (_phase) {
       // ── Loading ────────────────────────────────────────────────
       case _SessionPhase.loading:
-        return const Center(
+        return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
+              const SizedBox(height: 16),
               Text('Preparing your garden...', style: SeedlingTypography.caption),
             ],
           ),
@@ -244,23 +266,23 @@ class _LearningSessionScreenState
     final db = ref.read(databaseProvider);
     final targetLang = ref.read(currentLanguageProvider);
     final nativeLang = ref.read(nativeLanguageProvider);
-    return db.getNewWordToPlant(nativeLang, targetLang,
-            categoryId: widget.categoryId, partOfSpeech: widget.partOfSpeech)
-        .then((w) async {
-      // Need 3 words for initial planting — pull them one by one
-      final words = <Word>[];
-      var remaining = await db.getWordsForLanguage(
-        nativeLang, targetLang,
-        categoryId: widget.categoryId,
-        partOfSpeech: widget.partOfSpeech,
-        limit: 10,
-      );
-      for (final word in remaining) {
-        if (word.masteryLevel == 0) words.add(word);
-        if (words.length >= 3) break;
-      }
-      return words;
-    });
+    
+    // Pull words for the selected context
+    final candidateWords = await db.getWordsForLanguage(
+      nativeLang, 
+      targetLang,
+      categoryId: widget.categoryId,
+      partOfSpeech: widget.partOfSpeech,
+      limit: 20,
+    );
+    
+    // Filter for unlearned words and take up to 3
+    final List<Word> wordsToPlant = candidateWords
+        .where((w) => w.masteryLevel == 0)
+        .take(3)
+        .toList();
+        
+    return wordsToPlant;
   }
 
   Widget _buildEmptyGarden() {
@@ -272,7 +294,7 @@ class _LearningSessionScreenState
           children: [
             const SeedlingMascot(size: 100, state: MascotState.idle),
             const SizedBox(height: 24),
-            const Text('Your garden is empty!',
+            Text('Your garden is empty!',
                 style: SeedlingTypography.heading2, textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(
@@ -296,27 +318,39 @@ class _LearningSessionScreenState
 
   Widget _buildQuizPhase() {
     final totalWords = _dueWords.length + (_newWordToPlant != null ? 1 : 0);
-    return Column(
-      children: [
-        _buildSessionHeader('Daily Review', totalWords),
-        Expanded(
-          child: QuizManager(
-            key: ValueKey(_batchIndex), // Force full reset of Quiz queue on new batch
-            words: _dueWords,
-            initialNewWords: _batchIndex == 1 ? _initialPlantedWords : const [],
-            newWordToPlant: _newWordToPlant,
-            onWordPlanted: _markPlanted,
-            onProgressUpdate: _onProgressUpdate,
-            onSessionComplete: _handleBatchComplete,
-          ),
-        ),
-      ],
+    final progress = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions).clamp(0.0, 1.0) : 0.0;
+    
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 360 || constraints.maxHeight < 620;
+        final isVerySmall = constraints.maxWidth < 330;
+        
+        return Column(
+          children: [
+            _buildSessionHeader('Daily Review', totalWords, isSmall, isVerySmall, progress),
+            Expanded(
+              child: QuizManager(
+                key: ValueKey(_batchIndex), // Force full reset of Quiz queue on new batch
+                words: _dueWords,
+                initialNewWords: _batchIndex == 1 ? _initialPlantedWords : const [],
+                newWordToPlant: _newWordToPlant,
+                onWordPlanted: _markPlanted,
+                onProgressUpdate: _onProgressUpdate,
+                onSessionComplete: _handleBatchComplete,
+              ),
+            ),
+          ],
+        );
+      }
     );
   }
 
-  Widget _buildSessionHeader(String title, int wordCount) {
+  Widget _buildSessionHeader(String title, int wordCount, bool isSmall, bool isVerySmall, double progress) {
+    final horizontalPadding = isVerySmall ? 6.0 : (isSmall ? 10.0 : 16.0);
+    final mascotSize = isVerySmall ? 32.0 : (isSmall ? 40.0 : 52.0);
+    
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 0),
       child: Row(
         children: [
           IconButton(
@@ -328,22 +362,39 @@ class _LearningSessionScreenState
                 Navigator.of(context).pop();
               }
             },
+            padding: isSmall ? EdgeInsets.zero : const EdgeInsets.all(8),
+            constraints: isSmall ? const BoxConstraints() : null,
           ),
+          if (isSmall) const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: SeedlingTypography.caption
-                    .copyWith(color: SeedlingColors.textSecondary)),
-                const StemProgressBar(progress: 0, height: 7),
+                Text(
+                  title, 
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.textSecondary,
+                    fontSize: isSmall ? 10 : 12,
+                  )
+                ),
+                StemProgressBar(
+                  progress: progress, 
+                  height: isSmall ? 5 : 7,
+                  showLeaves: !isSmall, // Hide leaves on progress bar if very small to save space
+                ),
               ],
             ),
           ),
+          SizedBox(width: isVerySmall ? 4 : 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(
+              horizontal: isVerySmall ? 6 : (isSmall ? 8 : 12), 
+              vertical: isVerySmall ? 3 : (isSmall ? 4 : 6)
+            ),
             decoration: BoxDecoration(
               color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(isSmall ? 10 : 14),
               border: Border.all(
                 color: SeedlingColors.seedlingGreen.withValues(alpha: 0.4),
               ),
@@ -353,11 +404,12 @@ class _LearningSessionScreenState
               style: SeedlingTypography.caption.copyWith(
                 color: SeedlingColors.seedlingGreen,
                 fontWeight: FontWeight.w600,
+                fontSize: isSmall ? 10 : 12,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          const SeedlingMascot(size: 52, state: MascotState.idle),
+          SizedBox(width: isSmall ? 4 : 8),
+          SeedlingMascot(size: mascotSize, state: MascotState.idle),
         ],
       ),
     );

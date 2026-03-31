@@ -26,7 +26,7 @@ class CourseManagementScreen extends ConsumerWidget {
       builder: (_, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: SeedlingColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
@@ -37,7 +37,7 @@ class CourseManagementScreen extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: SeedlingColors.cardBackground,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -47,7 +47,7 @@ class CourseManagementScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
                 child: Row(
                   children: [
-                    const Text('My Courses', style: SeedlingTypography.heading2),
+                    Text('My Courses', style: SeedlingTypography.heading2),
                     const Spacer(),
                     TextButton.icon(
                       onPressed: () => _openAddCourse(context, ref),
@@ -127,11 +127,11 @@ class _CourseListTile extends StatelessWidget {
         padding: const EdgeInsets.only(right: 24),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.red.shade400,
+          color: SeedlingColors.error.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(20),
         ),
         child: const Icon(Icons.delete_outline_rounded,
-            color: Colors.white, size: 24),
+            color: SeedlingColors.textPrimary, size: 24),
       ),
       confirmDismiss: (_) async {
         if (isActive) {
@@ -154,13 +154,13 @@ class _CourseListTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: isActive
-                ? SeedlingColors.seedlingGreen.withValues(alpha: 0.08)
-                : Colors.grey.shade50,
+                ? SeedlingColors.seedlingGreen.withValues(alpha: 0.12)
+                : SeedlingColors.cardBackground,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isActive
                   ? SeedlingColors.seedlingGreen.withValues(alpha: 0.4)
-                  : Colors.grey.shade100,
+                  : SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
               width: 1.5,
             ),
           ),
@@ -216,14 +216,14 @@ class _CourseListTile extends StatelessWidget {
                   child: Text(
                     'Active',
                     style: SeedlingTypography.caption.copyWith(
-                      color: Colors.white,
+                      color: SeedlingColors.background,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 )
               else
-                Icon(Icons.chevron_right_rounded,
-                    color: Colors.grey.shade300),
+                const Icon(Icons.chevron_right_rounded,
+                    color: SeedlingColors.textSecondary),
             ],
           ),
         ),
@@ -246,11 +246,11 @@ class _EmptyCoursesPlaceholder extends StatelessWidget {
         children: [
           const Text('🌱', style: TextStyle(fontSize: 48)),
           const SizedBox(height: 12),
-          const Text('No courses yet', style: SeedlingTypography.heading3),
+          Text('No courses yet', style: SeedlingTypography.heading3),
           const SizedBox(height: 6),
           Text('Add your first course to start growing',
               style:
-                  SeedlingTypography.body.copyWith(color: Colors.grey.shade500)),
+                  SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary)),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: onAdd,
@@ -258,7 +258,7 @@ class _EmptyCoursesPlaceholder extends StatelessWidget {
             label: const Text('Add Course'),
             style: ElevatedButton.styleFrom(
               backgroundColor: SeedlingColors.seedlingGreen,
-              foregroundColor: Colors.white,
+              foregroundColor: SeedlingColors.textPrimary,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
               padding:

@@ -56,13 +56,18 @@ class AudioService {
   final List<AudioPlayer> _correctPool =
       List.generate(4, (_) => AudioPlayer());
   late final AudioPlayer _ambientPlayer;
+  late final AudioPlayer _flowPlayer;
 
   bool _muted = false;
   double _volume = 0.85;
   final double _ambientVolume = 0.12; // very quiet under-layer
+  final double _flowVolume = 0.35; // intensely louder upbeat mix
 
   bool _ambientRunning = false;
   bool _ambientEnabled = true; // user can toggle from Settings
+  
+  int _globalStreak = 0;
+  bool _flowRunning = false;
 
   static const _assetMap = {
     SFX.correctAnswer:      'sfx/correct_2.wav', // default (overridden by streak)
@@ -87,7 +92,10 @@ class AudioService {
   bool get ambientEnabled => _ambientEnabled;
   void setAmbientEnabled(bool enabled) {
     _ambientEnabled = enabled;
-    if (!enabled && _ambientRunning) stopAmbient();
+    if (!enabled && _ambientRunning) {
+      stopAmbient();
+      _stopFlowState();
+    }
   }
 
   // ── Initialization ───────────────────────────────────────────
@@ -111,8 +119,14 @@ class AudioService {
     _ambientPlayer = AudioPlayer();
     await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
     await _ambientPlayer.setVolume(0); // starts silent
+    
+    // Set up flow state player
+    _flowPlayer = AudioPlayer();
+    await _flowPlayer.setReleaseMode(ReleaseMode.loop);
+    await _flowPlayer.setVolume(0);
+    await _flowPlayer.setPlaybackRate(1.25); // Faster, more intense upbeat tempo
 
-    debugPrint('[AudioService] initialized ${_pool.length} SFX channels + ambient.');
+    debugPrint('[AudioService] initialized ${_pool.length} SFX channels + ambient + flow.');
   }
 
   // ── Ambient garden layer ─────────────────────────────────────
@@ -130,6 +144,7 @@ class AudioService {
 
   /// Stop the ambient layer — call when session ends.
   Future<void> stopAmbient() async {
+    resetFlowState();
     if (!_ambientRunning) {
       return;
     }
@@ -151,9 +166,54 @@ class AudioService {
     }
   }
 
+  Future<void> _flowFadeTo(double target, Duration dur) async {
+    const steps = 20;
+    final current = _flowPlayer.volume;
+    final stepMs = dur.inMilliseconds ~/ steps;
+    final delta = (target - current) / steps;
+    for (int i = 0; i < steps; i++) {
+      final v = (current + delta * (i + 1)).clamp(0.0, 1.0);
+      await _flowPlayer.setVolume(v);
+      await Future.delayed(Duration(milliseconds: stepMs));
+    }
+  }
+  
+  // ── Dynamic Flow State Audio ──────────────────────────────────
+  
+  Future<void> _startFlowState() async {
+    if (_muted || _flowRunning || !_ambientEnabled) return;
+    _flowRunning = true;
+    
+    // Play the flow track (reusing ambient but faster/louder)
+    await _flowPlayer.play(AssetSource('sfx/ambient_garden.mp3'));
+    
+    // Duck ambient to zero, ramp flow volume up
+    _ambientFadeTo(0, const Duration(seconds: 1));
+    _flowFadeTo(_flowVolume, const Duration(seconds: 1));
+  }
+
+  Future<void> _stopFlowState() async {
+    if (!_flowRunning) return;
+    _flowRunning = false;
+    
+    // Abrupt stop (record scratch effect)
+    await _flowPlayer.stop();
+    await _flowPlayer.setVolume(0);
+    
+    // Restore ambient gently
+    if (_ambientRunning && !_muted && _ambientEnabled) {
+      _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
+    }
+  }
+
+  void resetFlowState() {
+     _globalStreak = 0;
+     _stopFlowState();
+  }
+
   /// Duck ambient while a short SFX plays, then restore.
   Future<void> _duckAmbient() async {
-    if (!_ambientRunning) {
+    if (!_ambientRunning || _flowRunning) {
       return;
     }
     await _ambientPlayer.setVolume(_ambientVolume * 0.25);
@@ -187,6 +247,12 @@ class AudioService {
     if (_muted) {
       return;
     }
+    
+    if (sfx == SFX.wrongAnswer) {
+      _globalStreak = 0;
+      _stopFlowState();
+    }
+    
     final player = _pool[sfx];
     if (player == null) {
       return;
@@ -194,7 +260,7 @@ class AudioService {
     try {
       await player.stop();
       await player.play(AssetSource(_assetMap[sfx]!));
-      _duckAmbient(); // fire-and-forget, no await
+      if (!_flowRunning) _duckAmbient(); // fire-and-forget, no await
     } catch (e) {
       debugPrint('[AudioService] Failed to play $sfx: $e');
     }
@@ -203,12 +269,19 @@ class AudioService {
   /// Play an escalating correct-answer sound based on current streak.
   /// Streak tiers: 0-2 → tier 1, 3-5 → tier 2, 6-8 → tier 3, 9+ → tier 4
   /// Each tier also raises playback rate ~12% (~half octave) for pitch escalation.
-  Future<void> playCorrect({required int streak}) async {
+  Future<void> playCorrect({int? streak}) async {
     if (_muted) {
       return;
     }
-    // Determine which tier to use
-    final tier = streak < 3 ? 0 : streak < 6 ? 1 : streak < 9 ? 2 : 3;
+    
+    _globalStreak++;
+    if (_globalStreak >= 5 && !_flowRunning) {
+      _startFlowState();
+    }
+    
+    // Determine which tier to use based on internal streak to guarantee escalating audio
+    final effectiveStreak = _globalStreak;
+    final tier = effectiveStreak < 3 ? 0 : effectiveStreak < 6 ? 1 : effectiveStreak < 9 ? 2 : 3;
     final player = _correctPool[tier];
     // Pitch escalation: +12% per tier simulates half-octave shift
     final pitchRate = 1.0 + (tier * 0.12);
@@ -216,7 +289,7 @@ class AudioService {
       await player.stop();
       await player.setPlaybackRate(pitchRate);
       await player.play(AssetSource(_escalatingCorrect[tier]));
-      _duckAmbient();
+      if (!_flowRunning) _duckAmbient();
     } catch (e) {
       debugPrint('[AudioService] Failed to play correct tier $tier: $e');
     }
@@ -262,8 +335,13 @@ class AudioService {
     _muted = muted;
     if (muted) {
       _ambientPlayer.setVolume(0);
+      _flowPlayer.setVolume(0);
     } else if (_ambientRunning) {
-      _ambientPlayer.setVolume(_ambientVolume);
+      if (_flowRunning) {
+        _flowPlayer.setVolume(_flowVolume);
+      } else {
+        _ambientPlayer.setVolume(_ambientVolume);
+      }
     }
   }
 
@@ -285,6 +363,7 @@ class AudioService {
       await p.dispose();
     }
     await _ambientPlayer.dispose();
+    await _flowPlayer.dispose();
     _pool.clear();
   }
 }

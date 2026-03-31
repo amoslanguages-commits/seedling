@@ -48,7 +48,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Categories',
           style: SeedlingTypography.heading3,
         ),
@@ -215,7 +215,7 @@ class POSFilterWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Part of Speech',
           style: SeedlingTypography.heading3,
         ),
@@ -306,7 +306,7 @@ class EnhancedWordCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: SeedlingColors.deepRoot.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

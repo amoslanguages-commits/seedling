@@ -89,7 +89,7 @@ class _OrganicButtonState extends State<OrganicButton>
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      color: widget.isPrimary ? Colors.white : SeedlingColors.seedlingGreen,
+                      color: widget.isPrimary ? SeedlingColors.textPrimary : SeedlingColors.seedlingGreen,
                     ),
                   )
                 : Opacity(
@@ -98,7 +98,7 @@ class _OrganicButtonState extends State<OrganicButton>
                       widget.text,
                       style: SeedlingTypography.bodyLarge.copyWith(
                         color: widget.isPrimary 
-                            ? Colors.white 
+                            ? SeedlingColors.textPrimary 
                             : SeedlingColors.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
@@ -138,18 +138,20 @@ class OrganicButtonPainter extends CustomPainter {
     canvas.scale(shadowScale, shadowScale);
 
     if (!isPressed(progress)) {
-      canvas.drawRRect(
-        rrect.shift(const Offset(0, 6)), 
-        Paint()
-          ..color = (isPrimary ? SeedlingColors.deepRoot : Colors.grey.shade400)
-              .withValues(alpha: 0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
+      final shadowPath = Path()..addRRect(rrect.shift(const Offset(0, 2)));
+      canvas.drawShadow(
+        shadowPath,
+        SeedlingColors.deepRoot.withValues(alpha: 0.4),
+        8.0,
+        true,
       );
     }
 
     // 3. Main Body
     final mainPaint = Paint()
-      ..color = isPrimary ? SeedlingColors.seedlingGreen : Colors.white
+      ..color = isPrimary 
+          ? SeedlingColors.seedlingGreen 
+          : SeedlingColors.morningDew.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(rrect, mainPaint);
 
@@ -166,8 +168,8 @@ class OrganicButtonPainter extends CustomPainter {
         glossRect.topCenter,
         glossRect.bottomCenter,
         [
-          Colors.white.withValues(alpha: isPrimary ? 0.2 : 0.8),
-          Colors.white.withValues(alpha: 0.0),
+          SeedlingColors.textPrimary.withValues(alpha: isPrimary ? 0.15 : 0.4),
+          SeedlingColors.textPrimary.withValues(alpha: 0.0),
         ]
       )
       ..style = PaintingStyle.fill;
@@ -181,7 +183,9 @@ class OrganicButtonPainter extends CustomPainter {
     canvas.drawPath(
       rimPath,
       Paint()
-        ..color = isPrimary ? SeedlingColors.deepRoot : Colors.grey.shade300
+        ..color = isPrimary 
+            ? SeedlingColors.deepRoot 
+            : SeedlingColors.morningDew.withValues(alpha: 0.05)
         ..style = PaintingStyle.fill
     );
 

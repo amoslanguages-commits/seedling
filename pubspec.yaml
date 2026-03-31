@@ -25,11 +25,20 @@ dependencies:
   flutter_tts: ^4.2.5
   flutter_local_notifications: ^21.0.0
   confetti: ^0.8.0
+  google_fonts: ^8.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/ios_app_store_1024x1024.png"
+  adaptive_icon_background: "#ECF5E6" # SeedlingColors.background
+  adaptive_icon_foreground: "assets/icons/ios_app_store_1024x1024.png"
 
 flutter:
   uses-material-design: true

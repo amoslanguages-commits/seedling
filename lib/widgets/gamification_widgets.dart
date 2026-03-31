@@ -47,11 +47,11 @@ class _StreakFlameState extends State<StreakFlame> with SingleTickerProviderStat
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: widget.streak > 0 
-                ? Colors.orange.withValues(alpha: 0.08) 
-                : Colors.grey.withValues(alpha: 0.05),
+                ? SeedlingColors.sunlight.withValues(alpha: 0.1) 
+                : SeedlingColors.morningDew.withValues(alpha: 0.05),
             boxShadow: widget.streak > 0 ? [
               BoxShadow(
-                color: Colors.orange.shade400.withValues(alpha: 0.15),
+                color: SeedlingColors.sunlight.withValues(alpha: 0.2),
                 blurRadius: 12 + _flameController.value * 4,
                 spreadRadius: 2,
               )
@@ -75,11 +75,11 @@ class _StreakFlameState extends State<StreakFlame> with SingleTickerProviderStat
                     '${widget.streak}',
                     style: SeedlingTypography.body.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: widget.streak > 0 ? Colors.orange.shade800 : Colors.grey,
+                      color: widget.streak > 0 ? SeedlingColors.sunlight : SeedlingColors.textSecondary,
                       fontSize: widget.size * 0.25,
                       shadows: [
-                        const Shadow(
-                          color: Colors.white,
+                        Shadow(
+                          color: SeedlingColors.deepRoot.withValues(alpha: 0.3),
                           blurRadius: 4,
                         ),
                       ],
@@ -130,7 +130,7 @@ class FlamePainter extends CustomPainter {
       Paint()
         ..shader = ui.Gradient.linear(
           const Offset(0, 0), Offset(0, -h),
-          const [Color(0xFFFF9F1C), Color(0xFFFF4D4D)],
+          const [SeedlingColors.sunlight, SeedlingColors.error],
         )
     );
 
@@ -147,12 +147,11 @@ class FlamePainter extends CustomPainter {
       ..shader = ui.Gradient.linear(
         const Offset(0, 0),
         Offset(0, -ih), // Use -ih for height as it's drawn upwards
-        const [
-          Color(0xFFFFD166), // Outer glow
-          Color(0xFFFF9F1C), // Core heat
+        [
+          SeedlingColors.sunlight.withValues(alpha: 0.8),
+          SeedlingColors.sunlight,
         ]
-      )
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      );
 
     canvas.drawPath(innerPath, flamePaint); // Use innerPath here
 
@@ -174,8 +173,7 @@ class FlamePainter extends CustomPainter {
         );
         
       canvas.drawPath(corePath, Paint()
-        ..color = Colors.white.withValues(alpha: 0.8)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2)
+        ..color = SeedlingColors.textPrimary.withValues(alpha: 0.5)
       );
     }
     canvas.restore();
@@ -254,10 +252,14 @@ class _AchievementBadgeState extends State<AchievementBadge> with SingleTickerPr
                       )
                     : RadialGradient(
                         colors: [
-                          Colors.grey.shade200,
-                          Colors.grey.shade300,
+                          SeedlingColors.morningDew.withValues(alpha: 0.05),
+                          SeedlingColors.background.withValues(alpha: 0.5),
                         ],
                       ),
+                border: !widget.achievement.isUnlocked ? Border.all(
+                  color: SeedlingColors.morningDew.withValues(alpha: 0.1),
+                  width: 2,
+                ) : null,
                 boxShadow: widget.achievement.isUnlocked ? [
                   BoxShadow(
                     color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
@@ -319,7 +321,7 @@ class BadgeRimPainter extends CustomPainter {
         Offset(cx, cy),
         [
           SeedlingColors.seedlingGreen,
-          Colors.white.withValues(alpha: 0.8),
+          SeedlingColors.freshSprout.withValues(alpha: 0.8),
           SeedlingColors.seedlingGreen,
         ],
         [0.0, 0.5, 1.0],

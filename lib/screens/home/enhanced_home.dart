@@ -8,7 +8,8 @@ import '../../providers/app_providers.dart';
 import '../profile_screen.dart';
 import '../../models/taxonomy.dart';
 import '../courses/active_course_banner.dart';
-import '../../providers/course_provider.dart';
+import '../sentence_session_screen.dart';
+import '../../widgets/word_library_sheet.dart';
 
 class EnhancedHomeScreen extends ConsumerStatefulWidget {
   const EnhancedHomeScreen({super.key});
@@ -34,7 +35,7 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: SeedlingColors.deepRoot.withValues(alpha: 0.15),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -43,8 +44,9 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
+          backgroundColor: SeedlingColors.background,
           selectedItemColor: SeedlingColors.seedlingGreen,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: SeedlingColors.textSecondary,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           items: const [
@@ -67,13 +69,12 @@ class _HomeTab extends ConsumerStatefulWidget {
 }
 
 class _HomeTabState extends ConsumerState<_HomeTab> {
-  int _selectedTab = 0; // 0 = Topics, 1 = Word Types
+  int _selectedTab = 0; // 0 = Topics, 1 = Sentences
 
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(userStatsProvider);
     final categoryStatsAsync = ref.watch(categoryStatsProvider);
-    final posStatsAsync = ref.watch(posStatsProvider);
 
     return SafeArea(
       child: CustomScrollView(
@@ -102,7 +103,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                         label: 'Streak',
                         value: stats['currentStreak'].toString(),
                         icon: Icons.bolt,
-                        color: Colors.orange,
+                        color: SeedlingColors.sunlight,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -122,18 +123,11 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
 
-          // Mastery Highlight
-          SliverToBoxAdapter(
+          // Smart Focus Hub
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('NEEDS WATERING', style: SeedlingTypography.caption),
-                  const SizedBox(height: 12),
-                  _buildMasteryCard(context, 'Eficiencia', 'Efficiency', 0.65),
-                ],
-              ),
+              padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
+              child: _SmartFocusHub(),
             ),
           ),
 
@@ -142,7 +136,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: _PillTabBar(
-                labels: const ['Topics', 'Word Types'],
+                labels: const ['Vocabulary', 'Sentences'],
                 selected: _selectedTab,
                 onTap: (i) => setState(() => _selectedTab = i),
               ),
@@ -181,10 +175,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   sliver: categoryStatsAsync.when(
                     data: (catStats) => SliverGrid(
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 0.85,
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 2.1,
                       ),
                       delegate: SliverChildListDelegate(
                         subs.map((cat) {
@@ -201,6 +195,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                             iconColor: cat.color,
                             compact: true,
                             categoryId: cat.id,
+                            domain: root.id,
+                            subDomain: cat.id,
                           );
                         }).toList(),
                       ),
@@ -212,24 +208,12 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               ];
             }),
           ] else ...[
-            // WORD TYPES: POS cards in the same compact grid style
-            posStatsAsync.when(
-              data: (posStats) => SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.85,
-                  ),
-                  delegate: SliverChildListDelegate(
-                    _getPOSCards(context, posStats),
-                  ),
-                ),
+            // SENTENCES: mode-selection cards
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0),
+                child: _SentencesTabContent(),
               ),
-              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-              error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
           ],
 
@@ -239,97 +223,231 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
     );
   }
 
-  List<Widget> _getPOSCards(BuildContext context, List<Map<String, dynamic>> posStats) {
-    final activeCourse = ref.watch(courseProvider).activeCourse;
-    final lang = activeCourse?.targetLanguage.code ?? 'es';
+}
 
-    return getApplicablePOS(lang).map((pos) {
-      final stat = posStats.firstWhere(
-        (s) => s['pos'] == pos.name,
-        orElse: () => {'learned': 0, 'total': 0},
-      );
-      return _CategoryCard(
-        title: pos.displayName,
-        learnedCount: stat['learned'] as int,
-        totalCount: stat['total'] as int,
-        emojiIcon: pos.icon,
-        color: pos.color.withValues(alpha: 0.18),
-        iconColor: pos.color,
-        compact: true,
-        partOfSpeech: pos.name,
-      );
-    }).toList();
+// ─── Smart Focus Hub ──────────────────────────────────────────────────────────
+
+class _SmartFocusHub extends ConsumerStatefulWidget {
+  const _SmartFocusHub();
+
+  @override
+  ConsumerState<_SmartFocusHub> createState() => _SmartFocusHubState();
+}
+
+class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
-  Widget _buildMasteryCard(BuildContext context, String word, String translation, double progress) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => const LearningSessionScreen(),
-        ));
-      },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [SeedlingColors.seedlingGreen, SeedlingColors.water],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(word, style: SeedlingTypography.heading3),
-                  Text(translation, style: SeedlingTypography.body),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.grey.shade100,
-                      valueColor: const AlwaysStoppedAnimation<Color>(SeedlingColors.water),
-                      minHeight: 6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
-          ],
-        ),
+  @override
+  Widget build(BuildContext context) {
+    final focusAsync = ref.watch(smartFocusProvider);
+
+    return focusAsync.when(
+      loading: () => _buildShimmer(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (focus) => _buildHub(context, focus),
+    );
+  }
+
+  Widget _buildShimmer() {
+    return Container(
+      height: 96,
+      decoration: BoxDecoration(
+        color: SeedlingColors.cardBackground,
+        borderRadius: BorderRadius.circular(24),
       ),
     );
   }
+
+  Widget _buildHub(BuildContext context, FocusState focus) {
+    final config = _getConfig(focus);
+
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return GestureDetector(
+          onTap: () => _handleTap(context, focus),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: config.gradientColors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: config.glowColor.withValues(
+                    alpha: 0.25 + 0.15 * _pulseAnimation.value,
+                  ),
+                  blurRadius: 20 + 10 * _pulseAnimation.value,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Pulsing icon vessel
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15 + 0.08 * _pulseAnimation.value),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(config.emoji, style: const TextStyle(fontSize: 26)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Label badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          config.badge,
+                          style: SeedlingTypography.caption.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        config.title,
+                        style: SeedlingTypography.heading3.copyWith(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        config.subtitle,
+                        style: SeedlingTypography.caption.copyWith(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  _HubConfig _getConfig(FocusState focus) {
+    switch (focus.mode) {
+      case FocusMode.watering:
+        return _HubConfig(
+          gradientColors: [const Color(0xFF1A7FBD), const Color(0xFF0D9488)],
+          glowColor: const Color(0xFF1A7FBD),
+          emoji: '💧',
+          badge: 'REVIEW DUE',
+          title: '${focus.dueCount} Plants Need Watering',
+          subtitle: 'Keep your garden healthy — review now',
+        );
+      case FocusMode.resume:
+        return _HubConfig(
+          gradientColors: [const Color(0xFF2D7A3A), const Color(0xFF4CAF75)],
+          glowColor: const Color(0xFF2D7A3A),
+          emoji: '🌿',
+          badge: 'CONTINUE',
+          title: 'Resume: ${focus.displayName ?? "Your Garden"}',
+          subtitle: 'Pick up right where you left off',
+        );
+      case FocusMode.discover:
+        return _HubConfig(
+          gradientColors: [const Color(0xFF6B3FA0), const Color(0xFF9B59B6)],
+          glowColor: const Color(0xFF6B3FA0),
+          emoji: '🌱',
+          badge: 'START GROWING',
+          title: 'Plant: ${focus.displayName ?? "New Words"}',
+          subtitle: 'Your learning journey begins here',
+        );
+    }
+  }
+
+  void _handleTap(BuildContext context, FocusState focus) {
+    switch (focus.mode) {
+      case FocusMode.watering:
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const LearningSessionScreen(),
+        ));
+        break;
+      case FocusMode.resume:
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => LearningSessionScreen(
+            domain: focus.lastDomain,
+            subDomain: focus.lastSubDomain,
+          ),
+        ));
+        break;
+      case FocusMode.discover:
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const LearningSessionScreen(),
+        ));
+        break;
+    }
+  }
+}
+
+class _HubConfig {
+  final List<Color> gradientColors;
+  final Color glowColor;
+  final String emoji;
+  final String badge;
+  final String title;
+  final String subtitle;
+
+  const _HubConfig({
+    required this.gradientColors,
+    required this.glowColor,
+    required this.emoji,
+    required this.badge,
+    required this.title,
+    required this.subtitle,
+  });
 }
 
 // ─── Pill Tab Bar ─────────────────────────────────────────────────────────────
@@ -351,7 +469,7 @@ class _PillTabBar extends StatelessWidget {
       height: 44,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: SeedlingColors.cardBackground,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -364,10 +482,10 @@ class _PillTabBar extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
+                  color: isSelected ? SeedlingColors.seedlingGreen : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2))]
+                      ? [BoxShadow(color: SeedlingColors.deepRoot.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))]
                       : [],
                 ),
                 alignment: Alignment.center,
@@ -376,7 +494,7 @@ class _PillTabBar extends StatelessWidget {
                   style: SeedlingTypography.body.copyWith(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? SeedlingColors.seedlingGreen : Colors.grey.shade500,
+                    color: isSelected ? SeedlingColors.background : SeedlingColors.textSecondary,
                   ),
                 ),
               ),
@@ -389,7 +507,6 @@ class _PillTabBar extends StatelessWidget {
 }
 
 class _StatMiniCard extends StatelessWidget {
-
   final String label;
   final String value;
   final IconData icon;
@@ -407,9 +524,9 @@ class _StatMiniCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: SeedlingColors.cardBackground,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
@@ -438,7 +555,8 @@ class _CategoryCard extends StatelessWidget {
   final IconData? iconData;
   final bool compact;
   final String? categoryId;
-  final String? partOfSpeech;
+  final String? domain;
+  final String? subDomain;
 
   const _CategoryCard({
     required this.title,
@@ -450,59 +568,141 @@ class _CategoryCard extends StatelessWidget {
     this.iconColor,
     this.compact = false,
     this.categoryId,
-    this.partOfSpeech,
+    this.domain,
+    this.subDomain,
   }) : assert(emojiIcon != null || iconData != null, 'Provide emojiIcon or iconData');
 
   @override
   Widget build(BuildContext context) {
     final resolvedIconColor = iconColor ?? color;
-    final double emojiSize = compact ? 18 : 22;
-    final double fontSize = compact ? 11 : 13;
-    final double pad = compact ? 8 : 12;
+    final progress = totalCount > 0 ? learnedCount / totalCount : 0.0;
 
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => LearningSessionScreen(
             categoryId: categoryId,
-            partOfSpeech: partOfSpeech,
+            domain: domain,
+            subDomain: subDomain,
           )),
         );
       },
       child: Container(
-        padding: EdgeInsets.all(pad),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(compact ? 16 : 24),
+          color: SeedlingColors.cardBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: resolvedIconColor.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: resolvedIconColor.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
           children: [
-            Container(
-              padding: EdgeInsets.all(compact ? 6 : 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(compact ? 8 : 12),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  // Emoji Vessel
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: resolvedIconColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: emojiIcon != null 
+                      ? Text(emojiIcon!, style: const TextStyle(fontSize: 22))
+                      : Icon(iconData!, color: resolvedIconColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  // Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: SeedlingTypography.heading3.copyWith(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(3),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  backgroundColor: resolvedIconColor.withValues(alpha: 0.08),
+                                  valueColor: AlwaysStoppedAnimation<Color>(resolvedIconColor),
+                                  minHeight: 4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$learnedCount/$totalCount',
+                              style: SeedlingTypography.caption.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: SeedlingColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Space for review icon
+                  const SizedBox(width: 24),
+                ],
               ),
-              child: emojiIcon != null
-                  ? Text(emojiIcon!, style: TextStyle(fontSize: emojiSize))
-                  : Icon(iconData, color: resolvedIconColor, size: emojiSize),
             ),
-            SizedBox(height: compact ? 6 : 8),
-            Text(
-              title,
-              style: SeedlingTypography.heading3.copyWith(fontSize: fontSize),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '$learnedCount / $totalCount',
-              style: SeedlingTypography.caption.copyWith(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: SeedlingColors.textPrimary.withValues(alpha: 0.6),
+            // Review Trigger (floating in corner)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => WordLibraryBottomSheet(
+                        title: title,
+                        categoryId: categoryId,
+                        domain: domain,
+                        subDomain: subDomain,
+                        themeColor: resolvedIconColor,
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: Icon(
+                      Icons.auto_stories_rounded,
+                      size: 16,
+                      color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -512,5 +712,186 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
+class _SentencesTabContent extends StatelessWidget {
+  const _SentencesTabContent();
 
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Text(
+          'SENTENCE GARDEN',
+          style: SeedlingTypography.caption.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Practice words in real context',
+          style: SeedlingTypography.body.copyWith(
+            color: SeedlingColors.textSecondary,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _SentenceModeCard(
+          emoji: '🌿',
+          title: 'Fill The Branch',
+          subtitle: 'Complete the missing word in a sentence',
+          accentColor: SeedlingColors.seedlingGreen,
+          tag: 'CLOZE',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SentenceSessionScreen(
+                mode: SentenceQuizMode.fillBranch,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SentenceModeCard(
+          emoji: '🌳',
+          title: 'Translation Sprint',
+          subtitle: 'What does the highlighted word mean?',
+          accentColor: SeedlingColors.water,
+          tag: 'TRANSLATE',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const SentenceSessionScreen(
+                mode: SentenceQuizMode.translateSprint,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 28),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: SeedlingColors.cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: SeedlingColors.sunlight.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            children: [
+              const Text('💡', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '10 sample sentences loaded — a dedicated sentences library will be added soon.',
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
+class _SentenceModeCard extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final Color accentColor;
+  final String tag;
+  final VoidCallback onTap;
+
+  const _SentenceModeCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.accentColor,
+    required this.tag,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: SeedlingColors.cardBackground,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: Text(emoji, style: const TextStyle(fontSize: 26)),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style:
+                            SeedlingTypography.heading3.copyWith(fontSize: 15),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          tag,
+                          style: SeedlingTypography.caption.copyWith(
+                            fontSize: 9,
+                            color: accentColor,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: SeedlingTypography.body.copyWith(
+                      color: SeedlingColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded,
+                color: accentColor.withValues(alpha: 0.7), size: 22),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -102,3 +102,54 @@ final competitionsProvider = FutureProvider<List<Competition>>((ref) async {
   if (auth.value?.session == null) return [];
   return await ref.watch(socialServiceProvider).getCompetitions();
 });
+
+/// The three modes the Smart Focus Hub can display.
+enum FocusMode { watering, resume, discover }
+
+/// Aggregated state for the Smart Focus Hub.
+class FocusState {
+  final FocusMode mode;
+  final int dueCount;
+  final String? lastDomain;
+  final String? lastSubDomain;
+  final String? displayName;
+
+  const FocusState({
+    required this.mode,
+    this.dueCount = 0,
+    this.lastDomain,
+    this.lastSubDomain,
+    this.displayName,
+  });
+}
+
+final smartFocusProvider = FutureProvider<FocusState>((ref) async {
+  final db = ref.watch(databaseProvider);
+  final targetLang = ref.watch(currentLanguageProvider);
+  final nativeLang = ref.watch(nativeLanguageProvider);
+
+  // Priority 1: SRS review due?
+  final dueCount = await db.getDueCount(nativeLang, targetLang);
+  if (dueCount > 0) {
+    return FocusState(mode: FocusMode.watering, dueCount: dueCount);
+  }
+
+  // Priority 2: Resume last active sub-theme
+  final lastSubTheme = await db.getLastActiveSubTheme(nativeLang, targetLang);
+  if (lastSubTheme != null && lastSubTheme['subDomain'] != null) {
+    final rawSub = lastSubTheme['subDomain']!;
+    // Convert snake_case id back to a readable name
+    final displayName = rawSub.replaceAll('_', ' ').split(' ')
+        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+        .join(' ');
+    return FocusState(
+      mode: FocusMode.resume,
+      lastDomain: lastSubTheme['domain'],
+      lastSubDomain: rawSub,
+      displayName: displayName,
+    );
+  }
+
+  // Priority 3: Discover (no history yet)
+  return const FocusState(mode: FocusMode.discover, displayName: 'People & Identity');
+});

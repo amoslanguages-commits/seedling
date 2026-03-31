@@ -56,7 +56,7 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
         
         return IgnorePointer(
           child: Container(
-            color: Colors.black.withValues(alpha: opacity * 0.5),
+            color: SeedlingColors.background.withValues(alpha: opacity * 0.7),
             child: Center(
               child: Transform.scale(
                 scale: scale,
@@ -69,7 +69,7 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
                       gradient: LinearGradient(
                         colors: [
                           SeedlingColors.sunlight,
-                          Colors.orange.shade300,
+                          SeedlingColors.sunlight.withValues(alpha: 0.8),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(30),
@@ -92,7 +92,7 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
                         Text(
                           'Achievement Unlocked!',
                           style: SeedlingTypography.heading2.copyWith(
-                            color: Colors.white,
+                            color: SeedlingColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 15),
@@ -112,14 +112,14 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
                               Text(
                                 widget.achievement.title,
                                 style: SeedlingTypography.heading3.copyWith(
-                                  color: Colors.white,
+                                  color: SeedlingColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 5),
                               Text(
                                 widget.achievement.description,
                                 style: SeedlingTypography.body.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -168,7 +168,7 @@ class AchievementBurstPainter extends CustomPainter {
       Offset(cx, cy), 
       ringRadius * 0.8, 
       Paint()
-        ..color = const Color(0xFFFFD166).withValues(alpha: ringAlpha * 0.3)
+        ..color = SeedlingColors.sunlight.withValues(alpha: ringAlpha * 0.35)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 10.0 * ringAlpha
     );
@@ -187,8 +187,8 @@ class AchievementBurstPainter extends CustomPainter {
         ..shader = ui.Gradient.radial(
           Offset.zero, rayLength,
           [
-            Colors.white.withValues(alpha: rayAlpha),
-            Colors.white.withValues(alpha: 0.0),
+            SeedlingColors.textPrimary.withValues(alpha: rayAlpha),
+            SeedlingColors.textPrimary.withValues(alpha: 0.0),
           ]
         )
         ..style = PaintingStyle.fill;

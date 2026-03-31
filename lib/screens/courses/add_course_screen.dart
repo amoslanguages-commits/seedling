@@ -59,15 +59,15 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: SeedlingColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(Icons.close_rounded, color: SeedlingColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('New Course', style: SeedlingTypography.heading3),
+        title: Text('New Course', style: SeedlingTypography.heading3),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -82,7 +82,7 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                 const SizedBox(height: 28),
               ],
 
-              const Text('I speak', style: SeedlingTypography.caption),
+              Text('I speak', style: SeedlingTypography.caption),
               const SizedBox(height: 8),
               _LanguagePicker(
                 selected: _native,
@@ -93,7 +93,7 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
 
               const SizedBox(height: 20),
 
-              const Text('I want to learn', style: SeedlingTypography.caption),
+              Text('I want to learn', style: SeedlingTypography.caption),
               const SizedBox(height: 8),
               _LanguagePicker(
                 selected: _target,
@@ -111,8 +111,9 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                   onPressed: (_target != null && !_saving) ? _save : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: SeedlingColors.seedlingGreen,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade200,
+                    foregroundColor: SeedlingColors.textPrimary,
+                    disabledBackgroundColor: SeedlingColors.cardBackground,
+                    disabledForegroundColor: SeedlingColors.textSecondary.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24)),
                     elevation: 0,
@@ -123,7 +124,7 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: SeedlingColors.textPrimary,
                           ),
                         )
                       : const Text('Start Learning',
@@ -232,9 +233,9 @@ class _LanguagePicker extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
@@ -254,10 +255,10 @@ class _LanguagePicker extends StatelessWidget {
               Expanded(
                 child: Text(hint,
                     style: SeedlingTypography.body
-                        .copyWith(color: Colors.grey.shade400)),
+                      .copyWith(color: SeedlingColors.textSecondary)),
               ),
-            Icon(Icons.keyboard_arrow_down_rounded,
-                color: Colors.grey.shade400),
+            const Icon(Icons.keyboard_arrow_down_rounded,
+                color: SeedlingColors.textSecondary),
           ],
         ),
       ),
@@ -308,7 +309,7 @@ class _LanguagePickerSheetState extends State<_LanguagePickerSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.75,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: SeedlingColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -319,7 +320,7 @@ class _LanguagePickerSheetState extends State<_LanguagePickerSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: SeedlingColors.cardBackground,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -330,9 +331,10 @@ class _LanguagePickerSheetState extends State<_LanguagePickerSheet> {
               onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
                 hintText: 'Search language…',
-                prefixIcon: const Icon(Icons.search_rounded),
+                hintStyle: const TextStyle(color: SeedlingColors.textSecondary),
+                prefixIcon: const Icon(Icons.search_rounded, color: SeedlingColors.textSecondary),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: SeedlingColors.cardBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,

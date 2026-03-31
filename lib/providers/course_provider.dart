@@ -8,7 +8,7 @@ class CourseState {
   final List<Course> courses;
   final String? activeCourseId;
 
-  const CourseState({this.courses = const [], this.activeCourseId});
+  CourseState({this.courses = const [], this.activeCourseId});
 
   Course? get activeCourse {
     if (activeCourseId == null) return null;
@@ -32,7 +32,7 @@ class CourseNotifier extends StateNotifier<CourseState> {
   static const _coursesKey = 'courses_v1';
   static const _activeKey = 'active_course_id';
 
-  CourseNotifier() : super(const CourseState()) {
+  CourseNotifier() : super(CourseState()) {
     _load();
   }
 
@@ -53,7 +53,7 @@ class CourseNotifier extends StateNotifier<CourseState> {
     }
 
     // Default: Return empty state
-    state = const CourseState(courses: [], activeCourseId: null);
+    state = CourseState(courses: [], activeCourseId: null);
     await _persist();
   }
 

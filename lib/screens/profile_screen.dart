@@ -6,15 +6,12 @@ import '../core/colors.dart';
 import '../core/typography.dart';
 import '../services/auth_service.dart';
 import '../services/subscription_service.dart';
-import '../services/sync_manager.dart';
-import '../services/cloud_backup_service.dart';
 import '../models/gamification.dart';
 import '../database/database_helper.dart';
 import '../widgets/gamification_widgets.dart';
 import '../providers/app_providers.dart';
 import 'auth/auth_screen.dart';
 import 'settings.dart';
-import 'settings/subscription_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -134,8 +131,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            SeedlingColors.freshSprout,
-            SeedlingColors.seedlingGreen,
+            SeedlingColors.background,
+            SeedlingColors.deepRoot,
           ],
         ),
       ),
@@ -148,7 +145,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
+                  icon: const Icon(Icons.settings, color: SeedlingColors.textSecondary),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -166,14 +163,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: SeedlingColors.cardBackground,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
+                    border: Border.all(color: SeedlingColors.seedlingGreen, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
@@ -197,12 +194,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                        color: Colors.amber,
+                        color: SeedlingColors.sunlight,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.star,
-                        color: Colors.white,
+                        color: SeedlingColors.textPrimary,
                         size: 16,
                       ),
                     ),
@@ -215,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ? (user?.userMetadata?['display_name'] ?? 'Learner')
                   : 'Guest Learner',
               style: SeedlingTypography.heading2.copyWith(
-                color: Colors.white,
+                color: SeedlingColors.textPrimary,
               ),
             ),
             const SizedBox(height: 5),
@@ -224,7 +221,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ? (user?.email ?? '')
                   : 'Sign in to sync your progress',
               style: SeedlingTypography.body.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: SeedlingColors.textSecondary,
               ),
             ),
             if (!isAuthenticated) ...[
@@ -237,8 +234,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: SeedlingColors.seedlingGreen,
+                  backgroundColor: SeedlingColors.seedlingGreen,
+                  foregroundColor: SeedlingColors.textPrimary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 30,
                     vertical: 12,
@@ -301,42 +298,6 @@ class _OverviewTab extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 30),
-        const Text(
-          'Quick Actions',
-          style: SeedlingTypography.heading3,
-        ),
-        const SizedBox(height: 15),
-        _buildActionTile(
-          context,
-          Icons.cloud_sync,
-          'Sync Progress',
-          'Last synced: 5 min ago',
-          () => _manualSync(context),
-        ),
-        _buildActionTile(
-          context,
-          Icons.backup,
-          'Create Backup',
-          'Save to cloud storage',
-          () => _createBackup(context),
-        ),
-        if (!SubscriptionService().isPremium)
-          _buildActionTile(
-            context,
-            Icons.star,
-            'Upgrade to Premium',
-            'Unlock all features',
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SubscriptionScreen(),
-                ),
-              );
-            },
-            isPremium: true,
-          ),
       ],
     );
   }
@@ -350,7 +311,7 @@ class _OverviewTab extends StatelessWidget {
           gradient: LinearGradient(
             colors: [
               SeedlingColors.sunlight,
-              Colors.orange.shade300,
+              SeedlingColors.sunlight.withValues(alpha: 0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
@@ -372,13 +333,14 @@ class _OverviewTab extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: SeedlingColors.background.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         'Lv. ${data.level}',
                         style: SeedlingTypography.heading2.copyWith(
-                          color: Colors.orange.shade700,
+                          color: SeedlingColors.textPrimary,
                         ),
                       ),
                     ),
@@ -389,13 +351,13 @@ class _OverviewTab extends StatelessWidget {
                         Text(
                           'Level ${data.level}',
                           style: SeedlingTypography.heading3.copyWith(
-                            color: Colors.white,
+                            color: SeedlingColors.textPrimary,
                           ),
                         ),
                         Text(
                           '${data.xpForNextLevel - data.currentXP} XP to next level',
                           style: SeedlingTypography.caption.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -405,7 +367,7 @@ class _OverviewTab extends StatelessWidget {
                 Text(
                   '${(progress * 100).toInt()}%',
                   style: SeedlingTypography.heading2.copyWith(
-                    color: Colors.white,
+                    color: SeedlingColors.textPrimary,
                   ),
                 ),
               ],
@@ -415,8 +377,8 @@ class _OverviewTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: Colors.white.withValues(alpha: 0.3),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                backgroundColor: SeedlingColors.textPrimary.withValues(alpha: 0.2),
+                valueColor: const AlwaysStoppedAnimation<Color>(SeedlingColors.textPrimary),
                 minHeight: 12,
               ),
             ),
@@ -424,7 +386,7 @@ class _OverviewTab extends StatelessWidget {
             Text(
               '${data.currentXP} / ${data.xpForNextLevel} XP',
               style: SeedlingTypography.caption.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
               ),
             ),
           ],
@@ -472,12 +434,12 @@ class _OverviewTab extends StatelessWidget {
                           margin: const EdgeInsets.only(right: 6),
                           decoration: BoxDecoration(
                             color: isActive 
-                                ? Colors.orange 
-                                : Colors.grey.shade300,
+                                ? SeedlingColors.sunlight 
+                                : SeedlingColors.background.withValues(alpha: 0.5),
                             shape: BoxShape.circle,
                           ),
                           child: isActive 
-                              ? const Icon(Icons.check, color: Colors.white, size: 12)
+                              ? const Icon(Icons.check, color: SeedlingColors.deepRoot, size: 12)
                               : null,
                         );
                       }),
@@ -514,149 +476,6 @@ class _OverviewTab extends StatelessWidget {
         ),
       );
   }
-
-  Widget _buildActionTile(
-      BuildContext context,
-      IconData icon,
-      String title,
-      String subtitle,
-      VoidCallback onTap, {
-      bool isPremium = false,
-    }) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isPremium
-                ? SeedlingColors.sunlight.withValues(alpha: 0.1)
-                : SeedlingColors.cardBackground,
-            borderRadius: BorderRadius.circular(16),
-            border: isPremium
-                ? Border.all(color: SeedlingColors.sunlight)
-                : null,
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isPremium
-                      ? SeedlingColors.sunlight.withValues(alpha: 0.3)
-                      : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: isPremium ? Colors.orange : SeedlingColors.seedlingGreen,
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: SeedlingTypography.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (isPremium) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: SeedlingColors.sunlight,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'PRO',
-                              style: SeedlingTypography.caption.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      subtitle,
-                      style: SeedlingTypography.caption,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: SeedlingColors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      );
-  }
-
-  Future<void> _manualSync(BuildContext context) async {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-      
-      await SyncManager().syncToCloud();
-      
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sync completed!')),
-        );
-      }
-  }
-
-  Future<void> _createBackup(BuildContext context) async {
-    if (!AuthService().isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to create backups')),
-      );
-      return;
-    }
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-    
-    try {
-      await CloudBackupService().createBackup();
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup created successfully!')),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
-    }
-  }
 }
 
 class _AchievementsTab extends StatelessWidget {
@@ -690,14 +509,14 @@ class _AchievementsTab extends StatelessWidget {
                     Text(
                       'Achievement Progress',
                       style: SeedlingTypography.body.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: SeedlingColors.background.withValues(alpha: 0.9),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '$unlockedCount / ${achievements.length}',
                       style: SeedlingTypography.heading1.copyWith(
-                        color: Colors.white,
+                        color: SeedlingColors.background,
                       ),
                     ),
                   ],
@@ -705,8 +524,8 @@ class _AchievementsTab extends StatelessWidget {
               ),
               CircularProgressIndicator(
                 value: unlockedCount / achievements.length,
-                backgroundColor: Colors.white.withValues(alpha: 0.3),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                backgroundColor: SeedlingColors.background.withValues(alpha: 0.2),
+                valueColor: const AlwaysStoppedAnimation<Color>(SeedlingColors.sunlight),
                 strokeWidth: 8,
               ),
             ],
@@ -741,10 +560,10 @@ class _ActivityTab extends ConsumerWidget {
          if (words.isEmpty) {
            return ListView(
              padding: const EdgeInsets.all(20),
-             children: const [
+             children: [
                Text('Recent Activity', style: SeedlingTypography.heading3),
-               SizedBox(height: 15),
-               Text('No recent activity yet. Keep learning!'),
+               const SizedBox(height: 15),
+               const Text('No recent activity yet. Keep learning!'),
              ],
            );
          }
@@ -772,7 +591,7 @@ class _ActivityTab extends ConsumerWidget {
          return ListView(
            padding: const EdgeInsets.all(20),
            children: [
-             const Text(
+             Text(
                'Recent Activity',
                style: SeedlingTypography.heading3,
              ),

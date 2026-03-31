@@ -157,7 +157,7 @@ class SemanticCategory {
   final int difficulty;
   final List<String> commonPOS;
 
-  const SemanticCategory({
+  SemanticCategory({
     required this.id,
     required this.name,
     required this.icon,
@@ -173,565 +173,625 @@ class SemanticCategory {
 
 class CategoryTaxonomy {
   static final Map<String, SemanticCategory> _categories = {
-
-    // ══════════════════════════════════════════════════════════════
-    // ROOT CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'people': const SemanticCategory(
+    // ================== ROOT THEMES ==================
+    'people': SemanticCategory(
       id: 'people',
       name: 'People',
       icon: '👥',
-      color: Color(0xFF64B5F6),
-      childIds: ['relationships', 'roles', 'identity', 'demographics', 'health_status', 'personal_traits'],
+      color: const Color(0xFF64B5F6),
+      childIds: ['identity', 'relationships', 'roles', 'traits', 'emotions', 'health'],
     ),
-    'society': const SemanticCategory(
-      id: 'society',
-      name: 'Society',
-      icon: '🏛️',
-      color: Color(0xFF9575CD),
-      childIds: ['work_business', 'economy_finance', 'government_politics', 'law_justice', 'education', 'military_security', 'religion_belief', 'media_public_life'],
+    'daily_life': SemanticCategory(
+      id: 'daily_life',
+      name: 'Daily Life',
+      icon: '🌅',
+      color: const Color(0xFFF06292),
+      childIds: ['activities', 'household', 'shopping', 'communication'],
     ),
-    'physical_world': const SemanticCategory(
-      id: 'physical_world',
-      name: 'Physical World',
-      icon: '🌍',
-      color: Color(0xFF81C784),
-      childIds: ['places', 'nature', 'body', 'objects', 'housing', 'materials', 'systems', 'food_drink', 'clothing_items'],
-    ),
-    'activity': const SemanticCategory(
-      id: 'activity',
-      name: 'Activity',
-      icon: '🏃',
-      color: Color(0xFFE57373),
-      childIds: ['movement', 'communication', 'social_interaction', 'work_actions', 'leisure_entertainment', 'consumption', 'creation', 'destruction', 'perception', 'possession', 'change_transformation', 'control_causation'],
-      commonPOS: ['verb'],
-    ),
-    'abstract': const SemanticCategory(
-      id: 'abstract',
-      name: 'Abstract',
-      icon: '💭',
-      color: Color(0xFFBA68C8),
-      childIds: ['general_concepts', 'structure_systems', 'quality', 'quantity', 'degree_intensity', 'direction_position', 'emotion', 'cognition', 'possibility_certainty', 'value_judgment', 'cause_effect', 'condition_state'],
-      commonPOS: ['noun', 'adjective'],
-    ),
-    'language': const SemanticCategory(
-      id: 'language',
-      name: 'Language',
-      icon: '🔤',
-      color: Color(0xFF90A4AE),
-      childIds: ['words_units', 'grammar', 'communication_concepts', 'text_discourse'],
-      commonPOS: ['noun', 'pronoun', 'conjunction', 'preposition'],
-      difficulty: 3,
-    ),
-    'time': const SemanticCategory(
-      id: 'time',
-      name: 'Time',
-      icon: '⏰',
-      color: Color(0xFF4DD0E1),
-      childIds: ['time_points', 'duration', 'frequency', 'sequence', 'experience', 'time_relations'],
-      commonPOS: ['noun', 'adverb'],
-    ),
-
-    // ══════════════════════════════════════════════════════════════
-    // PEOPLE SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'relationships': const SemanticCategory(
-      id: 'relationships',
-      name: 'Relationships',
-      icon: '💕',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-    ),
-    'roles': const SemanticCategory(
-      id: 'roles',
-      name: 'Roles',
-      icon: '🎭',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-    ),
-    'identity': const SemanticCategory(
-      id: 'identity',
-      name: 'Identity',
-      icon: '🪪',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-    ),
-    'demographics': const SemanticCategory(
-      id: 'demographics',
-      name: 'Demographics',
-      icon: '📊',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-    ),
-    'health_status': const SemanticCategory(
-      id: 'health_status',
-      name: 'Health Status',
-      icon: '🏥',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-    ),
-    'personal_traits': const SemanticCategory(
-      id: 'personal_traits',
-      name: 'Personal Traits',
-      icon: '⭐',
-      color: Color(0xFF64B5F6),
-      parentIds: ['people'],
-      commonPOS: ['adjective', 'noun'],
-    ),
-
-    // ══════════════════════════════════════════════════════════════
-    // SOCIETY SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'work_business': const SemanticCategory(
-      id: 'work_business',
-      name: 'Work & Business',
-      icon: '💼',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 2,
-    ),
-    'economy_finance': const SemanticCategory(
-      id: 'economy_finance',
-      name: 'Economy & Finance',
-      icon: '💰',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 3,
-    ),
-    'government_politics': const SemanticCategory(
-      id: 'government_politics',
-      name: 'Government & Politics',
-      icon: '🏛️',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 3,
-    ),
-    'law_justice': const SemanticCategory(
-      id: 'law_justice',
-      name: 'Law & Justice',
-      icon: '⚖️',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 3,
-    ),
-    'education': const SemanticCategory(
-      id: 'education',
-      name: 'Education',
-      icon: '📚',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 2,
-    ),
-    'military_security': const SemanticCategory(
-      id: 'military_security',
-      name: 'Military & Security',
-      icon: '🛡️',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 3,
-    ),
-    'religion_belief': const SemanticCategory(
-      id: 'religion_belief',
-      name: 'Religion & Belief',
-      icon: '🕌',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 2,
-    ),
-    'media_public_life': const SemanticCategory(
-      id: 'media_public_life',
-      name: 'Media & Public Life',
-      icon: '📺',
-      color: Color(0xFF9575CD),
-      parentIds: ['society'],
-      difficulty: 2,
-    ),
-
-    // ══════════════════════════════════════════════════════════════
-    // PHYSICAL WORLD SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'places': const SemanticCategory(
-      id: 'places',
-      name: 'Places',
-      icon: '📍',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'nature': const SemanticCategory(
-      id: 'nature',
-      name: 'Nature',
-      icon: '🌿',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'body': const SemanticCategory(
-      id: 'body',
-      name: 'Body',
-      icon: '🫀',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'objects': const SemanticCategory(
-      id: 'objects',
-      name: 'Objects',
-      icon: '📦',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'housing': const SemanticCategory(
-      id: 'housing',
-      name: 'Housing',
-      icon: '🏠',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'materials': const SemanticCategory(
-      id: 'materials',
-      name: 'Materials',
-      icon: '🪨',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-    ),
-    'systems': const SemanticCategory(
-      id: 'systems',
-      name: 'Systems',
-      icon: '⚙️',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
-      difficulty: 2,
-    ),
-    'food_drink': const SemanticCategory(
+    'food_drink': SemanticCategory(
       id: 'food_drink',
       name: 'Food & Drink',
       icon: '🍽️',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
+      color: const Color(0xFFFFB74D),
+      childIds: ['fruits', 'vegetables', 'meals', 'drinks', 'cooking', 'taste'],
     ),
-    'clothing_items': const SemanticCategory(
-      id: 'clothing_items',
-      name: 'Clothing & Items',
-      icon: '👕',
-      color: Color(0xFF81C784),
-      parentIds: ['physical_world'],
+    'home_environment': SemanticCategory(
+      id: 'home_environment',
+      name: 'Home & Environment',
+      icon: '🏠',
+      color: const Color(0xFF81C784),
+      childIds: ['house', 'furniture', 'objects', 'nature', 'weather'],
     ),
-
-    // ══════════════════════════════════════════════════════════════
-    // ACTIVITY SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'movement': const SemanticCategory(
-      id: 'movement',
-      name: 'Movement',
-      icon: '🏃',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
+    'education': SemanticCategory(
+      id: 'education',
+      name: 'Education',
+      icon: '📚',
+      color: const Color(0xFF4FC3F7),
+      childIds: ['institutions', 'subjects', 'learning_actions', 'evaluation'],
+    ),
+    'work_business': SemanticCategory(
+      id: 'work_business',
+      name: 'Work & Business',
+      icon: '💼',
+      color: const Color(0xFF9575CD),
+      childIds: ['jobs', 'workplace', 'business', 'finance'],
+    ),
+    'travel_transport': SemanticCategory(
+      id: 'travel_transport',
+      name: 'Travel & Transport',
+      icon: '✈️',
+      color: const Color(0xFF4DD0E1),
+      childIds: ['transport', 'places', 'accommodation', 'travel_actions'],
+    ),
+    'society_government': SemanticCategory(
+      id: 'society_government',
+      name: 'Society & Government',
+      icon: '🏛️',
+      color: const Color(0xFF7986CB),
+      childIds: ['government', 'politics', 'law', 'community'],
+    ),
+    'technology': SemanticCategory(
+      id: 'technology',
+      name: 'Technology',
+      icon: '💻',
+      color: const Color(0xFF90A4AE),
+      childIds: ['devices', 'internet', 'actions', 'digital_life'],
+    ),
+    'time_space': SemanticCategory(
+      id: 'time_space',
+      name: 'Time & Space',
+      icon: '🕰️',
+      color: const Color(0xFFFF8A65),
+      childIds: ['time', 'frequency', 'sequence', 'space'],
+    ),
+    'numbers_measurement': SemanticCategory(
+      id: 'numbers_measurement',
+      name: 'Numbers & Measurement',
+      icon: '🔢',
+      color: const Color(0xFF4DB6AC),
+      childIds: ['numbers', 'quantity', 'measurement', 'comparison'],
+    ),
+    'universal_verbs': SemanticCategory(
+      id: 'universal_verbs',
+      name: 'Universal Verbs',
+      icon: '⚡',
+      color: const Color(0xFFE57373),
+      childIds: ['movement', 'creation', 'thinking', 'change', 'possession', 'existence'],
       commonPOS: ['verb'],
     ),
-    'communication': const SemanticCategory(
+    'descriptions': SemanticCategory(
+      id: 'descriptions',
+      name: 'Descriptions',
+      icon: '🎨',
+      color: const Color(0xFFCE93D8),
+      childIds: ['size', 'color', 'shape', 'speed', 'intensity', 'quality'],
+      commonPOS: ['adjective', 'adverb'],
+    ),
+    'abstract_concepts': SemanticCategory(
+      id: 'abstract_concepts',
+      name: 'Abstract Concepts',
+      icon: '💭',
+      color: const Color(0xFFBA68C8),
+      childIds: ['ideas', 'states', 'systems', 'relationships'],
+      commonPOS: ['noun'],
+    ),
+    'grammar_functions': SemanticCategory(
+      id: 'grammar_functions',
+      name: 'Grammar Functions',
+      icon: '🔧',
+      color: const Color(0xFFB0BEC5),
+      childIds: ['pronouns', 'determiners_articles', 'prepositions', 'adverbs', 'conjunctions', 'auxiliary_modal_verbs', 'particles_markers'],
+      commonPOS: ['pronoun', 'preposition', 'conjunction'],
+    ),
+
+    // ================== SUB THEMES ==================
+    'identity': SemanticCategory(
+      id: 'identity',
+      name: 'Identity',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'relationships': SemanticCategory(
+      id: 'relationships',
+      name: 'Relationships',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'roles': SemanticCategory(
+      id: 'roles',
+      name: 'Roles',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'traits': SemanticCategory(
+      id: 'traits',
+      name: 'Traits',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'emotions': SemanticCategory(
+      id: 'emotions',
+      name: 'Emotions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'health': SemanticCategory(
+      id: 'health',
+      name: 'Health',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF64B5F6),
+      parentIds: ['people'],
+    ),
+    'activities': SemanticCategory(
+      id: 'activities',
+      name: 'Activities',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFF06292),
+      parentIds: ['daily_life'],
+    ),
+    'household': SemanticCategory(
+      id: 'household',
+      name: 'Household',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFF06292),
+      parentIds: ['daily_life'],
+    ),
+    'shopping': SemanticCategory(
+      id: 'shopping',
+      name: 'Shopping',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFF06292),
+      parentIds: ['daily_life'],
+    ),
+    'communication': SemanticCategory(
       id: 'communication',
       name: 'Communication',
-      icon: '💬',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb', 'noun'],
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFF06292),
+      parentIds: ['daily_life'],
     ),
-    'social_interaction': const SemanticCategory(
-      id: 'social_interaction',
-      name: 'Social Interaction',
-      icon: '🤝',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
+    'fruits': SemanticCategory(
+      id: 'fruits',
+      name: 'Fruits',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'work_actions': const SemanticCategory(
-      id: 'work_actions',
-      name: 'Work Actions',
-      icon: '🔨',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
-      difficulty: 2,
+    'vegetables': SemanticCategory(
+      id: 'vegetables',
+      name: 'Vegetables',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'leisure_entertainment': const SemanticCategory(
-      id: 'leisure_entertainment',
-      name: 'Leisure & Fun',
-      icon: '🎮',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb', 'noun'],
+    'meals': SemanticCategory(
+      id: 'meals',
+      name: 'Meals',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'consumption': const SemanticCategory(
-      id: 'consumption',
-      name: 'Consumption',
-      icon: '🛒',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
+    'drinks': SemanticCategory(
+      id: 'drinks',
+      name: 'Drinks',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'creation': const SemanticCategory(
-      id: 'creation',
-      name: 'Creation',
-      icon: '🎨',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
-      difficulty: 2,
+    'cooking': SemanticCategory(
+      id: 'cooking',
+      name: 'Cooking',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'destruction': const SemanticCategory(
-      id: 'destruction',
-      name: 'Destruction',
-      icon: '💥',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
+    'taste': SemanticCategory(
+      id: 'taste',
+      name: 'Taste',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFFB74D),
+      parentIds: ['food_drink'],
     ),
-    'perception': const SemanticCategory(
-      id: 'perception',
-      name: 'Perception',
-      icon: '👁️',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
-      difficulty: 2,
+    'house': SemanticCategory(
+      id: 'house',
+      name: 'House',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF81C784),
+      parentIds: ['home_environment'],
     ),
-    'possession': const SemanticCategory(
-      id: 'possession',
-      name: 'Possession',
-      icon: '🤲',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
+    'furniture': SemanticCategory(
+      id: 'furniture',
+      name: 'Furniture',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF81C784),
+      parentIds: ['home_environment'],
     ),
-    'change_transformation': const SemanticCategory(
-      id: 'change_transformation',
-      name: 'Change',
-      icon: '🔄',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
-      difficulty: 2,
+    'objects': SemanticCategory(
+      id: 'objects',
+      name: 'Objects',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF81C784),
+      parentIds: ['home_environment'],
     ),
-    'control_causation': const SemanticCategory(
-      id: 'control_causation',
-      name: 'Control',
-      icon: '🎛️',
-      color: Color(0xFFE57373),
-      parentIds: ['activity'],
-      commonPOS: ['verb'],
-      difficulty: 2,
+    'nature': SemanticCategory(
+      id: 'nature',
+      name: 'Nature',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF81C784),
+      parentIds: ['home_environment'],
     ),
-
-    // ══════════════════════════════════════════════════════════════
-    // ABSTRACT SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'general_concepts': const SemanticCategory(
-      id: 'general_concepts',
-      name: 'General Concepts',
-      icon: '💡',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['noun'],
+    'weather': SemanticCategory(
+      id: 'weather',
+      name: 'Weather',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF81C784),
+      parentIds: ['home_environment'],
     ),
-    'structure_systems': const SemanticCategory(
-      id: 'structure_systems',
-      name: 'Structure',
-      icon: '🧱',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['noun'],
-      difficulty: 2,
+    'institutions': SemanticCategory(
+      id: 'institutions',
+      name: 'Institutions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4FC3F7),
+      parentIds: ['education'],
     ),
-    'quality': const SemanticCategory(
-      id: 'quality',
-      name: 'Quality',
-      icon: '✨',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['adjective', 'adverb'],
-      difficulty: 2,
+    'subjects': SemanticCategory(
+      id: 'subjects',
+      name: 'Subjects',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4FC3F7),
+      parentIds: ['education'],
     ),
-    'quantity': const SemanticCategory(
-      id: 'quantity',
-      name: 'Quantity',
-      icon: '🔢',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['numeral', 'adjective'],
+    'learning_actions': SemanticCategory(
+      id: 'learning_actions',
+      name: 'Learning Actions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4FC3F7),
+      parentIds: ['education'],
     ),
-    'degree_intensity': const SemanticCategory(
-      id: 'degree_intensity',
-      name: 'Degree & Intensity',
-      icon: '📈',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['adverb'],
-      difficulty: 2,
+    'evaluation': SemanticCategory(
+      id: 'evaluation',
+      name: 'Evaluation',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4FC3F7),
+      parentIds: ['education'],
     ),
-    'direction_position': const SemanticCategory(
-      id: 'direction_position',
-      name: 'Direction & Position',
-      icon: '🧭',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['preposition', 'adverb'],
+    'jobs': SemanticCategory(
+      id: 'jobs',
+      name: 'Jobs',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF9575CD),
+      parentIds: ['work_business'],
     ),
-    'emotion': const SemanticCategory(
-      id: 'emotion',
-      name: 'Emotion',
-      icon: '😊',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['noun', 'adjective'],
+    'workplace': SemanticCategory(
+      id: 'workplace',
+      name: 'Workplace',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF9575CD),
+      parentIds: ['work_business'],
     ),
-    'cognition': const SemanticCategory(
-      id: 'cognition',
-      name: 'Cognition',
-      icon: '🧠',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['noun', 'verb'],
-      difficulty: 3,
+    'business': SemanticCategory(
+      id: 'business',
+      name: 'Business',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF9575CD),
+      parentIds: ['work_business'],
     ),
-    'possibility_certainty': const SemanticCategory(
-      id: 'possibility_certainty',
-      name: 'Possibility',
-      icon: '🎲',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['adverb', 'adjective'],
-      difficulty: 3,
+    'finance': SemanticCategory(
+      id: 'finance',
+      name: 'Finance',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF9575CD),
+      parentIds: ['work_business'],
     ),
-    'value_judgment': const SemanticCategory(
-      id: 'value_judgment',
-      name: 'Value & Judgment',
-      icon: '⚖️',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['adjective', 'noun'],
-      difficulty: 2,
+    'transport': SemanticCategory(
+      id: 'transport',
+      name: 'Transport',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DD0E1),
+      parentIds: ['travel_transport'],
     ),
-    'cause_effect': const SemanticCategory(
-      id: 'cause_effect',
-      name: 'Cause & Effect',
-      icon: '🔗',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['conjunction', 'noun'],
-      difficulty: 3,
+    'places': SemanticCategory(
+      id: 'places',
+      name: 'Places',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DD0E1),
+      parentIds: ['travel_transport'],
     ),
-    'condition_state': const SemanticCategory(
-      id: 'condition_state',
-      name: 'Condition & State',
-      icon: '🌡️',
-      color: Color(0xFFBA68C8),
-      parentIds: ['abstract'],
-      commonPOS: ['adjective', 'noun'],
-      difficulty: 2,
+    'accommodation': SemanticCategory(
+      id: 'accommodation',
+      name: 'Accommodation',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DD0E1),
+      parentIds: ['travel_transport'],
     ),
-
-    // ══════════════════════════════════════════════════════════════
-    // LANGUAGE SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'words_units': const SemanticCategory(
-      id: 'words_units',
-      name: 'Words & Units',
-      icon: '🔤',
-      color: Color(0xFF90A4AE),
-      parentIds: ['language'],
-      commonPOS: ['noun'],
+    'travel_actions': SemanticCategory(
+      id: 'travel_actions',
+      name: 'Travel Actions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DD0E1),
+      parentIds: ['travel_transport'],
     ),
-    'grammar': const SemanticCategory(
-      id: 'grammar',
-      name: 'Grammar',
-      icon: '📝',
-      color: Color(0xFF90A4AE),
-      parentIds: ['language'],
-      commonPOS: ['pronoun', 'preposition', 'conjunction', 'particle'],
-      difficulty: 3,
+    'government': SemanticCategory(
+      id: 'government',
+      name: 'Government',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF7986CB),
+      parentIds: ['society_government'],
     ),
-    'communication_concepts': const SemanticCategory(
-      id: 'communication_concepts',
-      name: 'Communication',
-      icon: '📡',
-      color: Color(0xFF90A4AE),
-      parentIds: ['language'],
-      commonPOS: ['noun', 'verb'],
-      difficulty: 2,
+    'politics': SemanticCategory(
+      id: 'politics',
+      name: 'Politics',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF7986CB),
+      parentIds: ['society_government'],
     ),
-    'text_discourse': const SemanticCategory(
-      id: 'text_discourse',
-      name: 'Text & Discourse',
-      icon: '📄',
-      color: Color(0xFF90A4AE),
-      parentIds: ['language'],
-      commonPOS: ['noun'],
-      difficulty: 3,
+    'law': SemanticCategory(
+      id: 'law',
+      name: 'Law',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF7986CB),
+      parentIds: ['society_government'],
     ),
-
-    // ══════════════════════════════════════════════════════════════
-    // TIME SUB-CATEGORIES
-    // ══════════════════════════════════════════════════════════════
-
-    'time_points': const SemanticCategory(
-      id: 'time_points',
-      name: 'Time Points',
-      icon: '📅',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['noun', 'adverb'],
+    'community': SemanticCategory(
+      id: 'community',
+      name: 'Community',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF7986CB),
+      parentIds: ['society_government'],
     ),
-    'duration': const SemanticCategory(
-      id: 'duration',
-      name: 'Duration',
-      icon: '⏱️',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['noun', 'adverb'],
+    'devices': SemanticCategory(
+      id: 'devices',
+      name: 'Devices',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF90A4AE),
+      parentIds: ['technology'],
     ),
-    'frequency': const SemanticCategory(
+    'internet': SemanticCategory(
+      id: 'internet',
+      name: 'Internet',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF90A4AE),
+      parentIds: ['technology'],
+    ),
+    'actions': SemanticCategory(
+      id: 'actions',
+      name: 'Actions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF90A4AE),
+      parentIds: ['technology'],
+    ),
+    'digital_life': SemanticCategory(
+      id: 'digital_life',
+      name: 'Digital Life',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF90A4AE),
+      parentIds: ['technology'],
+    ),
+    'time': SemanticCategory(
+      id: 'time',
+      name: 'Time',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFF8A65),
+      parentIds: ['time_space'],
+    ),
+    'frequency': SemanticCategory(
       id: 'frequency',
       name: 'Frequency',
-      icon: '🔁',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['adverb'],
-      difficulty: 2,
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFF8A65),
+      parentIds: ['time_space'],
     ),
-    'sequence': const SemanticCategory(
+    'sequence': SemanticCategory(
       id: 'sequence',
       name: 'Sequence',
-      icon: '1️⃣',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['adverb', 'noun'],
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFF8A65),
+      parentIds: ['time_space'],
     ),
-    'experience': const SemanticCategory(
-      id: 'experience',
-      name: 'Experience',
-      icon: '🌟',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['noun', 'verb'],
-      difficulty: 2,
+    'space': SemanticCategory(
+      id: 'space',
+      name: 'Space',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFFF8A65),
+      parentIds: ['time_space'],
     ),
-    'time_relations': const SemanticCategory(
-      id: 'time_relations',
-      name: 'Time Relations',
-      icon: '🔀',
-      color: Color(0xFF4DD0E1),
-      parentIds: ['time'],
-      commonPOS: ['preposition', 'conjunction'],
-      difficulty: 2,
+    'numbers': SemanticCategory(
+      id: 'numbers',
+      name: 'Numbers',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DB6AC),
+      parentIds: ['numbers_measurement'],
+    ),
+    'quantity': SemanticCategory(
+      id: 'quantity',
+      name: 'Quantity',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DB6AC),
+      parentIds: ['numbers_measurement'],
+    ),
+    'measurement': SemanticCategory(
+      id: 'measurement',
+      name: 'Measurement',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DB6AC),
+      parentIds: ['numbers_measurement'],
+    ),
+    'comparison': SemanticCategory(
+      id: 'comparison',
+      name: 'Comparison',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFF4DB6AC),
+      parentIds: ['numbers_measurement'],
+    ),
+    'movement': SemanticCategory(
+      id: 'movement',
+      name: 'Movement',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'creation': SemanticCategory(
+      id: 'creation',
+      name: 'Creation',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'thinking': SemanticCategory(
+      id: 'thinking',
+      name: 'Thinking',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'change': SemanticCategory(
+      id: 'change',
+      name: 'Change',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'possession': SemanticCategory(
+      id: 'possession',
+      name: 'Possession',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'existence': SemanticCategory(
+      id: 'existence',
+      name: 'Existence',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFE57373),
+      parentIds: ['universal_verbs'],
+    ),
+    'size': SemanticCategory(
+      id: 'size',
+      name: 'Size',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'color': SemanticCategory(
+      id: 'color',
+      name: 'Color',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'shape': SemanticCategory(
+      id: 'shape',
+      name: 'Shape',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'speed': SemanticCategory(
+      id: 'speed',
+      name: 'Speed',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'intensity': SemanticCategory(
+      id: 'intensity',
+      name: 'Intensity',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'quality': SemanticCategory(
+      id: 'quality',
+      name: 'Quality',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFCE93D8),
+      parentIds: ['descriptions'],
+    ),
+    'ideas': SemanticCategory(
+      id: 'ideas',
+      name: 'Ideas',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFBA68C8),
+      parentIds: ['abstract_concepts'],
+    ),
+    'states': SemanticCategory(
+      id: 'states',
+      name: 'States',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFBA68C8),
+      parentIds: ['abstract_concepts'],
+    ),
+    'systems': SemanticCategory(
+      id: 'systems',
+      name: 'Systems',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFBA68C8),
+      parentIds: ['abstract_concepts'],
+    ),
+    'pronouns': SemanticCategory(
+      id: 'pronouns',
+      name: 'Pronouns',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'determiners_articles': SemanticCategory(
+      id: 'determiners_articles',
+      name: 'Determiners & Articles',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'prepositions': SemanticCategory(
+      id: 'prepositions',
+      name: 'Prepositions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'adverbs': SemanticCategory(
+      id: 'adverbs',
+      name: 'Adverbs',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'conjunctions': SemanticCategory(
+      id: 'conjunctions',
+      name: 'Conjunctions',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'auxiliary_modal_verbs': SemanticCategory(
+      id: 'auxiliary_modal_verbs',
+      name: 'Auxiliary & Modal Verbs',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
+    ),
+    'particles_markers': SemanticCategory(
+      id: 'particles_markers',
+      name: 'Particles & Markers',
+      icon: '🌱', // Sub-themes can just use a leaf 
+      color: const Color(0xFFB0BEC5),
+      parentIds: ['grammar_functions'],
     ),
   };
 
   static SemanticCategory? getCategory(String id) => _categories[id];
+  
+  static SemanticCategory? getTheme(String domainName) {
+    return _categories.values.firstWhere(
+      (c) => c.isRoot && c.name.toLowerCase() == domainName.toLowerCase(),
+      orElse: () => _categories.values.first,
+    );
+  }
 
   static List<SemanticCategory> getRootCategories() {
     return _categories.values.where((c) => c.isRoot).toList();
@@ -747,6 +807,5 @@ class CategoryTaxonomy {
     return _categories.values.toList();
   }
 
-  /// Returns only root categories for the PATHWAYS overview
   static List<SemanticCategory> getPathwayCategories() => getRootCategories();
 }

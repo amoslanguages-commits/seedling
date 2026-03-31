@@ -96,161 +96,191 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
   
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Growing Plant Visualization
-        Expanded(
-          flex: 2,
-          child: AnimatedBuilder(
-            animation: Listenable.merge([
-              _plantGrowthController, 
-              _shakeController
-            ]),
-            builder: (context, child) {
-              final shakeOffset = math.sin(_shakeController.value * math.pi * 8.0) * 10.0 * (1.0 - _shakeController.value);
-              
-              return Transform.translate(
-                offset: Offset(shakeOffset, 0),
-                child: CustomPaint(
-                  size: const Size(double.infinity, 250),
-                  painter: GrowingPlantPainter(
-                    growthProgress: _currentGrowth + (_plantGrowthController.value * 0.7),
-                    isWilting: _selectedIndex != null && 
-                               widget.options[_selectedIndex!] != widget.word.translation,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxHeight < 620;
+        final plantFlex = isSmallScreen ? 1 : 2;
+        final spacing = isSmallScreen ? 16.0 : 30.0;
         
-        // Word Display
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
-          decoration: BoxDecoration(
-            color: SeedlingColors.cardBackground,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+        return Column(
+          children: [
+            // Growing Plant Visualization
+            Expanded(
+              flex: plantFlex,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([
+                  _plantGrowthController, 
+                  _shakeController
+                ]),
+                builder: (context, child) {
+                  final shakeOffset = math.sin(_shakeController.value * math.pi * 8.0) * 10.0 * (1.0 - _shakeController.value);
+                  
+                  return Transform.translate(
+                    offset: Offset(shakeOffset, 0),
+                    child: CustomPaint(
+                      size: Size(double.infinity, isSmallScreen ? 140 : 250),
+                      painter: GrowingPlantPainter(
+                        growthProgress: _currentGrowth + (_plantGrowthController.value * 0.7),
+                        isWilting: _selectedIndex != null && 
+                                   widget.options[_selectedIndex!] != widget.word.translation,
+                      ),
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text(
-                'What does this mean?',
-                style: SeedlingTypography.caption,
+            ),
+            
+            // Word Display
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 30, 
+                vertical: isSmallScreen ? 12 : 20
               ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  TargetWordDisplay(word: widget.word, style: SeedlingTypography.heading1.copyWith(fontSize: 36)),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen),
-                    onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+              decoration: BoxDecoration(
+                color: SeedlingColors.cardBackground,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              if (widget.word.pronunciation != null) ...[
-                const SizedBox(height: 5),
-                Text(
-                  widget.word.pronunciation!,
-                  style: SeedlingTypography.caption.copyWith(
-                    fontStyle: FontStyle.italic,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'What does this mean?',
+                    style: SeedlingTypography.caption.copyWith(
+                      fontSize: isSmallScreen ? 11 : 12,
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 30),
-        
-        // Options list
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: widget.options.asMap().entries.map((entry) {
-              final index = entry.key;
-              final option = entry.value;
-              final isSelected = _selectedIndex == index;
-              final isCorrect = option == widget.word.translation;
-              
-              Color bgColor = SeedlingColors.cardBackground;
-              Color borderColor = SeedlingColors.morningDew.withValues(alpha: 0.3);
-              
-              if (_hasAnswered) {
-                if (isCorrect) {
-                  bgColor = SeedlingColors.success.withValues(alpha: 0.2);
-                  borderColor = SeedlingColors.success;
-                } else if (isSelected && !isCorrect) {
-                  bgColor = SeedlingColors.error.withValues(alpha: 0.2);
-                  borderColor = SeedlingColors.error;
-                }
-              } else if (isSelected) {
-                bgColor = SeedlingColors.seedlingGreen.withValues(alpha: 0.1);
-                borderColor = SeedlingColors.seedlingGreen;
-              }
-              
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  onTap: () => _handleAnswer(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: borderColor,
-                        width: isSelected || (_hasAnswered && isCorrect) ? 2.0 : 1.0,
+                  SizedBox(height: isSmallScreen ? 4 : 10),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      TargetWordDisplay(
+                        word: widget.word, 
+                        style: SeedlingTypography.heading1.copyWith(
+                          fontSize: isSmallScreen ? 28 : 36
+                        )
                       ),
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ] : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            option,
-                            style: SeedlingTypography.bodyLarge.copyWith(
-                              color: _hasAnswered && !isCorrect && isSelected
-                                  ? SeedlingColors.error
-                                  : SeedlingColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (_hasAnswered && isCorrect)
-                          const Icon(
-                            Icons.check_circle,
-                            color: SeedlingColors.success,
-                          ),
-                        if (_hasAnswered && isSelected && !isCorrect)
-                          const Icon(
-                            Icons.cancel,
-                            color: SeedlingColors.error,
-                          ),
-                      ],
-                    ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen, size: 24),
+                        onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+                  if (widget.word.pronunciation != null) ...[
+                    SizedBox(height: isSmallScreen ? 2 : 5),
+                    Text(
+                      widget.word.pronunciation!,
+                      style: SeedlingTypography.caption.copyWith(
+                        fontStyle: FontStyle.italic,
+                        fontSize: isSmallScreen ? 11 : 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            
+            SizedBox(height: spacing),
+            
+            // Options list (Column instead of ListView to prevent internal scrolling)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: widget.options.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final option = entry.value;
+                  final isSelected = _selectedIndex == index;
+                  final isCorrect = option == widget.word.translation;
+                  
+                  Color bgColor = SeedlingColors.cardBackground;
+                  Color borderColor = SeedlingColors.morningDew.withValues(alpha: 0.3);
+                  
+                  if (_hasAnswered) {
+                    if (isCorrect) {
+                      bgColor = SeedlingColors.success.withValues(alpha: 0.2);
+                      borderColor = SeedlingColors.success;
+                    } else if (isSelected && !isCorrect) {
+                      bgColor = SeedlingColors.error.withValues(alpha: 0.2);
+                      borderColor = SeedlingColors.error;
+                    }
+                  } else if (isSelected) {
+                    bgColor = SeedlingColors.seedlingGreen.withValues(alpha: 0.1);
+                    borderColor = SeedlingColors.seedlingGreen;
+                  }
+                  
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isSmallScreen ? 8 : 12),
+                    child: GestureDetector(
+                      onTap: () => _handleAnswer(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: EdgeInsets.symmetric(
+                          vertical: isSmallScreen ? 12 : 18, 
+                          horizontal: 24
+                        ),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: borderColor,
+                            width: isSelected || (_hasAnswered && isCorrect) ? 2.0 : 1.0,
+                          ),
+                          boxShadow: isSelected ? [
+                            BoxShadow(
+                              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ] : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                option,
+                                style: SeedlingTypography.bodyLarge.copyWith(
+                                  fontSize: isSmallScreen ? 14 : 16,
+                                  color: _hasAnswered && !isCorrect && isSelected
+                                      ? SeedlingColors.error
+                                      : SeedlingColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            if (_hasAnswered && isCorrect)
+                              const Icon(
+                                Icons.check_circle,
+                                color: SeedlingColors.success,
+                                size: 20,
+                              ),
+                            if (_hasAnswered && isSelected && !isCorrect)
+                              const Icon(
+                                Icons.cancel,
+                                color: SeedlingColors.error,
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            if (!isSmallScreen) const Spacer(),
+          ],
+        );
+      },
     );
   }
 }
@@ -495,12 +525,13 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final isVerySmall = screenSize.height < 620;
     
     return Stack(
       children: [
         // Plant Container (Drop Target)
         Positioned(
-          top: screenSize.height * 0.15,
+          top: screenSize.height * (isVerySmall ? 0.08 : 0.15),
           left: 0,
           right: 0,
           child: DragTarget<String>(
@@ -531,8 +562,8 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
                             Positioned(
                               top: 20,
                               child: Container(
-                                width: 140,
-                                height: 140,
+                                width: isVerySmall ? 100 : 140,
+                                height: isVerySmall ? 100 : 140,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: SeedlingColors.water.withValues(alpha: 0.1),
@@ -544,12 +575,13 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
                               ),
                             ),
                           CustomPaint(
-                            size: Size(screenSize.width, 200),
+                            size: Size(screenSize.width, isVerySmall ? 150 : 200),
                             painter: NourishPlantPainter(
                               nourishmentLevel: isHovering && !_hasAnswered 
                                   ? math.max(0.15, _absorbController.value) 
                                   : _absorbController.value,
                               isRejecting: _rejectController.value > 0,
+                              isVerySmall: isVerySmall,
                             ),
                           ),
                         ],
@@ -564,11 +596,11 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
         
         // Word Display
         Positioned(
-          top: screenSize.height * 0.02,
+          top: screenSize.height * (isVerySmall ? 0.01 : 0.02),
           left: 20,
           right: 20,
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isVerySmall ? 12 : 20),
             decoration: BoxDecoration(
               color: SeedlingColors.cardBackground,
               borderRadius: BorderRadius.circular(16),
@@ -580,24 +612,35 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
               ],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'Drag the meaning to nourish',
-                  style: SeedlingTypography.caption,
+                  style: SeedlingTypography.caption.copyWith(
+                    fontSize: isVerySmall ? 10 : 12
+                  ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: isVerySmall ? 4 : 10),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      widget.word.word,
-                      style: SeedlingTypography.heading1.copyWith(fontSize: 32),
+                    TargetWordDisplay(
+                      word: widget.word, 
+                      style: SeedlingTypography.heading1.copyWith(
+                        fontSize: isVerySmall ? 26 : 32
+                      )
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen),
+                      icon: Icon(
+                        Icons.volume_up_rounded, 
+                        color: SeedlingColors.seedlingGreen,
+                        size: isVerySmall ? 22 : 24,
+                      ),
                       onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
@@ -608,7 +651,7 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
         
         // Draggable Options
         Positioned(
-          bottom: 100,
+          bottom: isVerySmall ? 20 : 100,
           left: 20,
           right: 20,
           child: Column(
@@ -617,7 +660,7 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
               final isDraggingAny = _draggedOption != null;
               
               if (isDragged && _hasAnswered) {
-                return const SizedBox(height: 60);
+                return SizedBox(height: isVerySmall ? 50 : 60);
               }
               
               return Draggable<String>(
@@ -642,9 +685,9 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
                     child: Transform.scale(
                       scale: 1.06,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
-                          vertical: 15,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isVerySmall ? 20 : 30,
+                          vertical: isVerySmall ? 10 : 15,
                         ),
                         decoration: BoxDecoration(
                           color: SeedlingColors.seedlingGreen,
@@ -660,8 +703,9 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
                         child: Text(
                           option,
                           style: SeedlingTypography.bodyLarge.copyWith(
-                            color: Colors.white,
+                            color: SeedlingColors.textPrimary,
                             fontWeight: FontWeight.w700,
+                            fontSize: isVerySmall ? 14 : 16,
                           ),
                         ),
                       ),
@@ -670,12 +714,12 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
                 ),
                 childWhenDragging: Opacity(
                   opacity: 0.0,
-                  child: _buildOptionCard(option),
+                  child: _buildOptionCard(option, isVerySmall),
                 ),
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 200),
                   opacity: (isDraggingAny && !isDragged) ? 0.0 : 1.0,
-                  child: _buildOptionCard(option),
+                  child: _buildOptionCard(option, isVerySmall),
                 ),
               );
             }).toList(),
@@ -685,10 +729,13 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
     );
   }
   
-  Widget _buildOptionCard(String option) {
+  Widget _buildOptionCard(String option, bool isVerySmall) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+      margin: EdgeInsets.only(bottom: isVerySmall ? 8 : 12),
+      padding: EdgeInsets.symmetric(
+        vertical: isVerySmall ? 12 : 18, 
+        horizontal: isVerySmall ? 16 : 24
+      ),
       decoration: BoxDecoration(
         color: SeedlingColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
@@ -706,15 +753,17 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.drag_indicator,
             color: SeedlingColors.textSecondary,
-            size: 20,
+            size: isVerySmall ? 18 : 20,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: isVerySmall ? 8 : 10),
           Text(
             option,
-            style: SeedlingTypography.bodyLarge,
+            style: SeedlingTypography.bodyLarge.copyWith(
+              fontSize: isVerySmall ? 14 : 16
+            ),
           ),
         ],
       ),
@@ -725,10 +774,12 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
 class NourishPlantPainter extends CustomPainter {
   final double nourishmentLevel;
   final bool isRejecting;
+  final bool isVerySmall;
   
   NourishPlantPainter({
     required this.nourishmentLevel,
     required this.isRejecting,
+    this.isVerySmall = false,
   });
   
   @override
@@ -738,13 +789,22 @@ class NourishPlantPainter extends CustomPainter {
     
     // Draw glow effect when nourished
     if (nourishmentLevel > 0) {
+      final radius = 60.0 + (nourishmentLevel * 20.0);
       final glowPaint = Paint()
-        ..color = SeedlingColors.sunlight.withValues(alpha: nourishmentLevel * 0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20.0);
+        ..shader = RadialGradient(
+          colors: [
+            SeedlingColors.sunlight.withValues(alpha: nourishmentLevel * 0.3),
+            SeedlingColors.sunlight.withValues(alpha: 0.0),
+          ],
+          stops: const [0.5, 1.0],
+        ).createShader(Rect.fromCircle(
+          center: Offset(centerX, groundY - 60.0),
+          radius: radius + 20.0,
+        ));
       
       canvas.drawCircle(
         Offset(centerX, groundY - 60.0),
-        60.0 + (nourishmentLevel * 20.0),
+        radius + 20.0,
         glowPaint,
       );
     }
@@ -889,13 +949,11 @@ class CatchTheLeafQuiz extends StatefulWidget {
 class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz> 
     with TickerProviderStateMixin {
   late List<AnimationController> _floatControllers;
-  late List<AnimationController> _fadeControllers;
   late List<Offset> _positions;
   late List<Offset> _velocities;
   bool _hasAnswered = false;
   int? _caughtIndex;
   Timer? _gameTimer;
-  double _timeLeft = 1.0;
   
   @override
   void initState() {
@@ -985,14 +1043,15 @@ class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final isVerySmall = size.height < 620;
     
     return Column(
       children: [
-        const SizedBox(height: 20),
+        SizedBox(height: isVerySmall ? 10 : 20),
         
         // Word Display
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(isVerySmall ? 12 : 20),
           margin: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
             color: SeedlingColors.cardBackground,
@@ -1000,20 +1059,33 @@ class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz>
           ),
           child: Column(
             children: [
-              const Text(
+              Text(
                 'Catch the meaning!',
-                style: SeedlingTypography.caption,
+                style: SeedlingTypography.caption.copyWith(
+                  fontSize: isVerySmall ? 10 : 12,
+                ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: isVerySmall ? 4 : 10),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  TargetWordDisplay(word: widget.word, style: SeedlingTypography.heading1.copyWith(fontSize: 36)),
+                  TargetWordDisplay(
+                    word: widget.word, 
+                    style: SeedlingTypography.heading1.copyWith(
+                      fontSize: isVerySmall ? 28 : 36
+                    )
+                  ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen),
+                    icon: Icon(
+                      Icons.volume_up_rounded, 
+                      color: SeedlingColors.seedlingGreen,
+                      size: isVerySmall ? 22 : 24,
+                    ),
                     onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
@@ -1021,7 +1093,7 @@ class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz>
           ),
         ),
         
-        const SizedBox(height: 20),
+        SizedBox(height: isVerySmall ? 10 : 20),
         
         // Game Area
         Expanded(
@@ -1063,7 +1135,7 @@ class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz>
                     }
                     
                     return Positioned(
-                      left: position.dx * size.width - 60.0,
+                      left: position.dx * size.width - (isVerySmall ? 50.0 : 60.0),
                       top: position.dy * size.height * 0.5 + floatOffset,
                       child: GestureDetector(
                         onTap: () => _handleCatch(index),
@@ -1072,13 +1144,33 @@ class _CatchTheLeafQuizState extends State<CatchTheLeafQuiz>
                           opacity: isCaught ? 0.0 : opacity,
                           child: Transform.scale(
                             scale: isCaught ? 1.5 : 1.0,
-                            child: CustomPaint(
-                              size: const Size(120, 80),
-                              painter: FloatingWordLeafPainter(
-                                text: option,
-                                color: leafColor,
-                                rotation: _floatControllers[index].value * 0.2,
-                                wobble: floatOffset,
+                            child: SizedBox(
+                              width: isVerySmall ? 100 : 120,
+                              height: isVerySmall ? 66 : 80,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Transform.rotate(
+                                    angle: _floatControllers[index].value * 0.2,
+                                    child: RepaintBoundary(
+                                      child: CustomPaint(
+                                        size: Size(isVerySmall ? 100 : 120, isVerySmall ? 66 : 80),
+                                        painter: FloatingWordLeafPainter(
+                                          color: leafColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    option,
+                                    textAlign: TextAlign.center,
+                                    style: SeedlingTypography.bodyLarge.copyWith(
+                                      color: SeedlingColors.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isVerySmall ? 12 : 14,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -1131,32 +1223,21 @@ class WindEffectPainter extends CustomPainter {
 }
 
 class FloatingWordLeafPainter extends CustomPainter {
-  final String text;
   final Color color;
-  final double rotation;
-  final double wobble;
   
   FloatingWordLeafPainter({
-    required this.text,
     required this.color,
-    required this.rotation,
-    required this.wobble,
   });
   
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.translate(size.width / 2.0, size.height / 2.0);
-    canvas.rotate(rotation);
     
     // Draw leaf shape
     final paint = Paint()
       ..color = color.withValues(alpha: 0.9)
       ..style = PaintingStyle.fill;
-    
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.1)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
     
     final path = Path()
       ..moveTo(0, -size.height / 2.0)
@@ -1177,10 +1258,10 @@ class FloatingWordLeafPainter extends CustomPainter {
         0, -size.height / 2.0,
       );
     
-    // Shadow
+    // Hardware-accelerated Shadow
     canvas.save();
     canvas.translate(4, 4);
-    canvas.drawPath(path, shadowPaint);
+    canvas.drawShadow(path, SeedlingColors.deepRoot.withValues(alpha: 0.35), 6.0, false);
     canvas.restore();
     
     // Leaf
@@ -1199,36 +1280,11 @@ class FloatingWordLeafPainter extends CustomPainter {
     );
     
     canvas.restore();
-    
-    // Text (not rotated with leaf)
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: SeedlingTypography.bodyLarge.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-    
-    textPainter.layout(maxWidth: size.width - 20.0);
-    textPainter.paint(
-      canvas,
-      Offset(
-        (size.width - textPainter.width) / 2.0,
-        (size.height - textPainter.height) / 2.0,
-      ),
-    );
   }
   
   @override
   bool shouldRepaint(covariant FloatingWordLeafPainter oldDelegate) =>
-      oldDelegate.text != text ||
-      oldDelegate.color != color ||
-      oldDelegate.rotation != rotation;
+      oldDelegate.color != color;
 }
 
 // ================ QUIZ TYPE 4: BUILD THE TREE ================
@@ -1349,12 +1405,12 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
           ),
           child: Column(
             children: [
-              const Text(
+              Text(
                 'Build the Knowledge Tree',
                 style: SeedlingTypography.heading2,
               ),
               const SizedBox(height: 5),
-              const Text(
+              Text(
                 'Connect words to their meanings',
                 style: SeedlingTypography.caption,
               ),
@@ -1367,24 +1423,32 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
           ),
         ),
         
-        // Tree Connection Area
         Expanded(
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_growController, _pulseController]),
-            builder: (context, child) {
-              return CustomPaint(
-                size: Size.infinite,
-                painter: KnowledgeTreePainter(
-                  words: _shuffledWords.map((w) => w.word).toList(),
-                  translations: _shuffledTranslations,
-                  connections: _connections,
-                  selectedIndex: _selectedWordIndex,
-                  growthProgress: _growController.value,
-                  pulseValue: _pulseController.value,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmallScreen = constraints.maxHeight < 500;
+              final nodeCount = _shuffledWords.length;
+              final spacing = (constraints.maxHeight - 120) / (nodeCount - 1).clamp(1, 10);
+              final itemSpacing = spacing.clamp(50.0, 110.0);
+              final startTop = isSmallScreen ? 20.0 : 40.0;
+
+              return AnimatedBuilder(
+                animation: Listenable.merge([_growController, _pulseController]),
+                builder: (context, child) {
+                  return CustomPaint(
+                    size: Size.infinite,
+                    painter: KnowledgeTreePainter(
+                      words: _shuffledWords.map((w) => w.word).toList(),
+                      translations: _shuffledTranslations,
+                      connections: _connections,
+                      selectedIndex: _selectedWordIndex,
+                      growthProgress: _growController.value,
+                      pulseValue: _pulseController.value,
+                      isSmallScreen: isSmallScreen,
+                      itemSpacing: itemSpacing,
+                      startTop: startTop,
+                    ),
+                    child: Stack(
                       children: [
                         // Word nodes (left side)
                         ..._shuffledWords.asMap().entries.map((entry) {
@@ -1394,8 +1458,8 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
                           final isSelected = _selectedWordIndex == index;
                           
                           return Positioned(
-                            left: 30,
-                            top: 80 + (index * 100.0),
+                            left: isSmallScreen ? 15 : 30,
+                            top: startTop + (index * itemSpacing),
                             child: GestureDetector(
                               onTap: () => _handleWordTap(index),
                               child: _buildTreeNode(
@@ -1403,6 +1467,7 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
                                 isConnected,
                                 isSelected,
                                 true,
+                                isSmallScreen,
                               ),
                             ),
                           );
@@ -1416,8 +1481,8 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
                           final isSelected = _selectedWordIndex == index;
                           
                           return Positioned(
-                            right: 30,
-                            top: 80 + ((index - _shuffledWords.length) * 100.0),
+                            right: isSmallScreen ? 15 : 30,
+                            top: startTop + ((index - _shuffledWords.length) * itemSpacing),
                             child: GestureDetector(
                               onTap: () => _handleWordTap(index),
                               child: _buildTreeNode(
@@ -1425,16 +1490,17 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
                                 isConnected,
                                 isSelected,
                                 false,
+                                isSmallScreen,
                               ),
                             ),
                           );
                         }),
                       ],
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               );
-            },
+            }
           ),
         ),
       ],
@@ -1446,17 +1512,21 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
     bool isConnected,
     bool isSelected,
     bool isLeft,
+    bool isSmallScreen,
   ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 12 : 20, 
+        vertical: isSmallScreen ? 8 : 12
+      ),
       decoration: BoxDecoration(
         color: isConnected
             ? SeedlingColors.success.withValues(alpha: 0.2)
             : isSelected
                 ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
                 : SeedlingColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 14 : 20),
         border: Border.all(
           color: isConnected
               ? SeedlingColors.success
@@ -1478,6 +1548,7 @@ class _BuildTheTreeQuizState extends State<BuildTheTreeQuiz>
       child: Text(
         text,
         style: SeedlingTypography.body.copyWith(
+          fontSize: isSmallScreen ? 13 : 15,
           fontWeight: isConnected || isSelected ? FontWeight.w600 : FontWeight.normal,
           color: isConnected
               ? SeedlingColors.success
@@ -1497,6 +1568,9 @@ class KnowledgeTreePainter extends CustomPainter {
   final int? selectedIndex;
   final double growthProgress;
   final double pulseValue;
+  final bool isSmallScreen;
+  final double itemSpacing;
+  final double startTop;
   
   KnowledgeTreePainter({
     required this.words,
@@ -1505,19 +1579,24 @@ class KnowledgeTreePainter extends CustomPainter {
     required this.selectedIndex,
     required this.growthProgress,
     required this.pulseValue,
+    this.isSmallScreen = false,
+    this.itemSpacing = 100.0,
+    this.startTop = 80.0,
   });
   
   @override
   void paint(Canvas canvas, Size size) {
+    final nodeCenterOffset = isSmallScreen ? 15.0 : 20.0;
+
     // Draw connections
     for (int i = 0; i < connections.length; i += 2) {
       final wordIndex = connections[i];
       final transIndex = connections[i + 1];
       
-      const startX = 120.0;
-      final startY = 95.0 + (wordIndex * 100.0);
-      final endX = size.width - 120.0;
-      final endY = 95.0 + ((transIndex - words.length) * 100.0);
+      final startX = (isSmallScreen ? 15.0 : 30.0) + 60.0; 
+      final startY = startTop + (wordIndex * itemSpacing) + nodeCenterOffset;
+      final endX = size.width - ((isSmallScreen ? 15.0 : 30.0) + 60.0);
+      final endY = startTop + ((transIndex - words.length) * itemSpacing) + nodeCenterOffset;
       
       // Animate growth
       final progress = (growthProgress + (i / connections.length) * 0.3).clamp(0.0, 1.0);
@@ -1544,12 +1623,19 @@ class KnowledgeTreePainter extends CustomPainter {
       // Draw glow at connection point
       if (progress >= 1.0) {
         final glowPaint = Paint()
-          ..color = SeedlingColors.success.withValues(alpha: 0.3 * pulseValue)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+          ..shader = RadialGradient(
+            colors: [
+              SeedlingColors.success.withValues(alpha: 0.3 * pulseValue),
+              SeedlingColors.success.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromCircle(
+            center: Offset(currentEndX, currentEndY),
+            radius: 20.0,
+          ));
         
         canvas.drawCircle(
           Offset(currentEndX, currentEndY),
-          10.0,
+          20.0,
           glowPaint,
         );
       }
@@ -1558,8 +1644,9 @@ class KnowledgeTreePainter extends CustomPainter {
     // Draw selection preview line
     if (selectedIndex != null) {
       final isWordSide = selectedIndex! < words.length;
-      final startX = isWordSide ? 120.0 : size.width - 120;
-      final startY = 95.0 + ((isWordSide ? selectedIndex! : selectedIndex! - words.length) * 100.0);
+      final offset = (isSmallScreen ? 15.0 : 30.0) + 60.0;
+      final startX = isWordSide ? offset : size.width - offset;
+      final startY = startTop + ((isWordSide ? selectedIndex! : selectedIndex! - words.length) * itemSpacing) + nodeCenterOffset;
       
       final paint = Paint()
         ..color = SeedlingColors.seedlingGreen.withValues(alpha: 0.5)
@@ -1633,10 +1720,12 @@ class _AdaptiveQueue {
   int streak        = 0; // consecutive correct answers
   int reviewDone    = 0; // number of review words completed
 
-  // Shuffle a shuffled copy of all 8 quiz type keys.
+  // All quiz types available for the randomized pool. 
+  // Most adapt to vocabulary size (3-4 options).
   static const _allQuizTypes = [
     'growWord', 'swipeNourish', 'catchLeaf', 'buildTree',
     'deepRoot', 'bloomOrWilt', 'seedSort', 'rootNetwork',
+    'picturePick', 'whatWordIsThis', 'gardenSort', 'engraveRoot',
   ];
   // Milestone (multi-word) quizzes — fire every 6th turn.
   static const _milestoneTypes = {'buildTree', 'rootNetwork'};
@@ -1864,16 +1953,16 @@ class _QuizManagerState extends State<QuizManager> {
   String _determineQuizType() {
     if (_queue.isEmpty) return 'deepRoot';
     final card = _queue.current!;
-    
+
     // PROGRESSIVE DIFFICULTY FOR NEW WORDS
     if (card.kind == _CardKind.newWordRound) {
       switch (card.step) {
         case 0:
           // 1st appearance: Simple visual matching
-          return ['growWord', 'bloomOrWilt'][math.Random().nextInt(2)];
+          return ['growWord', 'bloomOrWilt', 'picturePick'][math.Random().nextInt(3)];
         case 1:
           // 2nd appearance: Passive sorting or translation
-          return ['swipeNourish', 'seedSort'][math.Random().nextInt(2)];
+          return ['swipeNourish', 'seedSort', 'whatWordIsThis', 'gardenSort'][math.Random().nextInt(4)];
         case 2:
           // 3rd appearance: Active recall with aid
           return 'catchLeaf';
@@ -2072,6 +2161,34 @@ class _QuizManagerState extends State<QuizManager> {
           onAnswer: _handleAnswer,
         );
 
+      // ── V2 Image: Picture Pick ──────────────────────────────────
+      case 'picturePick':
+        return PicturePickQuiz(
+          word: current,
+          options: _getObjOptions(current),
+          onAnswer: _handleAnswer,
+        );
+
+      // ── V2 Image: What Word Is This? ────────────────────────────
+      case 'whatWordIsThis':
+        return WhatWordIsThisQuiz(
+          word: current,
+          options: options, // uses the same string distractors
+          onAnswer: _handleAnswer,
+        );
+
+      // ── V2 Image: Garden Sort ───────────────────────────────────
+      case 'gardenSort':
+        {
+          final decoyStr = _getDecoy(current);
+          final decoyWord = _getWordFromTranslation(decoyStr);
+          return GardenSortQuiz(
+            word: current,
+            decoyWord: decoyWord ?? current, // Fallback to current if error
+            onAnswer: _handleAnswer,
+          );
+        }
+
       // ── V2: Bloom Or Wilt ───────────────────────────────────────
       case 'bloomOrWilt':
         {
@@ -2160,7 +2277,7 @@ class _QuizManagerState extends State<QuizManager> {
   List<String> _generateOptions(Word correctWord) {
     final rng = math.Random();
     
-    // Contextual Distractors: heavily favor words currently in the session queue
+    // Contextual Distractors: Favor words with similar length/spelling (anticheating)
     final allSessionWords = _getAllSessionWords();
     final validPool = allSessionWords
         .where((w) => w.id != correctWord.id)
@@ -2168,19 +2285,17 @@ class _QuizManagerState extends State<QuizManager> {
         .toSet() // Remove duplicates if any
         .toList();
         
-    // Ghost Distractor Heuristic: Sort by Levenshtein distance 
+    // Sort by Levenshtein distance to find "difficult" distractors
     validPool.sort((a, b) => 
       _levenshtein(correctWord.translation, a).compareTo(
       _levenshtein(correctWord.translation, b))
     );
-      
-    // Take the closest ones to thoroughly confuse pattern matchers 
-    final closePool = validPool.take(6).toList()..shuffle(rng);
     
-    final wrong = closePool.take(3).toList();
-    while (wrong.length < 3) {
-      wrong.add('—');
-    }
+    // Shuffle the best candidates to avoid predictable patterns
+    final candidates = validPool.take(6).toList()..shuffle(rng);
+    
+    // Take up to 3 distractors for 3-4 options total
+    final wrong = candidates.take(3).toList();
     return [correctWord.translation, ...wrong]..shuffle(rng);
   }
 
@@ -2190,12 +2305,47 @@ class _QuizManagerState extends State<QuizManager> {
     if (others.isEmpty) return '—';
     
     final validPool = others.map((w) => w.translation).toSet().toList();
+    // Sort by similarity for a better "decoy" challenge
     validPool.sort((a, b) => 
       _levenshtein(word.translation, a).compareTo(
       _levenshtein(word.translation, b))
     );
     
+    // Pick from top 3 closest ones
     return validPool.take(3).toList()[math.Random().nextInt(math.min(3, validPool.length))];
+  }
+
+  Word? _getWordFromTranslation(String translation) {
+    if (translation == '—') return null;
+    final all = _getAllSessionWords();
+    try {
+      return all.firstWhere((w) => w.translation == translation);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  List<Word> _getObjOptions(Word correctWord) {
+    final rng = math.Random();
+    final allSessionWords = _getAllSessionWords();
+    final validPool = allSessionWords
+        .where((w) => w.id != correctWord.id)
+        .toList();
+        
+    // Sort by Levenshtein distance for visual similarity challenge
+    validPool.sort((a, b) => 
+      _levenshtein(correctWord.translation, a.translation).compareTo(
+      _levenshtein(correctWord.translation, b.translation))
+    );
+      
+    final candidates = validPool.take(6).toList()..shuffle(rng);
+    
+    // Take up to 3 distractors for 3-4 options total
+    final wrong = candidates.take(3).toList();
+    
+    // In PicturePick, we want full Words not strings. 
+    // The UI handles whatever length is passed up to 4.
+    return [correctWord, ...wrong]..shuffle(rng);
   }
 }
 

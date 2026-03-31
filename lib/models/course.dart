@@ -152,7 +152,7 @@ class Course {
   final Language nativeLanguage;
   final Language targetLanguage;
 
-  const Course({
+  Course({
     required this.id,
     required this.nativeLanguage,
     required this.targetLanguage,

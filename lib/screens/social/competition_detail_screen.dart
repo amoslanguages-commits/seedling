@@ -82,7 +82,7 @@ class CompetitionDetailScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Time Remaining',
                               style: SeedlingTypography.caption,
                             ),
@@ -113,7 +113,7 @@ class CompetitionDetailScreen extends ConsumerWidget {
                         ),
                         child: const Icon(
                           Icons.emoji_events,
-                          color: Colors.orange,
+                          color: SeedlingColors.sunlight,
                         ),
                       ),
                       const SizedBox(width: 15),
@@ -121,14 +121,14 @@ class CompetitionDetailScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Prize Pool',
                               style: SeedlingTypography.caption,
                             ),
                             Text(
                               '${competition.prizeXP} XP',
                               style: SeedlingTypography.heading3.copyWith(
-                                color: Colors.orange,
+                                color: SeedlingColors.sunlight,
                               ),
                             ),
                           ],
@@ -140,7 +140,7 @@ class CompetitionDetailScreen extends ConsumerWidget {
                 
                 if (competition.participants.isNotEmpty) ...[
                   const SizedBox(height: 30),
-                  const Text(
+                  Text(
                     'Leaderboard',
                     style: SeedlingTypography.heading2,
                   ),

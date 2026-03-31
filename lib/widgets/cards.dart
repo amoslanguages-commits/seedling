@@ -58,12 +58,17 @@ class _GrowingCardState extends State<GrowingCard>
                 padding: widget.padding,
                 decoration: BoxDecoration(
                   color: SeedlingColors.cardBackground,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
+                      color: SeedlingColors.deepRoot.withValues(alpha: 0.5),
                       blurRadius: 20,
-                      offset: const Offset(0, 8),
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.05),
+                      blurRadius: 40,
+                      offset: const Offset(0, -5),
                     ),
                   ],
                 ),

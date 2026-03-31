@@ -166,7 +166,7 @@ class OnboardingController extends ChangeNotifier {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error setting up your course: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: SeedlingColors.error,
           ),
         );
       }
@@ -285,7 +285,7 @@ class OnboardingScreen extends ConsumerWidget {
         color: SeedlingColors.cardBackground,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: SeedlingColors.deepRoot.withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -366,7 +366,7 @@ class WelcomeStep extends StatelessWidget {
           
           const SizedBox(height: 20),
           
-          const Text(
+          Text(
             'Grow your vocabulary naturally, one word at a time. Let\'s set up your learning journey.',
             style: SeedlingTypography.bodyLarge,
             textAlign: TextAlign.center,
@@ -406,31 +406,83 @@ class WelcomeStep extends StatelessWidget {
 
 // ================ STEP 2: NATIVE LANGUAGE ================
 
-class NativeLanguageStep extends ConsumerWidget {
+class NativeLanguageStep extends ConsumerStatefulWidget {
   const NativeLanguageStep({super.key});
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NativeLanguageStep> createState() => _NativeLanguageStepState();
+}
+
+class _NativeLanguageStepState extends ConsumerState<NativeLanguageStep> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final controller = ref.watch(onboardingControllerProvider);
+    
+    final filteredLanguages = Language.all.where((lang) {
+      final query = _searchQuery.toLowerCase();
+      return lang.name.toLowerCase().contains(query);
+    }).toList();
     
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'What\'s your native language?',
             style: SeedlingTypography.heading2,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'We\'ll use this to show you translations and explanations.',
             style: SeedlingTypography.body,
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 20),
+
+          // Search bar
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search languages...',
+              prefixIcon: const Icon(Icons.search, color: SeedlingColors.textSecondary),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: SeedlingColors.textSecondary),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                        FocusScope.of(context).unfocus();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: SeedlingColors.cardBackground,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: SeedlingColors.seedlingGreen, width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
           
           // Selected language display
-          if (controller.nativeLanguage.isNotEmpty)
+          if (controller.nativeLanguage.isNotEmpty && _searchQuery.isEmpty)
             Container(
               margin: const EdgeInsets.only(bottom: 20),
               padding: const EdgeInsets.all(16),
@@ -456,7 +508,7 @@ class NativeLanguageStep extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Selected',
                           style: SeedlingTypography.caption,
                         ),
@@ -486,13 +538,16 @@ class NativeLanguageStep extends ConsumerWidget {
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
-              itemCount: Language.all.length,
+              itemCount: filteredLanguages.length,
               itemBuilder: (context, index) {
-                final lang = Language.all[index];
+                final lang = filteredLanguages[index];
                 final isSelected = controller.nativeLanguage == lang.code;
                 
                 return GestureDetector(
-                  onTap: () => controller.setNativeLanguage(lang.code),
+                  onTap: () {
+                    controller.setNativeLanguage(lang.code);
+                    FocusScope.of(context).unfocus();
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -551,26 +606,78 @@ class NativeLanguageStep extends ConsumerWidget {
 
 // ================ STEP 3: TARGET LANGUAGE ================
 
-class TargetLanguageStep extends ConsumerWidget {
+class TargetLanguageStep extends ConsumerStatefulWidget {
   const TargetLanguageStep({super.key});
   
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TargetLanguageStep> createState() => _TargetLanguageStepState();
+}
+
+class _TargetLanguageStepState extends ConsumerState<TargetLanguageStep> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
     final controller = ref.watch(onboardingControllerProvider);
+    
+    final filteredLanguages = Language.all.where((lang) {
+      final query = _searchQuery.toLowerCase();
+      return lang.name.toLowerCase().contains(query);
+    }).toList();
     
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'What do you want to learn?',
             style: SeedlingTypography.heading2,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Choose the language you want to grow your vocabulary in.',
             style: SeedlingTypography.body,
+          ),
+          const SizedBox(height: 20),
+
+          // Search bar
+          TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Search languages...',
+              prefixIcon: const Icon(Icons.search, color: SeedlingColors.textSecondary),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: SeedlingColors.textSecondary),
+                      onPressed: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                        FocusScope.of(context).unfocus();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: SeedlingColors.cardBackground,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: SeedlingColors.seedlingGreen, width: 2),
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           
@@ -601,24 +708,30 @@ class TargetLanguageStep extends ConsumerWidget {
             ),
           
           // Popular label
-          Text(
-            'Popular',
-            style: SeedlingTypography.caption.copyWith(
-              fontWeight: FontWeight.w600,
+          if (_searchQuery.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Popular',
+                style: SeedlingTypography.caption.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
           
           // Language list
           Expanded(
             child: ListView.builder(
-              itemCount: Language.all.length,
+              itemCount: filteredLanguages.length,
               itemBuilder: (context, index) {
-                final lang = Language.all[index];
+                final lang = filteredLanguages[index];
                 final isSelected = controller.targetLanguage == lang.code;
                 
                 return GestureDetector(
-                  onTap: () => controller.setTargetLanguage(lang.code),
+                  onTap: () {
+                    controller.setTargetLanguage(lang.code);
+                    FocusScope.of(context).unfocus();
+                  },
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(16),
@@ -700,12 +813,12 @@ class DailyGoalStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Set your daily goal',
             style: SeedlingTypography.heading2,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'How many words do you want to learn each day? You can change this anytime.',
             style: SeedlingTypography.body,
           ),
@@ -747,7 +860,7 @@ class DailyGoalStep extends ConsumerWidget {
                         child: Text(
                           '$goal',
                           style: SeedlingTypography.heading2.copyWith(
-                            color: isSelected ? Colors.white : SeedlingColors.textPrimary,
+                            color: isSelected ? SeedlingColors.textPrimary : SeedlingColors.textPrimary,
                           ),
                         ),
                       ),
@@ -791,10 +904,10 @@ class DailyGoalStep extends ConsumerWidget {
               color: SeedlingColors.water.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.lightbulb, color: SeedlingColors.water),
-                SizedBox(width: 10),
+                const Icon(Icons.lightbulb, color: SeedlingColors.water),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Tip: Consistency matters more than quantity. Start small and build up!',
@@ -824,12 +937,12 @@ class RemindersStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Learning reminders',
             style: SeedlingTypography.heading2,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Get notified to maintain your streak and reach your daily goal.',
             style: SeedlingTypography.body,
           ),
@@ -870,7 +983,7 @@ class RemindersStep extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Daily reminders and streak alerts',
                         style: SeedlingTypography.caption,
                       ),
@@ -979,7 +1092,7 @@ class RemindersStep extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Play sounds during learning',
                         style: SeedlingTypography.caption,
                       ),
@@ -1045,12 +1158,12 @@ class FeaturesStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'What you can do',
             style: SeedlingTypography.heading2,
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Discover all the ways Seedling helps you learn.',
             style: SeedlingTypography.body,
           ),
@@ -1133,14 +1246,14 @@ class GetStartedStep extends ConsumerWidget {
               children: [
                 const Icon(
                   Icons.check_circle,
-                  color: Colors.white,
+                  color: SeedlingColors.textPrimary,
                   size: 60,
                 ),
                 const SizedBox(height: 20),
                 Text(
                   'You\'re all set!',
                   style: SeedlingTypography.heading2.copyWith(
-                    color: Colors.white,
+                    color: SeedlingColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -1148,17 +1261,17 @@ class GetStartedStep extends ConsumerWidget {
                   'Native',
                   _getLanguageName(controller.nativeLanguage),
                 ),
-                const Divider(color: Colors.white24),
+                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
                 _buildSummaryRow(
                   'Learning',
                   _getLanguageName(controller.targetLanguage),
                 ),
-                const Divider(color: Colors.white24),
+                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
                 _buildSummaryRow(
                   'Daily Goal',
                   '${controller.dailyGoal} words',
                 ),
-                const Divider(color: Colors.white24),
+                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
                 _buildSummaryRow(
                   'Reminders',
                   controller.enableNotifications ? 'Enabled' : 'Disabled',
@@ -1169,7 +1282,7 @@ class GetStartedStep extends ConsumerWidget {
           
           const SizedBox(height: 40),
           
-          const Text(
+          Text(
             'Ready to start your learning journey?',
             style: SeedlingTypography.bodyLarge,
             textAlign: TextAlign.center,
@@ -1177,7 +1290,7 @@ class GetStartedStep extends ConsumerWidget {
           
           const SizedBox(height: 20),
           
-          const Text(
+          Text(
             'You can change these settings anytime in the app.',
             style: SeedlingTypography.caption,
             textAlign: TextAlign.center,
@@ -1196,7 +1309,7 @@ class GetStartedStep extends ConsumerWidget {
           Text(
             label,
             style: SeedlingTypography.body.copyWith(
-              color: Colors.white.withAlpha(230),
+              color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
             ),
           ),
           Text(

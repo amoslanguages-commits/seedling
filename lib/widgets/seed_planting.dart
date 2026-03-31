@@ -6,6 +6,7 @@ import '../models/word.dart';
 import '../widgets/mascot.dart';
 import '../services/tts_service.dart';
 import '../widgets/target_word_display.dart';
+import '../widgets/word_image.dart';
 
 // ================================================================
 // SEED PLANTING SEQUENCE
@@ -387,6 +388,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
                 if (_crackAnim.value > 0.5) ...[
                   const SizedBox(height: 20),
                   _buildWordReveal(word),
+                  _buildIllustration(word),
                 ],
               ],
             ),
@@ -401,7 +403,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
       opacity: _revealAnim,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 40),
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(24),
@@ -453,17 +455,116 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            if (word.pronunciation != null) ...[
+            if (word.pronunciation != null && word.pronunciation!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 word.pronunciation!,
                 style: SeedlingTypography.caption.copyWith(
                   color: SeedlingColors.morningDew,
                 ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (word.definition != null && word.definition!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                word.definition!,
+                style: SeedlingTypography.caption.copyWith(
+                  color: SeedlingColors.textSecondary,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (word.exampleSentence != null && word.exampleSentence!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.morningDew.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            word.exampleSentence!,
+                            style: SeedlingTypography.body.copyWith(
+                              color: SeedlingColors.textPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => TtsService.instance.speak(word.exampleSentence!, word.targetLanguageCode),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.volume_up_rounded,
+                              size: 20,
+                              color: SeedlingColors.seedlingGreen,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (word.exampleSentencePronunciation != null && word.exampleSentencePronunciation!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          word.exampleSentencePronunciation!,
+                          style: SeedlingTypography.caption.copyWith(
+                            color: SeedlingColors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildIllustration(Word word) {
+    final path = WordImage.assetPath(word.imageId);
+    if (path == null) return const SizedBox.shrink();
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeIn,
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: Column(
+        children: [
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              path,
+              width: 160,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -504,12 +605,12 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.arrow_downward_rounded,
-                  color: Colors.white, size: 22),
+                  color: SeedlingColors.textPrimary, size: 22),
               const SizedBox(width: 10),
               Text(
                 'Plant It',
                 style: SeedlingTypography.body.copyWith(
-                  color: Colors.white,
+                  color: SeedlingColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
@@ -590,7 +691,7 @@ class SeedRevealPainter extends CustomPainter {
   final double revealProgress; // 0→1: inner light glows
   final double plantProgress;  // 0→1: seed fades to soil
 
-  const SeedRevealPainter({
+  SeedRevealPainter({
     required this.crackProgress,
     required this.revealProgress,
     required this.plantProgress,
@@ -604,8 +705,13 @@ class SeedRevealPainter extends CustomPainter {
 
     // ── Drop shadow ──
     final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.12 * baseAlpha)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
+      ..shader = RadialGradient(
+        colors: [
+          SeedlingColors.deepRoot.withValues(alpha: 0.15 * baseAlpha),
+          SeedlingColors.deepRoot.withValues(alpha: 0.0),
+        ],
+        stops: const [0.4, 1.0],
+      ).createShader(Rect.fromCenter(center: Offset(cx, cy + 8), width: 110, height: 80));
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx, cy + 8), width: 110, height: 80),
       shadowPaint,
@@ -625,7 +731,7 @@ class SeedRevealPainter extends CustomPainter {
 
     // ── Seed highlight ──
     final highlightPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.18 * baseAlpha)
+      ..color = SeedlingColors.morningDew.withValues(alpha: 0.22 * baseAlpha)
       ..style = PaintingStyle.fill;
     final highlightPath = _buildSeedPath(cx - 10, cy - 14, 20, 28);
     canvas.save();
@@ -762,7 +868,7 @@ class SeedRevealPainter extends CustomPainter {
 class SeedParticlePainter extends CustomPainter {
   final double progress; // 0→1
 
-  const SeedParticlePainter({required this.progress});
+  SeedParticlePainter({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {

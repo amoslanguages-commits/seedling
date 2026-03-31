@@ -7,8 +7,6 @@ import '../widgets/cards.dart';
 import '../widgets/buttons.dart';
 import '../services/auth_service.dart';
 import '../services/subscription_service.dart';
-import '../services/sync_manager.dart';
-import '../services/cloud_backup_service.dart';
 import 'settings/subscription_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -21,7 +19,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _soundEffectsEnabled = true;
-  bool _darkMode = false;
+  bool _hapticsEnabled = true; // Added Haptics
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0); // Default 8:00 PM
   final String _dailyGoal = '10'; // words/day
   
   @override
@@ -39,7 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           color: SeedlingColors.textPrimary,
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Settings',
           style: SeedlingTypography.heading2,
         ),
@@ -65,17 +64,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   true,
                   (val) {},
                 ),
-                _buildActionTile(
-                  Icons.cloud_upload,
-                  'Manual Sync Now',
-                  'Last synced: 10m ago',
-                  () => _manualSync(),
-                ),
-                _buildActionTile(
-                  Icons.backup,
-                  'Backup Management',
-                  'Create or restore database backups',
-                  () => _showBackupOptions(),
+                _buildToggleTile(
+                  Icons.sync,
+                  'Automatic Cloud Sync',
+                  'Keep data safe across devices',
+                  true,
+                  (val) {},
                 ),
               ],
             ),
@@ -91,9 +85,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 _buildActionTile(
                   Icons.language,
-                  'App Language',
+                  'Target Language',
+                  'Spanish (ES)',
+                  () => _showLanguageSelector(isTarget: true),
+                ),
+                _buildActionTile(
+                  Icons.person_pin,
+                  'Native Language',
                   'English (US)',
-                  () => _showLanguageSelector(),
+                  () => _showLanguageSelector(isTarget: false),
                 ),
                 _buildActionTile(
                   Icons.flag,
@@ -119,7 +119,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'Daily nudge to keep growing',
                   _notificationsEnabled,
                   (val) => setState(() => _notificationsEnabled = val),
-                ),
+                 ),
+                 if (_notificationsEnabled)
+                   _buildActionTile(
+                     Icons.access_time,
+                     'Reminder Time',
+                     _reminderTime.format(context),
+                     () => _selectReminderTime(context),
+                   ),
                 _buildToggleTile(
                   Icons.volume_up,
                   'Sound Effects',
@@ -127,30 +134,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _soundEffectsEnabled,
                   (val) => setState(() => _soundEffectsEnabled = val),
                 ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 30),
-          
-          // Appearance
-          _buildSectionHeader('Appearance'),
-          GrowingCard(
-            padding: EdgeInsets.zero,
-            child: Column(
-              children: [
                 _buildToggleTile(
-                  Icons.dark_mode,
-                  'Dark Mode',
-                  'Save your eyes and battery',
-                  _darkMode,
-                  (val) => setState(() => _darkMode = val),
+                  Icons.vibration,
+                  'Haptic Feedback',
+                  'Physical vibration for positive actions',
+                  _hapticsEnabled,
+                  (val) => setState(() => _hapticsEnabled = val),
                 ),
               ],
             ),
           ),
           
           const SizedBox(height: 30),
+          
+          // Appearance removed - we conform entirely to the Dark Botanical Theme
+
+          const SizedBox(height: 10),
           
           // Support & Legal
           _buildSectionHeader('Support & Legal'),
@@ -183,6 +182,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     isDestructive: true,
                   ),
                 _buildActionTile(
+                  Icons.restart_alt,
+                  'Reset Course Progress',
+                  'Wipe SRS data for current language',
+                  () => _showResetProgressDialog(),
+                  isDestructive: true,
+                ),
+                _buildActionTile(
                   Icons.delete_forever,
                   'Delete Account',
                   'Permanently remove all data',
@@ -195,15 +201,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           
           const SizedBox(height: 40),
           
-          const Center(
+          Center(
             child: Column(
               children: [
                 Text(
                   'Seedling v1.1.0 (Build 2024)',
                   style: SeedlingTypography.caption,
                 ),
-                SizedBox(height: 5),
-                Text(
+                const SizedBox(height: 5),
+                const Text(
                   'Made with 💚 by Seedling Team',
                   style: TextStyle(
                     fontSize: 10,
@@ -224,10 +230,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
             SeedlingColors.sunlight,
-            Colors.orange.shade400,
+            SeedlingColors.seedlingGreen,
           ],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -241,7 +247,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.star, color: Colors.white, size: 40),
+          const Icon(Icons.star, color: SeedlingColors.background, size: 40),
           const SizedBox(width: 20),
           Expanded(
             child: Column(
@@ -249,12 +255,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Text(
                   'Upgrade to Premium',
-                  style: SeedlingTypography.heading3.copyWith(color: Colors.white),
+                  style: SeedlingTypography.heading3.copyWith(color: SeedlingColors.background),
                 ),
                 Text(
                   'Unlock all languages, cloud backups, and remove ads.',
                   style: SeedlingTypography.caption.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: SeedlingColors.background.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -354,179 +360,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
   
-  // Handlers
-  
-  Future<void> _manualSync() async {
-    showDialog(
+  Future<void> _selectReminderTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-    
-    try {
-      await SyncManager().syncToCloud();
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sync successful!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync failed: $e')),
-        );
-      }
-    }
-  }
-  
-  void _showBackupOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: SeedlingColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Backup Management', style: SeedlingTypography.heading3),
-            const SizedBox(height: 20),
-            OrganicButton(
-              text: 'CREATE NEW BACKUP',
-              onPressed: () {
-                Navigator.pop(context);
-                _createBackup();
-              },
+      initialTime: _reminderTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: SeedlingColors.seedlingGreen,
+              onPrimary: SeedlingColors.background,
+              surface: SeedlingColors.cardBackground,
+              onSurface: SeedlingColors.textPrimary,
             ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showRestoreList();
-              },
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              ),
-              child: const Text('RESTORE FROM CLOUD'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Future<void> _createBackup() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-    
-    try {
-      await CloudBackupService().createBackup();
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup created!')),
+          ),
+          child: child!,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
+      },
+    );
+    if (picked != null && picked != _reminderTime) {
+      setState(() {
+        _reminderTime = picked;
+      });
+      // Here you would save the actual preference to your DB or SharedPreferences
+      // and call NotificationService's schedule method with the new time!
     }
   }
-  
-  void _showRestoreList() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-    
-    final backups = await CloudBackupService().listBackups();
-    
-    if (mounted) {
-      Navigator.pop(context);
-      
-      if (backups.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No backups found')),
-        );
-        return;
-      }
-      
-      showModalBottomSheet(
-        context: context,
-        builder: (context) => ListView.builder(
-          itemCount: backups.length,
-          itemBuilder: (context, index) {
-            final backup = backups[index];
-            return ListTile(
-              leading: const Icon(Icons.history),
-              title: Text('Backup from ${backup.createdAt.toString().split('.')[0]}'),
-              subtitle: Text('${(backup.size / 1024).toStringAsFixed(1)} KB'),
-              onTap: () {
-                Navigator.pop(context);
-                _restoreBackup(backup.id);
-              },
-            );
-          },
-        ),
-      );
-    }
-  }
-  
-  Future<void> _restoreBackup(String backupId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore Backup?'),
-        content: const Text('This will overwrite your local progress. Are you sure?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('CANCEL')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('RESTORE')),
-        ],
-      ),
-    );
-    
-    if (confirmed == true && mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
-      
-      try {
-        await CloudBackupService().restoreFromBackup(backupId);
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Progress restored! Restarting app...')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Restore failed: $e')),
-          );
-        }
-      }
-    }
-  }
-  
-  void _showLanguageSelector() {
+
+  void _showLanguageSelector({required bool isTarget}) {
     // Logic for language selector
   }
   
@@ -555,14 +416,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
   
+  void _showResetProgressDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: SeedlingColors.cardBackground,
+        title: const Text('Reset Course?', style: TextStyle(color: SeedlingColors.textPrimary)),
+        content: const Text(
+          'This will permanently wipe all Spaced Repetition mastery data for your current target language. This cannot be undone.',
+          style: TextStyle(color: SeedlingColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: SeedlingColors.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: SeedlingColors.error),
+            onPressed: () {
+              // DB Reset Logic Here
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Course progress reset.')),
+              );
+            },
+            child: const Text('RESET', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showDeleteAccountDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text('This action cannot be undone. All your progress will be permanently lost.'),
+        backgroundColor: SeedlingColors.cardBackground,
+        title: const Text('Delete Account', style: TextStyle(color: SeedlingColors.textPrimary)),
+        content: const Text(
+          'This action cannot be undone. All your progress will be permanently lost.',
+          style: TextStyle(color: SeedlingColors.textSecondary),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('CANCEL', style: TextStyle(color: SeedlingColors.textSecondary))
+          ),
           TextButton(
             onPressed: () {
               // Delete logic

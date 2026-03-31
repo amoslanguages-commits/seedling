@@ -9,12 +9,19 @@ class Word {
   final String targetLanguageCode;
   
   // New taxonomy support
+  final String? conceptId;
+  final String? conceptType;
+  final String? domain;
+  final String? subDomain;
+  final String? microCategory;
   final List<PartOfSpeech> partsOfSpeech;
   final List<String> categoryIds;
   
   // Enhanced metadata
+  final String? gender;
   final String? definition;
   final String? exampleSentence;
+  final String? exampleSentencePronunciation;
   final String? pronunciation;
   final String? etymology;
   final List<String> tags;
@@ -28,6 +35,9 @@ class Word {
   int totalReviews;
   int timesCorrect; // New field from taxonomy
   
+  // Image illustration
+  final String? imageId; // e.g. 'Img_42' → assets/images/words/Img_42.jpg
+
   // Language-specific
   final String? frequency;
   final Map<String, dynamic> languageSpecific;
@@ -38,10 +48,17 @@ class Word {
     required this.translation,
     required this.languageCode,
     required this.targetLanguageCode,
+    this.conceptId,
+    this.conceptType,
+    this.domain,
+    this.subDomain,
+    this.microCategory,
     this.partsOfSpeech = const [PartOfSpeech.noun],
     this.categoryIds = const ['general'],
+    this.gender,
     this.definition,
     this.exampleSentence,
+    this.exampleSentencePronunciation,
     this.pronunciation,
     this.etymology,
     this.tags = const [],
@@ -54,6 +71,7 @@ class Word {
     this.totalReviews = 0,
     this.timesCorrect = 0,
     this.languageSpecific = const {},
+    this.imageId,
   });
 
   // Compatibility getter for old 'category' field
@@ -121,10 +139,17 @@ class Word {
       'translation': translation,
       'language_code': languageCode,
       'target_language_code': targetLanguageCode,
+      'concept_id': conceptId,
+      'concept_type': conceptType,
+      'domain': domain,
+      'sub_domain': subDomain,
+      'micro_category': microCategory,
       'parts_of_speech': partsOfSpeech.map((p) => p.name).join(','),
       'category_ids': categoryIds.join(','),
+      'gender': gender,
       'definition': definition,
       'example_sentence': exampleSentence,
+      'example_sentence_pronunciation': exampleSentencePronunciation,
       'pronunciation': pronunciation,
       'etymology': etymology,
       'tags': tags.join(','),
@@ -139,6 +164,7 @@ class Word {
       'language_specific': languageSpecific.isNotEmpty 
           ? jsonEncode(languageSpecific) 
           : null,
+      'image_id': imageId,
       // Keep 'category' for minor compatibility during transition if needed
       'category': category, 
     };
@@ -164,6 +190,11 @@ class Word {
       translation: map['translation'],
       languageCode: map['language_code'],
       targetLanguageCode: map['target_language_code'],
+      conceptId: map['concept_id'],
+      conceptType: map['concept_type'],
+      domain: map['domain'],
+      subDomain: map['sub_domain'],
+      microCategory: map['micro_category'],
       partsOfSpeech: (map['parts_of_speech'] as String? ?? 'noun')
           .split(',')
           .where((s) => s.isNotEmpty)
@@ -176,8 +207,10 @@ class Word {
           .split(',')
           .where((s) => s.isNotEmpty)
           .toList(),
+      gender: map['gender'],
       definition: map['definition'],
       exampleSentence: map['example_sentence'],
+      exampleSentencePronunciation: map['example_sentence_pronunciation'],
       pronunciation: map['pronunciation'],
       etymology: map['etymology'],
       tags: (map['tags'] as String? ?? '').split(',').where((s) => s.isNotEmpty).toList(),
@@ -193,6 +226,7 @@ class Word {
       streak: map['streak'] ?? 0,
       totalReviews: map['total_reviews'] ?? 0,
       timesCorrect: map['times_correct'] ?? 0,
+      imageId: map['image_id'],
       languageSpecific: map['language_specific'] != null 
           ? jsonDecode(map['language_specific']) 
           : {},

@@ -1,39 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
 class SeedlingTypography {
-  static const TextStyle heading1 = TextStyle(
+  // Signature Font: Outfit - Rounded, modern, and premium geometry
+  static TextStyle get base => GoogleFonts.outfit(
+        color: SeedlingColors.textPrimary,
+      );
+
+  static final TextStyle display = base.copyWith(
+    fontSize: 48,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -1.0,
+  );
+
+  static final TextStyle heading1 = base.copyWith(
     fontSize: 32,
     fontWeight: FontWeight.bold,
-    color: SeedlingColors.textPrimary,
     letterSpacing: -0.5,
   );
   
-  static const TextStyle heading2 = TextStyle(
+  static final TextStyle heading2 = base.copyWith(
     fontSize: 24,
     fontWeight: FontWeight.w700,
-    color: SeedlingColors.textPrimary,
   );
   
-  static const TextStyle heading3 = TextStyle(
+  static final TextStyle heading3 = base.copyWith(
     fontSize: 20,
     fontWeight: FontWeight.w600,
-    color: SeedlingColors.textPrimary,
   );
   
-  static const TextStyle bodyLarge = TextStyle(
+  static final TextStyle bodyLarge = base.copyWith(
     fontSize: 18,
     fontWeight: FontWeight.w500,
-    color: SeedlingColors.textPrimary,
   );
   
-  static const TextStyle body = TextStyle(
+  static final TextStyle body = base.copyWith(
     fontSize: 16,
     fontWeight: FontWeight.normal,
     color: SeedlingColors.textSecondary,
   );
   
-  static const TextStyle caption = TextStyle(
+  static final TextStyle caption = base.copyWith(
     fontSize: 14,
     fontWeight: FontWeight.w500,
     color: SeedlingColors.textSecondary,

@@ -71,8 +71,10 @@ class StemProgressPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final centerY = size.height / 2.0 + (showLeaves ? 12.0 : 0.0);
-    final maxWidth = size.width - 44.0;
-    const startX = 22.0;
+    // 🪴 Relative horizontal padding for the stem based on available width
+    final safePadding = math.min(22.0, size.width * 0.1);
+    final startX = safePadding;
+    final maxWidth = math.max(10.0, size.width - (safePadding * 2.0));
     final progressWidth = maxWidth * progress.clamp(0.0, 1.0);
     final progressEndX = startX + progressWidth;
 
@@ -141,12 +143,20 @@ class StemProgressPainter extends CustomPainter {
 
     // Pulsing glow at very tip
     final glowAlpha = 0.12 + pulse * 0.18;
+    final radius = 5 + pulse * 2;
     canvas.drawCircle(
       const Offset(0, -tipSize),
-      5 + pulse * 2,
+      radius + 4.0,
       Paint()
-        ..color = SeedlingColors.morningDew.withValues(alpha: glowAlpha)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        ..shader = ui.Gradient.radial(
+          const Offset(0, -tipSize),
+          radius + 4.0,
+          [
+            SeedlingColors.morningDew.withValues(alpha: glowAlpha),
+            SeedlingColors.morningDew.withValues(alpha: 0.0),
+          ],
+          [0.4, 1.0],
+        ),
     );
 
     canvas.restore();

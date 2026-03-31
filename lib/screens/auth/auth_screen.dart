@@ -113,7 +113,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       padding: const EdgeInsets.only(top: 16.0),
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.redAccent),
+                        style: const TextStyle(color: SeedlingColors.error),
                       ),
                     ),
                   const SizedBox(height: 32),
@@ -171,7 +171,7 @@ class _AuthScreenState extends State<AuthScreen> {
         labelText: label,
         prefixIcon: Icon(icon, color: SeedlingColors.seedlingGreen),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.8),
+        fillColor: SeedlingColors.cardBackground.withValues(alpha: 0.8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -201,11 +201,11 @@ class _AuthScreenState extends State<AuthScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: SeedlingColors.cardBackground,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: SeedlingColors.deepRoot.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

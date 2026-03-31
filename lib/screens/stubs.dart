@@ -13,7 +13,7 @@ class LeaderboardScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Global Garden', style: SeedlingTypography.heading2),
+        title: Text('Global Garden', style: SeedlingTypography.heading2),
       ),
       body: const Center(
         child: Column(
@@ -39,7 +39,7 @@ class DailyChallengesScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Daily Challenges', style: SeedlingTypography.heading2),
+        title: Text('Daily Challenges', style: SeedlingTypography.heading2),
       ),
       body: const Center(
         child: Column(

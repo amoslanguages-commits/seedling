@@ -154,7 +154,7 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Meaning', style: SeedlingTypography.heading3),
+                  Text('Meaning', style: SeedlingTypography.heading3),
                   const SizedBox(height: 8),
                   Text(
                     widget.word.translation,
@@ -162,7 +162,7 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                   ),
                   const SizedBox(height: 16),
                   if (widget.word.exampleSentence != null) ...[
-                    const Text('Example', style: SeedlingTypography.caption),
+                    Text('Example', style: SeedlingTypography.caption),
                     const SizedBox(height: 8),
                     Text(
                       '"${widget.word.exampleSentence}"',
@@ -173,7 +173,7 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                   ],
                   if (widget.word.definition != null) ...[
                     const SizedBox(height: 16),
-                    const Text('Definition', style: SeedlingTypography.caption),
+                    Text('Definition', style: SeedlingTypography.caption),
                     const SizedBox(height: 8),
                     Text(widget.word.definition!, style: SeedlingTypography.body),
                   ],

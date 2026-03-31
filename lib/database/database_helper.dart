@@ -20,7 +20,7 @@ class DatabaseHelper {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
     return await openDatabase(
       dbPath,
-      version: 3,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -35,10 +35,17 @@ class DatabaseHelper {
         translation TEXT NOT NULL,
         language_code TEXT NOT NULL,
         target_language_code TEXT NOT NULL,
+        concept_id TEXT,
+        concept_type TEXT,
+        domain TEXT,
+        sub_domain TEXT,
+        micro_category TEXT,
         parts_of_speech TEXT DEFAULT 'noun',
         category_ids TEXT DEFAULT 'general',
+        gender TEXT,
         definition TEXT,
         example_sentence TEXT,
+        example_sentence_pronunciation TEXT,
         pronunciation TEXT,
         etymology TEXT,
         tags TEXT,
@@ -51,7 +58,8 @@ class DatabaseHelper {
         times_correct INTEGER DEFAULT 0,
         language_specific TEXT,
         frequency TEXT,
-        category TEXT -- kept for backward compatibility if needed
+        category TEXT, -- kept for backward compatibility if needed
+        image_id TEXT
       )
     ''');
     
@@ -103,6 +111,20 @@ class DatabaseHelper {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE words ADD COLUMN frequency TEXT');
     }
+    
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE words ADD COLUMN image_id TEXT');
+    }
+    
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE words ADD COLUMN concept_id TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN concept_type TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN domain TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN sub_domain TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN micro_category TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN gender TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN example_sentence_pronunciation TEXT');
+    }
   }
   
   // Word operations
@@ -110,6 +132,8 @@ class DatabaseHelper {
     String languageCode, 
     String targetLanguageCode, {
     String? categoryId,
+    String? domain,
+    String? subDomain,
     String? partOfSpeech,
     int? limit,
   }) async {
@@ -118,8 +142,18 @@ class DatabaseHelper {
         'language_code = ? AND target_language_code = ?';
     List<dynamic> whereArgs = [languageCode, targetLanguageCode];
     
-    if (categoryId != null) {
-      // Simple string matching for now, as category_ids is comma-separated
+    if (domain != null && domain.isNotEmpty) {
+      whereClause += ' AND domain = ?';
+      whereArgs.add(domain);
+    }
+    
+    if (subDomain != null && subDomain.isNotEmpty) {
+      whereClause += ' AND sub_domain = ?';
+      whereArgs.add(subDomain);
+    }
+    
+    if (categoryId != null && categoryId.isNotEmpty) {
+      // Simple string matching for backwards compatibility
       whereClause += ' AND (category_ids LIKE ? OR category = ?)';
       whereArgs.add('%$categoryId%');
       whereArgs.add(categoryId);
@@ -187,6 +221,8 @@ class DatabaseHelper {
     String languageCode,
     String targetLanguageCode, {
     String? categoryId,
+    String? domain,
+    String? subDomain,
     String? partOfSpeech,
     int limit = 15,
   }) async {
@@ -197,6 +233,16 @@ class DatabaseHelper {
         'AND mastery_level > 0 '
         'AND (next_review IS NULL OR next_review <= ?)';
     List<dynamic> args = [languageCode, targetLanguageCode, now];
+
+    if (domain != null && domain.isNotEmpty) {
+      where += ' AND domain = ?';
+      args.add(domain);
+    }
+    
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
 
     if (categoryId != null && categoryId.isNotEmpty) {
       where += ' AND (category_ids LIKE ? OR category = ?)';
@@ -229,12 +275,24 @@ class DatabaseHelper {
     String languageCode,
     String targetLanguageCode, {
     String? categoryId,
+    String? domain,
+    String? subDomain,
     String? partOfSpeech,
   }) async {
     final db = await database;
     String where =
         'language_code = ? AND target_language_code = ? AND mastery_level = 0';
     List<dynamic> args = [languageCode, targetLanguageCode];
+
+    if (domain != null && domain.isNotEmpty) {
+      where += ' AND domain = ?';
+      args.add(domain);
+    }
+    
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
 
     if (categoryId != null && categoryId.isNotEmpty) {
       where += ' AND (category_ids LIKE ? OR category = ?)';
@@ -288,6 +346,46 @@ class DatabaseHelper {
     );
     return result.first['count'] as int? ?? 0;
   }
+
+  /// Returns the number of words currently due for SRS review.
+  Future<int> getDueCount(String languageCode, String targetLanguageCode) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final result = await db.rawQuery(
+      '''SELECT COUNT(*) as count FROM words 
+         WHERE language_code = ? AND target_language_code = ?
+         AND mastery_level > 0
+         AND (next_review IS NULL OR next_review <= ?)''',
+      [languageCode, targetLanguageCode, now],
+    );
+    return result.first['count'] as int? ?? 0;
+  }
+
+  /// Returns the sub_domain and domain of the most recently reviewed word.
+  /// Used to offer a "Resume" action on the Smart Focus Hub.
+  Future<Map<String, String?>?> getLastActiveSubTheme(
+    String languageCode,
+    String targetLanguageCode,
+  ) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      '''SELECT domain, sub_domain FROM words 
+         WHERE language_code = ? AND target_language_code = ?
+         AND last_reviewed IS NOT NULL
+         AND sub_domain IS NOT NULL
+         ORDER BY last_reviewed DESC
+         LIMIT 1''',
+      [languageCode, targetLanguageCode],
+    );
+    if (result.isNotEmpty) {
+      return {
+        'domain': result.first['domain'] as String?,
+        'subDomain': result.first['sub_domain'] as String?,
+      };
+    }
+    return null;
+  }
+
   
   // SYNC METHODS
   

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/colors.dart';
 
 /// A wrapping widget that applies a real-time tilt effect to any draggable card.
 /// 
@@ -156,7 +157,7 @@ class TiltShadow extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18 + tiltFraction.abs() * 0.12),
+            color: SeedlingColors.deepRoot.withValues(alpha: 0.25 + tiltFraction.abs() * 0.15),
             blurRadius: 16 + tiltFraction.abs() * 12,
             offset: Offset(shadowX, 8 + tiltFraction.abs() * 6),
           ),

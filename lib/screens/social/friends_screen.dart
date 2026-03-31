@@ -18,7 +18,7 @@ class FriendsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Friends', style: SeedlingTypography.heading2),
+        title: Text('Friends', style: SeedlingTypography.heading2),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
@@ -41,7 +41,7 @@ class FriendsScreen extends ConsumerWidget {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Pending Requests',
                           style: SeedlingTypography.heading3,
                         ),
@@ -58,7 +58,7 @@ class FriendsScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Your Friends',
                   style: SeedlingTypography.heading3,
                 ),
@@ -126,7 +126,7 @@ class FriendsScreen extends ConsumerWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Text(
+                Text(
                   'Wants to be your friend',
                   style: SeedlingTypography.caption,
                 ),
@@ -189,7 +189,7 @@ class FriendsScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: SeedlingColors.success,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(color: SeedlingColors.cardBackground, width: 2),
                     ),
                   ),
                 ),
@@ -211,7 +211,7 @@ class FriendsScreen extends ConsumerWidget {
                     const Icon(
                       Icons.local_fire_department,
                       size: 14,
-                      color: Colors.orange,
+                      color: SeedlingColors.sunlight,
                     ),
                     const SizedBox(width: 4),
                     Text(

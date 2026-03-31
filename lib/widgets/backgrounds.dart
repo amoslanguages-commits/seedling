@@ -304,10 +304,17 @@ class RootNetworkPainter extends CustomPainter {
       final pulseAlpha = math.sin(tPulse * math.pi) * 0.7;
       canvas.drawCircle(
         Offset(pX, pY),
-        3.0,
+        6.0,
         Paint()
-          ..color = SeedlingColors.morningDew.withValues(alpha: pulseAlpha)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+          ..shader = ui.Gradient.radial(
+            Offset(pX, pY),
+            6.0,
+            [
+              SeedlingColors.morningDew.withValues(alpha: pulseAlpha),
+              SeedlingColors.morningDew.withValues(alpha: 0.0),
+            ],
+            [0.3, 1.0],
+          ),
       );
     }
 
@@ -321,10 +328,17 @@ class RootNetworkPainter extends CustomPainter {
       // Node shadow/glow
       canvas.drawCircle(
         Offset(endX, endY),
-        23,
+        29,
         Paint()
-          ..color = SeedlingColors.seedlingGreen.withValues(alpha: 0.12)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+          ..shader = ui.Gradient.radial(
+            Offset(endX, endY),
+            29.0,
+            [
+              SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
+              SeedlingColors.seedlingGreen.withValues(alpha: 0.0),
+            ],
+            [0.6, 1.0],
+          ),
       );
 
       // Node gradient fill
@@ -352,7 +366,7 @@ class RootNetworkPainter extends CustomPainter {
         Offset(endX - 6, endY - 6),
         7,
         Paint()
-          ..color = Colors.white.withValues(alpha: 0.25)
+          ..color = SeedlingColors.textPrimary.withValues(alpha: 0.25)
           ..style = PaintingStyle.fill,
       );
     }
@@ -363,11 +377,18 @@ class RootNetworkPainter extends CustomPainter {
     // Outer glow ring
     canvas.drawCircle(
       Offset(cx, cy),
-      pulseRadius,
+      pulseRadius + 8.0,
       Paint()
-        ..color = SeedlingColors.seedlingGreen
-            .withValues(alpha: 0.12 * (1 - pulseValue))
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+        ..shader = ui.Gradient.radial(
+          Offset(cx, cy),
+          pulseRadius + 8.0,
+          [
+            SeedlingColors.seedlingGreen
+                .withValues(alpha: 0.12 * (1 - pulseValue)),
+            SeedlingColors.seedlingGreen.withValues(alpha: 0.0),
+          ],
+          [0.6, 1.0],
+        ),
     );
 
     // Main node
@@ -395,7 +416,7 @@ class RootNetworkPainter extends CustomPainter {
       Offset(cx - 9, cy - 9),
       10,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.28)
+        ..color = SeedlingColors.textPrimary.withValues(alpha: 0.3)
         ..style = PaintingStyle.fill,
     );
   }

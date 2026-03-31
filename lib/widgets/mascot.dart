@@ -3,15 +3,24 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import '../core/colors.dart';
 
+// ignore_for_file: prefer_const_constructors
+
+enum MascotState { idle, happy, growing, sad, celebrating }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Widget — displays the mascot PNG with a gentle bob + blink animation overlay
+// ─────────────────────────────────────────────────────────────────────────────
 class SeedlingMascot extends StatefulWidget {
   final double size;
   final MascotState state;
+  final MascotAccessories accessories;
   final VoidCallback? onTap;
 
   const SeedlingMascot({
     super.key,
-    this.size = 120,
+    this.size = 200,
     this.state = MascotState.idle,
+    this.accessories = const MascotAccessories(),
     this.onTap,
   });
 
@@ -19,116 +28,77 @@ class SeedlingMascot extends StatefulWidget {
   State<SeedlingMascot> createState() => _SeedlingMascotState();
 }
 
-enum MascotState { idle, happy, growing, sad, celebrating }
-
 class _SeedlingMascotState extends State<SeedlingMascot>
     with TickerProviderStateMixin {
-  late final AnimationController _bounceController;
-  late final AnimationController _swayController;
-  late final AnimationController _growthController;
-  late final AnimationController _breathController;
-  late final AnimationController _blinkController;
-  late final AnimationController _sparkleController;
+  // Core rhythmic bobbing (root motion)
+  late final AnimationController _bob;
+  // Foliage swaying (secondary motion)
+  late final AnimationController _sway;
+  // Eye blinking (autonomous motion)
+  late final AnimationController _blink;
+  // State transition (morphing facial expressions & poses)
+  late final AnimationController _stateTransition;
+  // Tap squish reaction
+  late final AnimationController _squish;
 
   @override
   void initState() {
     super.initState();
+    _bob = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
+    _sway = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat(reverse: true);
+    _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 4000));
+    _stateTransition = AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..forward();
+    _squish = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
 
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-
-    _swayController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat();
-
-    _growthController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _breathController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat(reverse: true);
-
-    _blinkController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 120),
-    );
-
-    _sparkleController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-
-    if (widget.state == MascotState.growing) {
-      _growthController.forward();
-    }
-
-    _scheduleBlink();
+    // Periodic randomized blinking
+    _startBlinkTimer();
   }
 
-  void _scheduleBlink() async {
+  void _startBlinkTimer() async {
     while (mounted) {
-      final waitSeconds = 3 + math.Random().nextInt(4);
-      await Future.delayed(Duration(seconds: waitSeconds));
-      if (mounted) {
-        await _blinkController.forward();
-        await _blinkController.reverse();
-      }
+      await Future.delayed(Duration(milliseconds: 1500 + math.Random().nextInt(3000)));
+      if (mounted) await _blink.forward(from: 0).then((_) => _blink.reverse());
     }
   }
 
   @override
   void didUpdateWidget(SeedlingMascot oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.state == MascotState.growing &&
-        oldWidget.state != MascotState.growing) {
-      _growthController.forward(from: 0);
+    if (oldWidget.state != widget.state) {
+      _stateTransition.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _bounceController.dispose();
-    _swayController.dispose();
-    _growthController.dispose();
-    _breathController.dispose();
-    _blinkController.dispose();
-    _sparkleController.dispose();
+    _bob.dispose();
+    _sway.dispose();
+    _blink.dispose();
+    _stateTransition.dispose();
+    _squish.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTap,
+      onTap: () {
+        _squish.forward(from: 0).then((_) => _squish.reverse());
+        widget.onTap?.call();
+      },
       child: AnimatedBuilder(
-        animation: Listenable.merge([
-          _bounceController,
-          _swayController,
-          _growthController,
-          _breathController,
-          _blinkController,
-          _sparkleController,
-        ]),
-        builder: (context, child) {
-          final breathScale = 0.985 + _breathController.value * 0.015;
-          return Transform.scale(
-            scale: breathScale,
-            child: CustomPaint(
-              size: Size(widget.size, widget.size * 1.3),
-              painter: SeedlingMascotPainter(
-                bounceValue: _bounceController.value,
-                swayValue: _swayController.value,
-                growthValue: _growthController.value,
-                blinkValue: _blinkController.value,
-                sparkleValue: _sparkleController.value,
-                state: widget.state,
-              ),
+        animation: Listenable.merge([_bob, _sway, _blink, _stateTransition, _squish]),
+        builder: (context, _) {
+          return CustomPaint(
+            size: Size(widget.size, widget.size * 1.2),
+            painter: PuppetMascotPainter(
+              state: widget.state,
+              accessories: widget.accessories,
+              bob: _bob.value,
+              sway: _sway.value,
+              blink: _blink.value,
+              transition: _stateTransition.value,
+              squish: _squish.value,
             ),
           );
         },
@@ -137,426 +107,316 @@ class _SeedlingMascotState extends State<SeedlingMascot>
   }
 }
 
-class SeedlingMascotPainter extends CustomPainter {
-  final double bounceValue;
-  final double swayValue;
-  final double growthValue;
-  final double blinkValue;
-  final double sparkleValue;
+// ─────────────────────────────────────────────────────────────────────────────
+//  Puppet Mascot Painter — Procedural, Hierarchical Animation System
+// ─────────────────────────────────────────────────────────────────────────────
+class PuppetMascotPainter extends CustomPainter {
   final MascotState state;
+  final MascotAccessories accessories;
+  final double bob;
+  final double sway;
+  final double blink;
+  final double transition;
+  final double squish;
 
-  SeedlingMascotPainter({
-    required this.bounceValue,
-    required this.swayValue,
-    required this.growthValue,
-    required this.blinkValue,
-    required this.sparkleValue,
+  PuppetMascotPainter({
     required this.state,
+    required this.accessories,
+    required this.bob,
+    required this.sway,
+    required this.blink,
+    required this.transition,
+    required this.squish,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
-    final groundY = size.height * 0.82;
+    final center = Offset(size.width / 2, size.height * 0.7);
+    final baseSize = size.width * 0.45;
 
-    final swayAngle = math.sin(swayValue * math.pi * 2) * 0.07;
-    final bounceOffset = math.sin(bounceValue * math.pi) * 2.5;
+    // 1. Calculate dynamic offsets based on rhythmic controllers
+    final bobY = math.sin(bob * math.pi) * (baseSize * 0.08);
+    final swayAngle = math.sin(sway * math.pi) * 0.045;
+    final stretchY = 1.0 - (squish * 0.15) + (state == MascotState.growing ? transition * 0.12 : 0);
+    final squishX = 1.0 + (squish * 0.12);
 
-    _drawSoilMound(canvas, centerX, groundY, size.width);
-    _drawRootGlow(canvas, centerX, groundY);
-    _drawStem(canvas, centerX, groundY, swayAngle, bounceOffset);
-    _drawLeaves(canvas, centerX, groundY, swayAngle, bounceOffset);
+    canvas.save();
+    canvas.translate(center.dx, center.dy + bobY);
+    canvas.scale(squishX, stretchY);
 
-    final stemHeight = 50 + (growthValue * 20);
-    final stemEndX = centerX + math.sin(swayAngle) * stemHeight * 0.3;
-    final stemEndY = groundY - stemHeight + bounceOffset;
+    // 2. Body Layer (The Pot/Jar)
+    _drawBody(canvas, baseSize);
 
-    if (growthValue > 0) {
-      _drawSproutLeaf(canvas, stemEndX, stemEndY, swayAngle);
-    }
+    // 3. Foliage Layer (Sprouts and Leaves — Swaying)
+    canvas.save();
+    canvas.rotate(swayAngle);
+    _drawFoliage(canvas, baseSize);
+    canvas.restore();
 
-    _drawFace(canvas, centerX, stemEndY, swayAngle);
+    // 4. Facial Features (Eyes, Mouth — Blinking & States)
+    _drawFace(canvas, baseSize);
 
-    if (state == MascotState.happy || state == MascotState.celebrating) {
-      _drawSparkles(canvas, centerX, stemEndY);
+    // 5. Tool Layer (The Watering Can — Animated relative to body)
+    _drawWateringCan(canvas, baseSize);
+
+    // 6. Accessory Layer (Trophy, etc.)
+    _drawAccessories(canvas, baseSize);
+
+    canvas.restore();
+
+    // 6. Global Overlays (Celebration Sparkles)
+    if (state == MascotState.celebrating) {
+      _drawCelebrationEffects(canvas, size);
     }
   }
 
-  // ── Soil: 3-layer mound with rich depth ─────────────────────────────
-  void _drawSoilMound(Canvas canvas, double cx, double gy, double w) {
-    // Bottom dark ring
-    final darkPaint = Paint()
-      ..color = const Color(0xFF3E2010)
-      ..style = PaintingStyle.fill;
-    final darkPath = Path()
-      ..moveTo(cx - 42, gy + 2)
-      ..quadraticBezierTo(cx, gy - 8, cx + 42, gy + 2)
-      ..lineTo(cx + 47, gy + 12)
-      ..lineTo(cx - 47, gy + 12)
-      ..close();
-    canvas.drawPath(darkPath, darkPaint);
-
-    // Mid soil mound
-    final midPaint = Paint()
+  void _drawBody(Canvas canvas, double s) {
+    final bodyPaint = Paint()
       ..shader = ui.Gradient.linear(
-        Offset(cx - 40, gy - 16),
-        Offset(cx + 40, gy + 8),
-        [const Color(0xFF6B4226), const Color(0xFF8B5E3C)],
-      )
-      ..style = PaintingStyle.fill;
-    final midPath = Path()
-      ..moveTo(cx - 38, gy)
-      ..quadraticBezierTo(cx, gy - 16, cx + 38, gy)
-      ..lineTo(cx + 43, gy + 10)
-      ..lineTo(cx - 43, gy + 10)
-      ..close();
-    canvas.drawPath(midPath, midPaint);
+        Offset(-s, -s), Offset(s, s),
+        [SeedlingColors.cardBackground, SeedlingColors.deepRoot],
+      );
 
-    // Surface highlight (lighter crumble rim)
+    final path = Path()
+      ..moveTo(-s * 0.6, -s * 0.7)
+      ..lineTo(s * 0.6, -s * 0.7)
+      ..quadraticBezierTo(s * 0.7, s * 0.6, 0, s * 0.8)
+      ..quadraticBezierTo(-s * 0.7, s * 0.6, -s * 0.6, -s * 0.7)
+      ..close();
+
+    // Draw main body shadow
+    canvas.drawPath(
+      path.shift(const Offset(0, 4)),
+      Paint()..color = Colors.black.withValues(alpha: 0.2)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    canvas.drawPath(path, bodyPaint);
+
+    // Rim highlight
     final rimPaint = Paint()
-      ..color = const Color(0xFFA07850).withValues(alpha: 0.55)
+      ..color = SeedlingColors.morningDew.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-    final rimPath = Path()
-      ..moveTo(cx - 35, gy - 1)
-      ..quadraticBezierTo(cx, gy - 15, cx + 35, gy - 1);
-    canvas.drawPath(rimPath, rimPaint);
+      ..strokeWidth = 2.5;
+    canvas.drawPath(path, rimPaint);
+
+    // Glass shine
+    final shinePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+    canvas.drawOval(Rect.fromLTWH(-s * 0.4, -s * 0.5, s * 0.2, s * 0.4), shinePaint);
   }
 
-  // ── Root glow beneath soil ───────────────────────────────────────────
-  void _drawRootGlow(Canvas canvas, double cx, double gy) {
-    final glowPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        Offset(cx, gy + 8),
-        38,
-        [
-          SeedlingColors.seedlingGreen.withValues(alpha: 0.18),
-          Colors.transparent,
-        ],
-      );
-    canvas.drawCircle(Offset(cx, gy + 8), 38, glowPaint);
-  }
-
-  // ── Stem: gradient from deep root → bright tip ───────────────────────
-  void _drawStem(Canvas canvas, double cx, double gy,
-      double swayAngle, double bounceOffset) {
-    final stemHeight = 50 + (growthValue * 20);
-    final stemEndX = cx + math.sin(swayAngle) * stemHeight * 0.3;
-    final stemEndY = gy - stemHeight + bounceOffset;
-
-    final stemPaint = Paint()
+  void _drawFoliage(Canvas canvas, double s) {
+    // Primary Sprout
+    final sproutH = s * 0.6 + (state == MascotState.growing ? transition * 20 : 0);
+    final paint = Paint()
       ..shader = ui.Gradient.linear(
-        Offset(cx, gy),
-        Offset(stemEndX, stemEndY),
-        [const Color(0xFF2D6A4F), const Color(0xFF74C69D)],
+        const Offset(0, 0), Offset(0, -sproutH),
+        [SeedlingColors.seedlingGreen, SeedlingColors.freshSprout],
       )
+      ..strokeWidth = 6
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5.5
       ..strokeCap = StrokeCap.round;
 
-    final stemPath = Path()
-      ..moveTo(cx, gy)
-      ..quadraticBezierTo(
-        cx + math.sin(swayAngle) * 10,
-        gy - stemHeight / 2,
-        stemEndX,
-        stemEndY,
-      );
-    canvas.drawPath(stemPath, stemPaint);
+    final stem = Path()
+      ..moveTo(0, -s * 0.6)
+      ..quadraticBezierTo(s * 0.1, -s * 0.9, 0, -s * 0.6 - sproutH);
+    canvas.drawPath(stem, paint);
+
+    // Leaves
+    _drawLeaf(canvas, 0, -s * 0.6 - sproutH, -0.4, s * 0.35, SeedlingColors.freshSprout);
+    _drawLeaf(canvas, 2, -s * 0.6 - sproutH * 0.6, 0.6, s * 0.28, SeedlingColors.morningDew);
+
+    if (state == MascotState.sad) {
+      // Wilted secondary leaf
+      _drawLeaf(canvas, -4, -s * 0.6 - sproutH * 0.3, -1.2, s * 0.2, SeedlingColors.textSecondary);
+    }
   }
 
-  // ── Leaves: gradient fill + midrib vein ─────────────────────────────
-  void _drawLeaves(Canvas canvas, double cx, double gy,
-      double swayAngle, double bounceOffset) {
-    // Back-left leaf (slightly darker, smaller — depth layer)
-    _drawGradientLeaf(
-      canvas,
-      cx - 8 + math.sin(swayAngle) * 4,
-      gy - 22 + bounceOffset,
-      -0.55 + swayAngle,
-      15.0,
-      const Color(0xFF2D6A4F),
-      const Color(0xFF52B788),
-      drawVein: false,
-    );
-
-    // Front-left leaf
-    _drawGradientLeaf(
-      canvas,
-      cx - 4 + math.sin(swayAngle) * 5,
-      gy - 27 + bounceOffset,
-      -0.38 + swayAngle,
-      20.0,
-      const Color(0xFF40916C),
-      const Color(0xFF74C69D),
-      drawVein: true,
-    );
-
-    // Front-right leaf
-    _drawGradientLeaf(
-      canvas,
-      cx + 5 + math.sin(swayAngle) * 8,
-      gy - 36 + bounceOffset,
-      0.42 + swayAngle,
-      18.0,
-      const Color(0xFF40916C),
-      const Color(0xFF95D5B2),
-      drawVein: true,
-    );
-  }
-
-  void _drawGradientLeaf(
-    Canvas canvas,
-    double x,
-    double y,
-    double angle,
-    double leafSize,
-    Color baseColor,
-    Color tipColor, {
-    required bool drawVein,
-  }) {
+  void _drawLeaf(Canvas canvas, double x, double y, double angle, double size, Color color) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(angle);
 
-    // Leaf fill with gradient
     final leafPath = Path()
       ..moveTo(0, 0)
-      ..quadraticBezierTo(-leafSize * 0.55, -leafSize * 0.35, 0, -leafSize)
-      ..quadraticBezierTo(leafSize * 0.55, -leafSize * 0.35, 0, 0);
+      ..quadraticBezierTo(-size * 0.6, -size * 0.4, 0, -size)
+      ..quadraticBezierTo(size * 0.6, -size * 0.4, 0, 0);
 
-    final gradPaint = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, 0),
-        Offset(0, -leafSize),
-        [baseColor, tipColor],
-      )
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(leafPath, gradPaint);
-
-    // Leaf outline (subtle)
-    final outlinePaint = Paint()
-      ..color = baseColor.withValues(alpha: 0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-    canvas.drawPath(leafPath, outlinePaint);
-
-    // Midrib vein
-    if (drawVein) {
-      final veinPaint = Paint()
-        ..color = baseColor.withValues(alpha: 0.5)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.9
-        ..strokeCap = StrokeCap.round;
-      final veinPath = Path()
-        ..moveTo(0, 0)
-        ..quadraticBezierTo(0, -leafSize * 0.5, 0, -leafSize);
-      canvas.drawPath(veinPath, veinPaint);
-
-      // Two small secondary veins
-      final secVein = Paint()
-        ..color = baseColor.withValues(alpha: 0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.6
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(0, -leafSize * 0.35),
-        Offset(-leafSize * 0.3, -leafSize * 0.52),
-        secVein,
-      );
-      canvas.drawLine(
-        Offset(0, -leafSize * 0.6),
-        Offset(leafSize * 0.28, -leafSize * 0.76),
-        secVein,
-      );
-    }
-
-    // Gloss highlight (tiny white sheen near tip)
-    final glossPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.22)
-      ..style = PaintingStyle.fill;
-    final glossPath = Path()
-      ..moveTo(-leafSize * 0.12, -leafSize * 0.7)
-      ..quadraticBezierTo(-leafSize * 0.22, -leafSize * 0.82,
-          -leafSize * 0.08, -leafSize * 0.88)
-      ..quadraticBezierTo(
-          -leafSize * 0.04, -leafSize * 0.8, -leafSize * 0.12, -leafSize * 0.7);
-    canvas.drawPath(glossPath, glossPaint);
-
+    canvas.drawPath(
+      leafPath,
+      Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, -size), [SeedlingColors.seedlingGreen, color]),
+    );
     canvas.restore();
   }
 
-  // ── Sprout tip leaf (during growth) ─────────────────────────────────
-  void _drawSproutLeaf(Canvas canvas, double x, double y, double swayAngle) {
-    final sproutSize = 8.0 + (growthValue * 5.0);
-    _drawGradientLeaf(
-      canvas, x, y, swayAngle * 1.5, sproutSize,
-      const Color(0xFF52B788), SeedlingColors.morningDew,
-      drawVein: false,
-    );
-  }
+  void _drawFace(Canvas canvas, double s) {
+    final eyeY = -s * 0.2;
+    final eyeSpacing = s * 0.3;
+    final eyeSize = s * 0.12;
 
-  // ── Face: eyes + expressions ─────────────────────────────────────────
-  void _drawFace(Canvas canvas, double cx, double stemEndY, double swayAngle) {
-    final stemHeight = 50 + (growthValue * 20);
-    final faceX = cx + math.sin(swayAngle) * stemHeight * 0.3;
-    final faceY = stemEndY - 16;
+    final eyePaint = Paint()..color = SeedlingColors.textPrimary;
+    final eyeScaleY = (1.0 - blink).clamp(0.1, 1.0);
 
-    // Eye parameters per state
-    final bool isHappy = state == MascotState.happy ||
-        state == MascotState.celebrating;
-    final bool isSad = state == MascotState.sad;
-
-    final double eyeRadius = isHappy ? 5.5 : 4.5;
-    final double eyeSquish = 1.0 - blinkValue; // 0 when blink peak
-    const double eyeSpacing = 8.0;
-
-    final eyePaint = Paint()
-      ..color = const Color(0xFF1B5E20)
-      ..style = PaintingStyle.fill;
-
-    // Left eye
-    canvas.save();
-    canvas.translate(faceX - eyeSpacing, faceY);
-    canvas.scale(1.0, eyeSquish);
-
-    // Eyebrow tilt for sad state
-    if (isSad) {
-      canvas.rotate(0.35);
+    // Adjust facial expression based on state
+    double mouthWidth = s * 0.2;
+    double mouthCurve = 8.0;
+    if (state == MascotState.happy || state == MascotState.celebrating) {
+      mouthWidth = s * 0.35;
+      mouthCurve = 15.0;
+    } else if (state == MascotState.sad) {
+      mouthWidth = s * 0.15;
+      mouthCurve = -8.0;
     }
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset.zero, width: eyeRadius * 2, height: eyeRadius * 2 * eyeSquish.clamp(0.1, 1.0)),
-      eyePaint,
-    );
-    // White highlight
-    canvas.drawCircle(Offset(eyeRadius * 0.3, -eyeRadius * 0.3),
-        eyeRadius * 0.35, Paint()..color = Colors.white.withValues(alpha: 0.8));
-    canvas.restore();
 
-    // Right eye
+    // Eyes
     canvas.save();
-    canvas.translate(faceX + eyeSpacing, faceY);
-    canvas.scale(1.0, eyeSquish);
-    if (isSad) canvas.rotate(-0.35);
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset.zero, width: eyeRadius * 2, height: eyeRadius * 2 * eyeSquish.clamp(0.1, 1.0)),
-      eyePaint,
-    );
-    canvas.drawCircle(Offset(eyeRadius * 0.3, -eyeRadius * 0.3),
-        eyeRadius * 0.35, Paint()..color = Colors.white.withValues(alpha: 0.8));
-    canvas.restore();
-
-    // Star eyes for celebrating
-    if (state == MascotState.celebrating) {
-      _drawStarEye(canvas, faceX - eyeSpacing, faceY, eyeRadius + 1.5);
-      _drawStarEye(canvas, faceX + eyeSpacing, faceY, eyeRadius + 1.5);
+    canvas.translate(0, eyeY);
+    
+    // Left
+    canvas.drawOval(Rect.fromCenter(center: Offset(-eyeSpacing, 0), width: eyeSize, height: eyeSize * eyeScaleY), eyePaint);
+    // Right
+    canvas.drawOval(Rect.fromCenter(center: Offset(eyeSpacing, 0), width: eyeSize, height: eyeSize * eyeScaleY), eyePaint);
+    
+    // High-gloss eye sparkles
+    if (blink < 0.2) {
+      canvas.drawCircle(Offset(-eyeSpacing - 2, -2), 2, Paint()..color = Colors.white.withValues(alpha: 0.8));
+      canvas.drawCircle(Offset(eyeSpacing - 2, -2), 2, Paint()..color = Colors.white.withValues(alpha: 0.8));
     }
+    canvas.restore();
 
     // Mouth
-    final smilePaint = Paint()
-      ..color = const Color(0xFF1B5E20)
+    final mouthPaint = Paint()
+      ..color = SeedlingColors.textSecondary.withValues(alpha: 0.6)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
-    final mouthPath = Path();
-    if (isHappy) {
-      // Big smile
-      mouthPath
-        ..moveTo(faceX - 6, faceY + 8)
-        ..quadraticBezierTo(faceX, faceY + 15, faceX + 6, faceY + 8);
-
-      // Rosy cheeks
-      final blushPaint = Paint()
-        ..color = const Color(0xFFEF9A9A).withValues(alpha: 0.35);
-      canvas.drawCircle(Offset(faceX - 10, faceY + 8), 5, blushPaint);
-      canvas.drawCircle(Offset(faceX + 10, faceY + 8), 5, blushPaint);
-    } else if (isSad) {
-      // Small frown
-      mouthPath
-        ..moveTo(faceX - 5, faceY + 11)
-        ..quadraticBezierTo(faceX, faceY + 7, faceX + 5, faceY + 11);
-    } else {
-      // Neutral slight smile
-      mouthPath
-        ..moveTo(faceX - 5, faceY + 9)
-        ..quadraticBezierTo(faceX, faceY + 13, faceX + 5, faceY + 9);
-    }
-    canvas.drawPath(mouthPath, smilePaint);
+    final mouthPath = Path()
+      ..moveTo(-mouthWidth / 2, 0)
+      ..quadraticBezierTo(0, mouthCurve, mouthWidth / 2, 0);
+    
+    canvas.save();
+    canvas.translate(0, s * 0.1);
+    canvas.drawPath(mouthPath, mouthPaint);
+    canvas.restore();
   }
 
-  void _drawStarEye(Canvas canvas, double x, double y, double r) {
-    canvas.save();
-    canvas.translate(x, y);
-    final paint = Paint()
-      ..color = SeedlingColors.sunlight.withValues(alpha: 0.95)
-      ..style = PaintingStyle.fill;
+  void _drawWateringCan(Canvas canvas, double s) {
+    // Positioning the can to the side
+    final canX = s * 0.7;
+    final canY = s * 0.1;
+    final canSize = s * 0.4;
 
-    final path = Path();
+    canvas.save();
+    canvas.translate(canX, canY);
+
+    if (state == MascotState.growing) {
+      // Tilt to water its foliage
+      canvas.rotate(-math.pi / 4 * transition);
+    }
+
+    final canPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(-canSize, -canSize), Offset(canSize, canSize),
+        [SeedlingColors.water, SeedlingColors.water.withValues(alpha: 0.7)],
+      );
+
+    // Main body of can
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: canSize, height: canSize * 0.7), const Radius.circular(8)), canPaint);
+    
+    // Spout
+    final spout = Path()
+      ..moveTo(canSize * 0.5, 0)
+      ..lineTo(canSize * 1.0, -canSize * 0.4)
+      ..lineTo(canSize * 1.0, -canSize * 0.2)
+      ..close();
+    canvas.drawPath(spout, canPaint);
+
+    // Handle
+    final handle = Path()
+      ..addOval(Rect.fromLTWH(-canSize * 0.8, -canSize * 0.5, canSize * 0.6, canSize * 0.6));
+    canvas.drawPath(
+      handle,
+      Paint()..color = SeedlingColors.water.withValues(alpha: 0.5)..style = PaintingStyle.stroke..strokeWidth = 4,
+    );
+
+    canvas.restore();
+  }
+
+  void _drawAccessories(Canvas canvas, double s) {
+    if (accessories.holdingTrophy) {
+      final tX = -s * 0.7;
+      final tY = s * 0.1;
+      final tSize = s * 0.45;
+
+      canvas.save();
+      canvas.translate(tX, tY);
+
+      // Trophy
+      final trophyPaint = Paint()..color = SeedlingColors.sunlight;
+      canvas.drawPath(
+        Path()
+          ..moveTo(-tSize * 0.4, -tSize * 0.4)
+          ..lineTo(tSize * 0.4, -tSize * 0.4)
+          ..lineTo(tSize * 0.3, tSize * 0.1)
+          ..quadraticBezierTo(0, tSize * 0.3, -tSize * 0.3, tSize * 0.1)
+          ..close(),
+        trophyPaint,
+      );
+
+      // Stem/Base
+      canvas.drawRect(Rect.fromCenter(center: Offset(0, tSize * 0.3), width: tSize * 0.1, height: tSize * 0.2), trophyPaint);
+      canvas.drawRect(Rect.fromCenter(center: Offset(0, tSize * 0.4), width: tSize * 0.4, height: tSize * 0.1), trophyPaint);
+
+      canvas.restore();
+    }
+  }
+
+  void _drawCelebrationEffects(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final t = (bob + sway) % 1.0; // Reuse rhythmic motion for sparkles
+
     for (int i = 0; i < 8; i++) {
-      final outerRadius = r;
-      final innerRadius = r * 0.45;
-      final outerAngle = (i / 8.0) * math.pi * 2 - math.pi / 2;
-      final innerAngle = outerAngle + math.pi / 8;
-      if (i == 0) {
-        path.moveTo(math.cos(outerAngle) * outerRadius,
-            math.sin(outerAngle) * outerRadius);
-      } else {
-        path.lineTo(math.cos(outerAngle) * outerRadius,
-            math.sin(outerAngle) * outerRadius);
-      }
-      path.lineTo(math.cos(innerAngle) * innerRadius,
-          math.sin(innerAngle) * innerRadius);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-    canvas.restore();
-  }
-
-  // ── Sparkles: orbiting ✦ for happy/celebrating ────────────────────────
-  void _drawSparkles(Canvas canvas, double cx, double stemEndY) {
-    for (int i = 0; i < 5; i++) {
-      final phase = (i / 5.0) * math.pi * 2;
-      final angle = phase + sparkleValue * math.pi * 2;
-      final dist = 20.0 + math.sin(sparkleValue * math.pi * 3 + i) * 5.0;
+      final angle = (i / 8.0) * math.pi * 2 + t * 0.5;
+      final dist = (size.width * 0.5) * (0.8 + math.sin(t * math.pi * 2 + i) * 0.2);
       final sx = cx + math.cos(angle) * dist;
-      final sy = stemEndY - 18 + math.sin(angle) * dist * 0.55;
-      final t = (sparkleValue + i / 5.0) % 1.0;
+      final sy = cy + math.sin(angle) * dist;
+      
+      final alpha = (math.sin(t * math.pi * 2 + i) * 0.5 + 0.5);
+      final r = 6.0 * alpha;
 
-      // Hue-shifted sparkle color
-      final hue = (120 + i * 30.0 + sparkleValue * 60) % 360;
-      final color = HSVColor.fromAHSV(0.7 + t * 0.3, hue, 0.6, 0.95).toColor();
-
-      _drawStar(canvas, sx, sy, 3.5 + t * 2.0, color);
+      canvas.drawCircle(
+        Offset(sx, sy), r,
+        Paint()..color = SeedlingColors.sunlight.withValues(alpha: alpha * 0.8)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
     }
-  }
-
-  void _drawStar(Canvas canvas, double x, double y, double r, Color color) {
-    canvas.save();
-    canvas.translate(x, y);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final path = Path();
-    for (int i = 0; i < 4; i++) {
-      final a1 = (i / 4.0) * math.pi * 2 - math.pi / 4 +
-          sparkleValue * math.pi * 0.5;
-      final a2 = a1 + math.pi / 4;
-      if (i == 0) {
-        path.moveTo(math.cos(a1) * r, math.sin(a1) * r);
-      } else {
-        path.lineTo(math.cos(a1) * r, math.sin(a1) * r);
-      }
-      path.lineTo(math.cos(a2) * r * 0.4, math.sin(a2) * r * 0.4);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant SeedlingMascotPainter oldDelegate) => true;
+  bool shouldRepaint(covariant PuppetMascotPainter old) =>
+      old.state != state || 
+      old.accessories != accessories ||
+      old.bob != bob || 
+      old.sway != sway || 
+      old.blink != blink || 
+      old.transition != transition || 
+      old.squish != squish;
 }
+
+class MascotAccessories {
+  final bool holdingTrophy;
+  const MascotAccessories({this.holdingTrophy = false});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MascotAccessories &&
+          runtimeType == other.runtimeType &&
+          holdingTrophy == other.holdingTrophy;
+
+  @override
+  int get hashCode => holdingTrophy.hashCode;
+}
+
