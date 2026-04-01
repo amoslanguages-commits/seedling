@@ -1,0 +1,461 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/multiplayer.dart';
+import '../core/supabase_config.dart';
+import '../services/auth_service.dart';
+import '../providers/app_providers.dart';
+
+// --- Discovery Hub State ---
+
+// Provides a list of all active games (lobby or playing) from Supabase
+final activeGamesProvider = StreamProvider<List<LiveGameSession>>((ref) {
+  return SupabaseConfig.client
+      .from('live_sessions')
+      .stream(primaryKey: ['id'])
+      .eq('status', 'lobby') // Only show lobbies in discovery for now
+      .map((data) => data.map((json) => LiveGameSession.fromJson(json)).toList());
+});
+
+final gameFilterProvider = StateProvider<String?>((ref) => null);
+
+final filteredGamesProvider = Provider<List<LiveGameSession>>((ref) {
+  final games = ref.watch(activeGamesProvider).value ?? [];
+  final filter = ref.watch(gameFilterProvider);
+  if (filter == null || filter == 'All') return games;
+  return games.where((g) => g.theme == filter).toList();
+});
+
+// --- Active Session Management ---
+
+class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
+  final Ref ref;
+  RealtimeChannel? _channel;
+  StreamSubscription? _sessionSub;
+  StreamSubscription? _participantsSub;
+  StreamSubscription? _messagesSub;
+  
+  // Callback for real-time reactions
+  void Function(String emoji)? onReactionReceived;
+
+  ActiveGameNotifier(this.ref) : super(null);
+
+  @override
+  void dispose() {
+    _cleanup();
+    super.dispose();
+  }
+
+  void _cleanup() {
+    _sessionSub?.cancel();
+    _participantsSub?.cancel();
+    _messagesSub?.cancel();
+    if (_channel != null) {
+      SupabaseConfig.client.removeChannel(_channel!);
+    }
+  }
+
+  // --- Core Lifecycle ---
+
+  Future<void> hostGame(LiveGameSession session) async {
+    _cleanup();
+    
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    final targetLang = ref.read(currentLanguageProvider);
+    final nativeLang = ref.read(nativeLanguageProvider);
+
+    // 1. Create session in DB
+    final response = await SupabaseConfig.client.from('live_sessions').insert({
+      'host_id': user.id,
+      'title': session.title,
+      'game_type': session.gameType.name,
+      'max_players': session.maxPlayers,
+      'question_count': session.totalQuestions,
+      'time_per_question': session.timePerQuestion,
+      'theme': session.theme,
+      'subtheme': session.subtheme,
+      'language_code': nativeLang,
+      'target_language_code': targetLang,
+      'status': 'lobby',
+    }).select().single();
+
+    final newSessionId = response['id'];
+
+    // 2. Add self as host participant
+    await SupabaseConfig.client.from('live_participants').insert({
+      'session_id': newSessionId,
+      'user_id': user.id,
+      'display_name': user.userMetadata?['display_name'] ?? 'Host',
+      'avatar_emoji': '👑',
+      'role': 'host',
+    });
+
+    // 3. Connect listeners
+    await _connectToSession(newSessionId);
+  }
+
+  Future<void> joinAsSpectator(LiveGameSession session) async {
+    _cleanup();
+    
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    // 1. Check if already participant
+    final existing = await SupabaseConfig.client
+        .from('live_participants')
+        .select()
+        .eq('session_id', session.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (existing == null) {
+      // 2. Add as spectator
+      await SupabaseConfig.client.from('live_participants').insert({
+        'session_id': session.id,
+        'user_id': user.id,
+        'display_name': user.userMetadata?['display_name'] ?? 'Guest',
+        'avatar_emoji': '🌱',
+        'role': 'spectator',
+      });
+    }
+
+    // 3. Connect listeners
+    await _connectToSession(session.id);
+  }
+
+  Future<void> _connectToSession(String sessionId) async {
+    // Session Stream
+    _sessionSub = SupabaseConfig.client
+        .from('live_sessions')
+        .stream(primaryKey: ['id'])
+        .eq('id', sessionId)
+        .listen((data) {
+          if (data.isEmpty) {
+             state = null;
+             return;
+          }
+          final sessionJson = data.first;
+          _updateLocalState(sessionJson: sessionJson);
+        });
+
+    // Participants Stream
+    _participantsSub = SupabaseConfig.client
+        .from('live_participants')
+        .stream(primaryKey: ['id'])
+        .eq('session_id', sessionId)
+        .listen((data) {
+          final participants = data.map((json) => LivePlayer.fromJson(json)).toList();
+          _updateLocalState(participants: participants);
+        });
+
+    // Messages Stream
+    _messagesSub = SupabaseConfig.client
+        .from('live_messages')
+        .stream(primaryKey: ['id'])
+        .eq('session_id', sessionId)
+        .listen((data) {
+          final messages = data.map((json) => LiveChatMessage.fromJson(json)).toList();
+          _updateLocalState(messages: messages);
+        });
+
+    // Realtime Channel for Reactions (Broadcast)
+    _channel = SupabaseConfig.client.channel('session_$sessionId');
+    _channel!.onBroadcast(
+      event: 'reaction',
+      callback: (payload) {
+        final emoji = payload['emoji'] as String?;
+        if (emoji != null && onReactionReceived != null) {
+          onReactionReceived!(emoji);
+        }
+      },
+    ).subscribe();
+  }
+
+  void _updateLocalState({
+    Map<String, dynamic>? sessionJson,
+    List<LivePlayer>? participants,
+    List<LiveChatMessage>? messages,
+  }) {
+    if (sessionJson == null && state == null) return;
+
+    final currentSession = state;
+    final json = sessionJson ?? {}; // If we only got participants update
+    
+    if (currentSession == null && sessionJson != null) {
+      // Initial load
+      state = LiveGameSession.fromJson(
+        sessionJson,
+        participants: participants ?? [],
+        messages: messages ?? [],
+      );
+    } else if (currentSession != null) {
+      // Update existing
+      state = currentSession.copyWith(
+        status: json['status'] != null ? GameStatus.values.firstWhere((e) => e.name == json['status']) : currentSession.status,
+        languageCode: json['language_code'] ?? currentSession.languageCode,
+        targetLanguageCode: json['target_language_code'] ?? currentSession.targetLanguageCode,
+        currentQuestionIndex: json['current_question_index'] ?? currentSession.currentQuestionIndex,
+        participants: participants ?? currentSession.participants,
+        chatMessages: messages ?? currentSession.chatMessages,
+        theme: json['theme'] ?? currentSession.theme,
+        totalQuestions: json['question_count'] ?? currentSession.totalQuestions,
+        timePerQuestion: json['time_per_question'] ?? currentSession.timePerQuestion,
+        currentQuestionStartAt: json['current_question_start_at'] != null 
+            ? DateTime.parse(json['current_question_start_at']) 
+            : currentSession.currentQuestionStartAt,
+        questionIds: json['question_ids'] != null 
+            ? List<String>.from(json['question_ids']) 
+            : currentSession.questionIds,
+      );
+    }
+  }
+
+  // --- Real-time Gameplay ---
+
+  Future<void> submitAnswer(int questionIndex, int answerIndex, bool isCorrect) async {
+    if (state == null) return;
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    // Calculate score increment and streak
+    final currentPlayer = state!.participants.firstWhere((p) => p.id == user.id);
+    final newScore = isCorrect ? currentPlayer.score + 100 : currentPlayer.score;
+    final newStreak = isCorrect ? currentPlayer.streak + 1 : 0;
+    
+    await SupabaseConfig.client.from('live_participants').update({
+      'score': newScore,
+      'streak': newStreak,
+      'last_answer_status': isCorrect ? 'correct' : 'incorrect',
+    }).eq('session_id', state!.id).eq('user_id', user.id);
+  }
+
+  Future<void> nextQuestion() async {
+    if (state == null) return;
+    final nextIndex = state!.currentQuestionIndex + 1;
+    
+    if (nextIndex >= state!.totalQuestions) {
+      await SupabaseConfig.client
+          .from('live_sessions')
+          .update({'status': 'finished'})
+          .eq('id', state!.id);
+    } else {
+      // Sync restart timer for everyone
+      await SupabaseConfig.client
+          .from('live_sessions')
+          .update({
+            'current_question_index': nextIndex,
+            'current_question_start_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', state!.id);
+
+      await SupabaseConfig.client
+          .from('live_participants')
+          .update({'last_answer_status': 'idle'})
+          .eq('session_id', state!.id);
+    }
+  }
+
+  Future<void> resetSession() async {
+    if (state == null) return;
+    
+    // Reset all participants
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({
+          'score': 0,
+          'streak': 0,
+          'last_answer_status': 'idle',
+        })
+        .eq('session_id', state!.id);
+
+    // Reset session
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({
+          'status': 'lobby',
+          'current_question_index': 0,
+        })
+        .eq('id', state!.id);
+  }
+
+  // --- Actions ---
+
+  Future<void> requestToPlay() async {
+    if (state == null) return;
+    final userId = AuthService().userId;
+    if (userId == null) return;
+
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({'role': 'requesting'})
+        .eq('session_id', state!.id)
+        .eq('user_id', userId);
+  }
+
+  Future<void> acceptParticipant(String playerId) async {
+    if (state == null) return;
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({'role': 'player'})
+        .eq('session_id', state!.id)
+        .eq('user_id', playerId);
+  }
+
+  Future<void> rejectParticipant(String playerId) async {
+    if (state == null) return;
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({'role': 'spectator'})
+        .eq('session_id', state!.id)
+        .eq('user_id', playerId);
+  }
+
+  Future<void> updateSettings(Map<String, dynamic> settings) async {
+    if (state == null) return;
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update(settings)
+        .eq('id', state!.id);
+  }
+
+  Future<void> startGame() async {
+    if (state == null) return;
+    
+    // 1. Fetch real questions from vocabulary table based on theme
+    final questions = await _generateSessionQuestions();
+    
+    // 2. Start countdown for everyone
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({
+          'status': 'starting',
+          'question_ids': questions,
+        })
+        .eq('id', state!.id);
+  }
+
+  Future<List<String>> _generateSessionQuestions() async {
+    if (state == null) return [];
+    
+    // Fetch random concept_ids from current theme
+    final response = await SupabaseConfig.client
+        .from('vocabulary')
+        .select('concept_id')
+        .eq('domain', state!.theme.toLowerCase())
+        .eq('lang_code', state!.targetLanguageCode)
+        .limit(state!.totalQuestions);
+    
+    final ids = (response as List).map((r) => r['concept_id'].toString()).toList();
+    
+    // Fallback if theme is empty or insufficient words
+    if (ids.length < 5) {
+       final globalResp = await SupabaseConfig.client
+          .from('vocabulary')
+          .select('concept_id')
+          .eq('lang_code', state!.targetLanguageCode)
+          .limit(state!.totalQuestions);
+       return (globalResp as List).map((r) => r['concept_id'].toString()).toList();
+    }
+    
+    return ids;
+  }
+
+  Future<void> beginPlaying() async {
+    if (state == null) return;
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({
+          'status': 'playing',
+          'current_question_start_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', state!.id);
+  }
+
+  Future<void> sendChatMessage(String text) async {
+    if (state == null) return;
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    await SupabaseConfig.client.from('live_messages').insert({
+      'session_id': state!.id,
+      'sender_id': user.id,
+      'sender_name': user.userMetadata?['display_name'] ?? 'User',
+      'message': text,
+    });
+  }
+
+  Future<void> sendReaction(String emoji) async {
+    if (_channel == null) return;
+    await _channel!.sendBroadcastMessage(
+      event: 'reaction',
+      payload: {'emoji': emoji, 'sender_id': AuthService().userId},
+    );
+  }
+
+  Future<void> resetToLobby() async {
+    if (state == null) return;
+    
+    // Batch reset participants score
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({'score': 0, 'last_answer_status': 'idle'})
+        .eq('session_id', state!.id);
+
+    // Update session status
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({'status': 'lobby', 'current_question_index': 0})
+        .eq('id', state!.id);
+  }
+
+  Future<void> endGameForAll() async {
+    if (state == null) return;
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({'status': 'terminated'})
+        .eq('id', state!.id);
+    _cleanup();
+    state = null;
+  }
+
+  Future<void> leaveGame() async {
+    if (state == null) return;
+    final userId = AuthService().userId;
+    if (userId == null) return;
+
+    await SupabaseConfig.client
+        .from('live_participants')
+        .delete()
+        .eq('session_id', state!.id)
+        .eq('user_id', userId);
+        
+    _cleanup();
+    state = null;
+  }
+
+  Future<void> passHostAndLeave(String newHostUserId) async {
+    if (state == null) return;
+    
+    // 1. Update session table
+    await SupabaseConfig.client
+        .from('live_sessions')
+        .update({'host_id': newHostUserId})
+        .eq('id', state!.id);
+
+    // 2. Update new host's role
+    await SupabaseConfig.client
+        .from('live_participants')
+        .update({'role': 'host'})
+        .eq('session_id', state!.id)
+        .eq('user_id', newHostUserId);
+
+    // 3. Current host leaves
+    await leaveGame();
+  }
+}
+
+final activeSessionProvider = StateNotifierProvider<ActiveGameNotifier, LiveGameSession?>((ref) {
+  return ActiveGameNotifier(ref);
+});

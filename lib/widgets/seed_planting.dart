@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import '../core/colors.dart';
 import '../core/typography.dart';
 import '../models/word.dart';
+import '../models/taxonomy.dart';
 import '../widgets/mascot.dart';
 import '../services/tts_service.dart';
 import '../widgets/target_word_display.dart';
+import '../widgets/example_sentence_display.dart';
 import '../widgets/word_image.dart';
 
 // ================================================================
@@ -420,12 +422,32 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
         ),
         child: Column(
           children: [
+            if (word.partsOfSpeech.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${word.partsOfSpeech.first.icon} ${(word.partOfSpeechRaw ?? word.partsOfSpeech.first.displayName).toUpperCase()}',
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.deepRoot,
+                    fontSize: 11,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 TargetWordDisplay(
                   word: word,
+                  showPronunciation: true,
                   style: SeedlingTypography.heading1.copyWith(
                     fontSize: 34,
                     color: SeedlingColors.textPrimary,
@@ -449,91 +471,32 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
             Text(
               word.translation,
               style: SeedlingTypography.body.copyWith(
-                color: SeedlingColors.textSecondary,
-                fontSize: 20,
-                fontStyle: FontStyle.italic,
+                color: SeedlingColors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            if (word.pronunciation != null && word.pronunciation!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                word.pronunciation!,
-                style: SeedlingTypography.caption.copyWith(
-                  color: SeedlingColors.morningDew,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            if (word.definition != null && word.definition!.isNotEmpty) ...[
+
+            if (word.definition != null && word.definition!.isNotEmpty && word.definition != word.translation) ...[
               const SizedBox(height: 12),
               Text(
                 word.definition!,
                 style: SeedlingTypography.caption.copyWith(
-                  color: SeedlingColors.textSecondary,
+                  color: SeedlingColors.textSecondary.withValues(alpha: 0.8),
                   fontSize: 14,
+                  fontStyle: FontStyle.italic,
                 ),
                 textAlign: TextAlign.center,
               ),
             ],
             if (word.exampleSentence != null && word.exampleSentence!.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: SeedlingColors.morningDew.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            word.exampleSentence!,
-                            style: SeedlingTypography.body.copyWith(
-                              color: SeedlingColors.textPrimary,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => TtsService.instance.speak(word.exampleSentence!, word.targetLanguageCode),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.volume_up_rounded,
-                              size: 20,
-                              color: SeedlingColors.seedlingGreen,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (word.exampleSentencePronunciation != null && word.exampleSentencePronunciation!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          word.exampleSentencePronunciation!,
-                          style: SeedlingTypography.caption.copyWith(
-                            color: SeedlingColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+              ExampleSentenceDisplay(
+                word: word,
+                style: SeedlingTypography.body.copyWith(
+                  color: SeedlingColors.textPrimary,
+                  fontSize: 16,
                 ),
               ),
             ],

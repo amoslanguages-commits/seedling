@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../models/word.dart';
 import '../models/taxonomy.dart';
+import '../core/supabase_config.dart';
 import '../database/database_helper.dart';
 
 class VocabularyService {
@@ -16,22 +18,32 @@ class VocabularyService {
     
     final map = <int, List<dynamic>>{};
     
-    // Pattern matches commas not inside quotes
-    final RegExp splitPattern = RegExp(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)');
+    // Use fast manual CSV parser to prevent RegExp backtracking freeze
+    List<String> fastParseCsvRow(String line) {
+      final List<String> row = [];
+      final StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+      for (int i = 0; i < line.length; i++) {
+        final char = line[i];
+        if (char == '"') {
+          inQuotes = !inQuotes;
+        } else if (char == ',' && !inQuotes) {
+          row.add(current.toString().trim());
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+      row.add(current.toString().trim());
+      return row;
+    }
     
     // Skip header (row 0)
-    for (int i = 1; i < lines.length; i++) {
+    for (int i = 0; i < lines.length; i++) {
         final line = lines[i].trim();
         if (line.isEmpty) continue;
         
-        final row = line.split(splitPattern).map((s) {
-          // Remove surrounding quotes if they exist
-          String clean = s.trim();
-          if (clean.startsWith('"') && clean.endsWith('"')) {
-            clean = clean.substring(1, clean.length - 1);
-          }
-          return clean;
-        }).toList();
+        final row = fastParseCsvRow(line);
 
         if (row.length < 10) continue;
         
@@ -42,7 +54,7 @@ class VocabularyService {
         if (rowLangCode == normalizedTarget || rowLangCode == baseTarget) {
             final int conceptId = int.tryParse(row[1].toString()) ?? -1;
             if (conceptId != -1) {
-            map[conceptId] = row;
+              map[conceptId] = row;
             }
         }
     }
@@ -53,21 +65,36 @@ class VocabularyService {
   /// Looks up a Theme ID by its display name.
   static String? _findThemeIdByName(String name) {
     if (name.isEmpty) return null;
-    final theme = CategoryTaxonomy.getTheme(name);
-    return theme?.id;
+    try {
+      final theme = CategoryTaxonomy.getRootCategories().firstWhere(
+        (c) => c.name.toLowerCase() == name.toLowerCase() || c.id.toLowerCase() == name.toLowerCase().replaceAll(' ', '_'),
+      );
+      return theme.id;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Looks up a Sub-theme ID by its display name.
-  static String? _findSubThemeIdByName(String subThemeName, String? themeName) {
+  static String? _findSubThemeIdByName(String subThemeName, String? parentId) {
     if (subThemeName.isEmpty) return null;
+    if (parentId == null || parentId.isEmpty) return null;
     
-    // First try a global search for the sub-theme name
-    for (final cat in CategoryTaxonomy.getAllCategories()) {
-      if (!cat.isRoot && cat.name.toLowerCase() == subThemeName.toLowerCase()) {
-        return cat.id;
+    try {
+      final subThemes = CategoryTaxonomy.getSubCategories(parentId);
+      final theme = subThemes.firstWhere(
+        (c) => c.name.toLowerCase() == subThemeName.toLowerCase() || c.id.toLowerCase() == subThemeName.toLowerCase().replaceAll(' ', '_'),
+      );
+      return theme.id;
+    } catch (_) {
+      // Fallback to global search if parent not specified or not found
+      for (final cat in CategoryTaxonomy.getAllCategories()) {
+        if (!cat.isRoot && cat.name.toLowerCase() == subThemeName.toLowerCase()) {
+          return cat.id;
+        }
       }
+      return null;
     }
-    return null;
   }
 
   /// New ingestion engine for the 8-column format:
@@ -83,12 +110,29 @@ class VocabularyService {
     final dbHelper = DatabaseHelper();
     final List<Word> batchWords = [];
     
-    // Pattern matches commas not inside quotes
-    final RegExp splitPattern = RegExp(r',(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)');
+    // Use fast manual CSV parser to prevent RegExp backtracking freeze
+    List<String> fastParseCsvRow(String line) {
+      final List<String> row = [];
+      final StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+      for (int i = 0; i < line.length; i++) {
+        final char = line[i];
+        if (char == '"') {
+          inQuotes = !inQuotes;
+        } else if (char == ',' && !inQuotes) {
+          row.add(current.toString().trim());
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+      row.add(current.toString().trim());
+      return row;
+    }
 
     // Skip header if it exists (check if first row contains 'Theme')
     int startIndex = 0;
-    if (lines[0].toLowerCase().contains('theme')) {
+    if (lines.isNotEmpty && lines[0].toLowerCase().contains('theme')) {
       startIndex = 1;
     }
 
@@ -96,26 +140,24 @@ class VocabularyService {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
 
-      final row = line.split(splitPattern).map((s) {
-        String clean = s.trim();
-        if (clean.startsWith('"') && clean.endsWith('"')) {
-          clean = clean.substring(1, clean.length - 1);
-        }
-        return clean;
-      }).toList();
+      final row = fastParseCsvRow(line);
 
-      if (row.length < 5) continue; // Minimum required: Theme, Sub, Micro, Native, Translation
+      if (row.length < 13) continue; // Minimum required to reach definition
 
-      final String themeName = row[0];
-      final String subThemeName = row[1];
-      final String microCategory = row[2];
-      final String nativeWord = row[3];
-      final String translation = row[4];
-      final String definition = row.length > 5 ? row[5] : '';
-      final String example = row.length > 6 ? row[6] : '';
-      final String examplePronunciation = row.length > 7 ? row[7] : '';
+      final String themeName = row[9]; // domain
+      final String subThemeName = row[10]; // sub_domain
+      final String microCategory = row[11]; // micro_category
+      final String wordText = row[3]; // word
+      final String article = row[4];
+      final String gender = row[5];
+      final String pronunciation = row[6];
+      final String partOfSpeech = row[7];
+      final String definition = row[12];
+      final String frequency = row[13];
+      final String imageId = row[14];
+      final String example = row.length > 15 ? row[15] : '';
+      final String examplePronunciation = row.length > 16 ? row[16] : '';
 
-      // Determine IDs for legacy compatibility
       final String? themeId = _findThemeIdByName(themeName);
       final String? subThemeId = _findSubThemeIdByName(subThemeName, themeName);
       
@@ -124,20 +166,31 @@ class VocabularyService {
       if (subThemeId != null) categoryIds.add(subThemeId);
       if (categoryIds.isEmpty) categoryIds.add('general');
 
+      // For 17-column clean CSV: 0:id, 1:conceptId, 3:word, 12:definition
+      // The user wants 'Meaning' to be the word in the native language if possible.
+      // In a single-row CSV, we use word as translation if there's no pairing,
+      // but usually this is used for offline single-language imports.
+      
       final word = Word(
-        word: translation, // In our app 'word' is the Target language
-        translation: nativeWord, // 'translation' is Native language
+        id: int.tryParse(row[0].toString()), // vocabulary_id
+        conceptId: row[1],
+        word: wordText,
+        translation: wordText, // Default to word itself for single-row, pairing happens in populateCourse
         languageCode: nativeLangCode,
         targetLanguageCode: targetLangCode,
-        domain: themeName.toLowerCase().replaceAll(' ', '_'),
-        subDomain: subThemeName.toLowerCase().replaceAll(' ', '_'),
+        domain: themeName.toLowerCase(),
+        subDomain: subThemeName.toLowerCase(),
         microCategory: microCategory,
         categoryIds: categoryIds,
-        definition: definition.isNotEmpty ? definition : null,
+        gender: gender.isNotEmpty ? gender : null,
+        definition: definition,
+        pronunciation: pronunciation.isNotEmpty ? pronunciation : null,
         exampleSentence: example.isNotEmpty ? example : null,
         exampleSentencePronunciation: examplePronunciation.isNotEmpty ? examplePronunciation : null,
-        difficulty: 1,
-        frequency: 'Medium',
+        difficulty: _mapFrequencyToDifficulty(frequency),
+        frequency: frequency,
+        imageId: imageId.isNotEmpty ? imageId : null,
+        languageSpecific: article.isNotEmpty ? {'article': article} : {},
       );
 
       batchWords.add(word);
@@ -151,8 +204,7 @@ class VocabularyService {
   /// Populates the SQLite database with words for a specific learning pair.
   /// For instance, if user's native lang is 'en' and learning lang is 'es'.
   static Future<void> populateCourse(String nativeLangCode, String targetLangCode) async {
-    // Legacy mapping preserved for safety, but new content should use importFromNewCsv
-    // 1. Load data for both languages
+    // 1. Load data for both languages from the 17-column CSV
     final nativeData = await _loadLanguageData(nativeLangCode);
     final targetData = await _loadLanguageData(targetLangCode);
     
@@ -165,31 +217,46 @@ class VocabularyService {
         final targetRow = targetData[conceptId]!;
         final nativeRow = nativeData[conceptId]!;
         
-        // CSV columns matching our schema:
-        // 0: vocabulary_id, 1: concept_id, 2: lang_code, 3: word, 4: article, 
-        // 5: gender, 6: pronunciation, 7: part_of_speech, 8: category, 
-        // 9: subcategory, 10: frequency, 11: image_id
+        // CSV columns mapping:
+        // 0: rowID, 1: conceptId, 2: langCode, 3: word, 4: article, 5: gender, 
+        // 6: pronunciation, 7: pos, 8: conceptType, 9: domain, 10: subDomain,
+        // 11: microCategory, 12: definition, 13: frequency, 14: imageId,
+        // 15: exampleSentence, 16: exampleSentencePronunciation
         
-        if (targetRow.length < 10 || nativeRow.length < 10) continue;
+        if (targetRow.length < 15 || nativeRow.length < 15) continue;
         
         final String targetWord = targetRow[3].toString().trim();
         final String nativeWord = nativeRow[3].toString().trim();
-        final String targetArticle = targetRow.length > 4 ? targetRow[4].toString().trim() : '';
+        final String targetArticle = targetRow[4].toString().trim();
+        final String gender = targetRow[5].toString().trim();
         final String pronunciation = targetRow[6].toString().trim();
         final String posStr = targetRow[7].toString().trim();
-        final String categoryName = targetRow[8].toString().trim();
-        final String subCategoryName = targetRow[9].toString().trim();
-        final String frequency = targetRow.length > 10 ? targetRow[10].toString().trim() : 'Medium';
-        final String rawImageId = targetRow.length > 11 ? targetRow[11].toString().trim() : '';
-        final String? imageId = rawImageId.isEmpty ? null : rawImageId;
-
-        // Determine Category ID
-        String? catId = _findCategoryIdByName(subCategoryName);
-        catId ??= _findCategoryIdByName(categoryName);
-        catId ??= 'general'; // fallback
+        final String conceptType = targetRow[8].toString().trim();
+        final String rawDomain = targetRow[9].toString().trim();
+        final String rawSubDomain = targetRow[10].toString().trim();
+        final String microCategory = targetRow[11].toString().trim();
         
-        // Parse POS
+        // Determine Category IDs (Standardized IDs for filtering)
+        final String domainId = _findThemeIdByName(rawDomain) ?? rawDomain.toLowerCase().replaceAll(' ', '_');
+        final String subDomainId = _findSubThemeIdByName(rawSubDomain, domainId) ?? rawSubDomain.toLowerCase().replaceAll(' ', '_');
+        
+        // Use definition from native language row so learner understands the meaning
+        final String definition = nativeRow[12].toString().trim();
+        final String frequency = targetRow[13].toString().trim();
+        final String rawImageId = targetRow[14].toString().trim();
+        final String exampleSentence = targetRow[15].toString().trim();
+        final String exampleSentenceTranslation = nativeRow[15].toString().trim();
+        final String exampleSentencePronunciation = targetRow.length > 16 ? targetRow[16].toString().trim() : '';
+
+        // Determine Category IDs for the legacy column
+        final List<String> categoryIds = [];
+        categoryIds.add(domainId);
+        categoryIds.add(subDomainId);
+        if (categoryIds.isEmpty) categoryIds.add('general');
+        
+        // Parse POS and Difficulty
         final pos = _mapPartOfSpeech(posStr);
+        final difficulty = _mapFrequencyToDifficulty(frequency);
         
         // Create the Word model
         final word = Word(
@@ -197,27 +264,140 @@ class VocabularyService {
           translation: nativeWord,
           languageCode: nativeLangCode,
           targetLanguageCode: targetLangCode,
+          conceptId: conceptId.toString(),
+          conceptType: conceptType,
+          domain: domainId,  // Store ID for filtering
+          subDomain: subDomainId, // Store ID for filtering
+          microCategory: microCategory,
           partsOfSpeech: [pos],
-          categoryIds: [catId],
+          partOfSpeechRaw: posStr,
+          categoryIds: categoryIds,
+          gender: gender.isNotEmpty ? gender : null,
+          definition: definition.isNotEmpty ? definition : null,
           pronunciation: pronunciation.isNotEmpty ? pronunciation : null,
-          difficulty: 1,
+          exampleSentence: exampleSentence.isNotEmpty ? exampleSentence : null,
+          exampleSentenceTranslation: exampleSentenceTranslation.isNotEmpty ? exampleSentenceTranslation : null,
+          exampleSentencePronunciation: exampleSentencePronunciation.isNotEmpty ? exampleSentencePronunciation : null,
+          difficulty: difficulty,
           frequency: frequency,
-          imageId: imageId,
+          imageId: rawImageId.isNotEmpty ? rawImageId : null,
           languageSpecific: targetArticle.isNotEmpty ? {'article': targetArticle} : {},
         );
         
-        // Accumulate in batch array
         batchWords.add(word);
       }
     }
     
-    // 3. Insert into the database in one massive operation
+    // 3. Insert into the database
     if (batchWords.isNotEmpty) {
       await dbHelper.insertWordsBatch(batchWords);
     }
   }
 
-  /// Looks up a legacy Category ID by its display name.
+  /// Fetches a paired word from Supabase for online games.
+  /// Resolves the same Concept ID into Target and Native words.
+  static Future<Word?> fetchOnlineWord(String conceptId, String targetLang, String nativeLang) async {
+    try {
+      final response = await SupabaseConfig.client
+          .from('vocabulary')
+          .select()
+          .eq('concept_id', conceptId)
+          .inFilter('lang_code', [targetLang, nativeLang]);
+
+      final List rows = response as List;
+      if (rows.isEmpty) return null;
+
+      final targetRow = rows.firstWhere((r) => r['lang_code'] == targetLang, orElse: () => null);
+      final nativeRow = rows.firstWhere((r) => r['lang_code'] == nativeLang, orElse: () => rows.first);
+
+      if (targetRow == null) return null;
+
+      // Fetch intelligent distractors
+      final pos = targetRow['part_of_speech'];
+      final subDomain = targetRow['sub_domain'];
+      final domain = targetRow['domain'];
+
+      List<dynamic> distractorsData = [];
+
+      Future<List<dynamic>> fetchDistractors({String? eqSubDomain, String? eqDomain, String? likePos}) async {
+        var query = SupabaseConfig.client
+            .from('vocabulary')
+            .select('word')
+            .eq('lang_code', nativeLang)
+            .neq('concept_id', conceptId);
+            
+        if (likePos != null && likePos.isNotEmpty) query = query.ilike('part_of_speech', '%$likePos%');
+        if (eqSubDomain != null && eqSubDomain.isNotEmpty) query = query.eq('sub_domain', eqSubDomain);
+        if (eqDomain != null && eqDomain.isNotEmpty) query = query.eq('domain', eqDomain);
+        
+        return await query.limit(10);
+      }
+
+      // 1. Try Sub-Domain + POS
+      distractorsData = await fetchDistractors(eqSubDomain: subDomain, likePos: pos);
+      
+      // 2. Fallback to Domain + POS
+      if (distractorsData.length < 3) {
+        distractorsData = await fetchDistractors(eqDomain: domain, likePos: pos);
+      }
+      
+      // 3. Fallback to POS only
+      if (distractorsData.length < 3) {
+        distractorsData = await fetchDistractors(likePos: pos);
+      }
+      
+      // 4. Ultimate Fallback
+      if (distractorsData.length < 3) {
+        distractorsData = await fetchDistractors();
+      }
+      
+      distractorsData.shuffle();
+      final distractors = distractorsData.take(3).map((r) => r['word'].toString()).toList();
+
+      final word = Word.fromMap(targetRow);
+      // Pair the native word as translation
+      final updatedWord = Word(
+        word: targetRow['word'],
+        translation: nativeRow['word'], // Use native word for meaning
+        languageCode: nativeLang,
+        targetLanguageCode: targetLang,
+        conceptId: conceptId,
+        conceptType: targetRow['concept_type'],
+        domain: targetRow['domain'],
+        subDomain: targetRow['sub_domain'],
+        microCategory: targetRow['micro_category'],
+        gender: targetRow['gender'],
+        definition: nativeRow['definition'], // Keep definition for extra info
+        pronunciation: targetRow['pronunciation'],
+        exampleSentence: targetRow['example_sentence'],
+        exampleSentenceTranslation: nativeRow['example_sentence'], // Translation of the sentence
+        difficulty: _mapFrequencyToDifficulty(targetRow['frequency'] ?? ''),
+        imageId: targetRow['imageId'] ?? targetRow['image_id'],
+        partOfSpeechRaw: targetRow['part_of_speech'],
+      );
+
+      updatedWord.setOptions([nativeRow['word'], ...distractors]..shuffle());
+      
+      return updatedWord;
+    } catch (e) {
+      debugPrint('Error fetching online word: $e');
+      return null;
+    }
+  }
+
+  /// Maps frequency labels to difficulty levels (1-5).
+  static int _mapFrequencyToDifficulty(String frequency) {
+    switch (frequency.toLowerCase()) {
+      case 'very high': return 1;
+      case 'high': return 2;
+      case 'medium': return 3;
+      case 'low': return 4;
+      case 'very low': return 5;
+      default: return 1;
+    }
+  }
+
+
   static String? _findCategoryIdByName(String name) {
     if (name.isEmpty) return null;
     for (final cat in CategoryTaxonomy.getAllCategories()) {
@@ -240,5 +420,39 @@ class VocabularyService {
     if (clean.contains('conj')) return PartOfSpeech.conjunction;
     if (clean.contains('interj')) return PartOfSpeech.interjection;
     return PartOfSpeech.noun;
+  }
+
+  /// One-time normalization to convert display names to IDs in the database.
+  static Future<void> normalizeDatabaseCategories() async {
+    final dbHelper = DatabaseHelper();
+    final allWords = await dbHelper.getWordsForLanguage('en', 'es'); // Or any pair
+    // We actually need all words regardless of lang to be safe, or just run for active ones.
+    // Better to use a raw query to get everything.
+    
+    final db = await dbHelper.database;
+    final List<Map<String, dynamic>> rows = await db.query('words');
+    
+    for (final row in rows) {
+      final String rawDomain = (row['domain'] as String?) ?? '';
+      final String rawSubDomain = (row['sub_domain'] as String?) ?? '';
+      
+      if (rawDomain.isEmpty) continue;
+      
+      final domainId = _findThemeIdByName(rawDomain);
+      if (domainId != null && domainId != rawDomain) {
+        final subDomainId = _findSubThemeIdByName(rawSubDomain, domainId);
+        
+        await db.update(
+          'words',
+          {
+            'domain': domainId,
+            'sub_domain': subDomainId ?? rawSubDomain,
+            'category_ids': [domainId, if (subDomainId != null) subDomainId].join(','),
+          },
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+      }
+    }
   }
 }

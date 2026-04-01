@@ -24,6 +24,19 @@ class SeedlingMascot extends StatefulWidget {
     this.onTap,
   });
 
+  static void paintForExport(Canvas canvas, Size size, {MascotState state = MascotState.idle}) {
+    final painter = PuppetMascotPainter(
+      state: state,
+      accessories: const MascotAccessories(),
+      bob: 0,
+      sway: 0,
+      blink: 0,
+      transition: 1.0,
+      squish: 0,
+    );
+    painter.paint(canvas, size);
+  }
+
   @override
   State<SeedlingMascot> createState() => _SeedlingMascotState();
 }

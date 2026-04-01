@@ -6,6 +6,7 @@ import '../models/word.dart';
 import '../models/taxonomy.dart';
 import '../providers/app_providers.dart';
 import '../services/tts_service.dart';
+import '../screens/learning.dart';
 
 enum _SortMode { mastery, alphabetical, recent }
 
@@ -149,6 +150,20 @@ class _WordLibraryBottomSheetState
         ],
       ),
     );
+  }
+
+  /// Groups planted words by micro_category and returns non-null clusters.
+  Map<String, List<Word>> get _microCategoryClusters {
+    final clusters = <String, List<Word>>{};
+    for (final w in _allWords) {
+      final mc = w.microCategory;
+      if (mc != null && mc.isNotEmpty) {
+        clusters.putIfAbsent(mc, () => []).add(w);
+      }
+    }
+    // Only return clusters with 2+ words (single-word clusters aren't useful)
+    clusters.removeWhere((_, words) => words.length < 2);
+    return clusters;
   }
 
   Widget _buildHeader() {
@@ -319,19 +334,178 @@ class _WordLibraryBottomSheetState
   }
 
   Widget _buildWordList() {
-    return ListView.separated(
+    final clusters = _microCategoryClusters;
+    return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      itemCount: _filteredWords.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final word = _filteredWords[index];
-        return _WordListTile(
-          word: word,
-          themeColor: widget.themeColor,
-          searchQuery: _searchController.text,
-          onTap: () => _showWordDetail(word),
-        );
-      },
+      children: [
+        // ── Burst Mode Clusters (shown when micro-categories exist) ──
+        if (clusters.isNotEmpty && _searchController.text.isEmpty) ...[  
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6, top: 4),
+            child: Row(
+              children: [
+                const Text('⚡', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Text(
+                  'DEEP DIVE CLUSTERS',
+                  style: SeedlingTypography.caption.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    color: SeedlingColors.textSecondary.withValues(alpha: 0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 108,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: clusters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (ctx, idx) {
+                final entry = clusters.entries.elementAt(idx);
+                final mcName = entry.key;
+                final words = entry.value;
+                final mastered = words.where((w) => w.masteryLevel >= 3).length;
+                final progress = words.isEmpty ? 0.0 : mastered / words.length;
+                final isMastered = mastered == words.length;
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(ctx).push(
+                      MaterialPageRoute(
+                        builder: (_) => LearningSessionScreen(
+                          microCategory: mcName,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 140,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isMastered
+                          ? SeedlingColors.success.withValues(alpha: 0.1)
+                          : SeedlingColors.cardBackground,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isMastered
+                            ? SeedlingColors.success.withValues(alpha: 0.5)
+                            : widget.themeColor.withValues(alpha: 0.2),
+                        width: isMastered ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            // Mini progress ring
+                            SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Stack(
+                                children: [
+                                  CircularProgressIndicator(
+                                    value: progress,
+                                    strokeWidth: 3.5,
+                                    backgroundColor: SeedlingColors.morningDew
+                                        .withValues(alpha: 0.15),
+                                    valueColor: AlwaysStoppedAnimation(
+                                      isMastered
+                                          ? SeedlingColors.success
+                                          : widget.themeColor,
+                                    ),
+                                  ),
+                                  if (isMastered)
+                                    const Center(
+                                      child: Text('🌸',
+                                          style:
+                                              TextStyle(fontSize: 14)),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: widget.themeColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$mastered/${words.length}',
+                                style: SeedlingTypography.caption.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: widget.themeColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          mcName,
+                          style: SeedlingTypography.caption.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: SeedlingColors.textPrimary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Spacer(),
+                        Text(
+                          isMastered ? 'Mastered ✓' : 'Deep Dive →',
+                          style: SeedlingTypography.caption.copyWith(
+                            fontSize: 10,
+                            color: isMastered
+                                ? SeedlingColors.success
+                                : widget.themeColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                'ALL WORDS',
+                style: SeedlingTypography.caption.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                  color: SeedlingColors.textSecondary.withValues(alpha: 0.7),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+        ],
+        // ── Word tiles ───────────────────────────────────────────────
+        ...List.generate(_filteredWords.length, (index) {
+          final word = _filteredWords[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _WordListTile(
+              word: word,
+              themeColor: widget.themeColor,
+              searchQuery: _searchController.text,
+              onTap: () => _showWordDetail(word),
+            ),
+          );
+        }),
+      ],
     );
   }
 

@@ -71,55 +71,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     
     return Scaffold(
       backgroundColor: SeedlingColors.background,
-      body: RefreshIndicator(
-        onRefresh: _refreshProfile,
-        color: SeedlingColors.seedlingGreen,
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              expandedHeight: 280,
-              pinned: true,
-              backgroundColor: SeedlingColors.seedlingGreen,
-              flexibleSpace: FlexibleSpaceBar(
-                background: _buildProfileHeader(context, isAuthenticated, user),
-              ),
-            ),
-            SliverPersistentHeader(
-              delegate: _SliverAppBarDelegate(
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: SeedlingColors.seedlingGreen,
-                  labelColor: SeedlingColors.seedlingGreen,
-                  unselectedLabelColor: SeedlingColors.textSecondary,
-                  tabs: const [
-                    Tab(icon: Icon(Icons.person), text: 'Overview'),
-                    Tab(icon: Icon(Icons.emoji_events), text: 'Achievements'),
-                    Tab(icon: Icon(Icons.history), text: 'Activity'),
-                  ],
+      body: FutureBuilder<UserProfileData>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final data = snapshot.data!;
+          
+          return NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverAppBar(
+                  expandedHeight: 280,
+                  pinned: true,
+                  backgroundColor: SeedlingColors.background, // Match dark theme
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: _buildProfileHeader(context, isAuthenticated, user),
+                  ),
                 ),
-              ),
-              pinned: true,
+                SliverPersistentHeader(
+                  delegate: _SliverAppBarDelegate(
+                    TabBar(
+                      controller: _tabController,
+                      indicatorColor: SeedlingColors.seedlingGreen,
+                      labelColor: SeedlingColors.seedlingGreen,
+                      unselectedLabelColor: SeedlingColors.textSecondary,
+                      tabs: const [
+                        Tab(icon: Icon(Icons.person), text: 'Overview'),
+                        Tab(icon: Icon(Icons.emoji_events), text: 'Achievements'),
+                        Tab(icon: Icon(Icons.history), text: 'Activity'),
+                      ],
+                    ),
+                  ),
+                  pinned: true,
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                _OverviewTab(data: data),
+                const _AchievementsTab(),
+                const _ActivityTab(),
+              ],
             ),
-            SliverFillRemaining(
-              child: FutureBuilder<UserProfileData>(
-                future: _profileFuture,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _OverviewTab(data: snapshot.data!),
-                      const _AchievementsTab(),
-                      const _ActivityTab(),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

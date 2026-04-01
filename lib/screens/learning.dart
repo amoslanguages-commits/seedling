@@ -42,6 +42,8 @@ class LearningSessionScreen extends ConsumerStatefulWidget {
   final String? subDomain;
   /// Optional POS filter
   final String? partOfSpeech;
+  /// Optional micro-category filter (Burst Mode deep dive)
+  final String? microCategory;
 
   const LearningSessionScreen({
     super.key, 
@@ -49,6 +51,7 @@ class LearningSessionScreen extends ConsumerStatefulWidget {
     this.domain,
     this.subDomain,
     this.partOfSpeech,
+    this.microCategory,
   });
 
   @override
@@ -92,6 +95,7 @@ class _LearningSessionScreenState
       domain: widget.domain,
       subDomain: widget.subDomain,
       partOfSpeech: widget.partOfSpeech,
+      microCategory: widget.microCategory,
     );
 
     // Load SRS-due words (mastery > 0, review overdue)
@@ -104,6 +108,7 @@ class _LearningSessionScreenState
       // Pass null category here to pull reviews globally as requested
       categoryId: null, 
       partOfSpeech: widget.partOfSpeech,
+      microCategory: widget.microCategory,
     );
 
     if (!mounted) return;
@@ -316,6 +321,12 @@ class _LearningSessionScreenState
 
   // ── SRS Quiz ─────────────────────────────────────────────────────────────
 
+  Future<void> _handleWordAnswered(Word word, bool correct) async {
+    if (word.id == null) return;
+    final db = ref.read(databaseProvider);
+    await db.updateWordMastery(word.id!, correct);
+  }
+
   Widget _buildQuizPhase() {
     final totalWords = _dueWords.length + (_newWordToPlant != null ? 1 : 0);
     final progress = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions).clamp(0.0, 1.0) : 0.0;
@@ -335,6 +346,7 @@ class _LearningSessionScreenState
                 initialNewWords: _batchIndex == 1 ? _initialPlantedWords : const [],
                 newWordToPlant: _newWordToPlant,
                 onWordPlanted: _markPlanted,
+                onWordAnswered: _handleWordAnswered,
                 onProgressUpdate: _onProgressUpdate,
                 onSessionComplete: _handleBatchComplete,
               ),
@@ -348,6 +360,7 @@ class _LearningSessionScreenState
   Widget _buildSessionHeader(String title, int wordCount, bool isSmall, bool isVerySmall, double progress) {
     final horizontalPadding = isVerySmall ? 6.0 : (isSmall ? 10.0 : 16.0);
     final mascotSize = isVerySmall ? 32.0 : (isSmall ? 40.0 : 52.0);
+    final showPronunciation = ref.watch(showPronunciationProvider);
     
     return Padding(
       padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 0),
@@ -408,12 +421,31 @@ class _LearningSessionScreenState
               ),
             ),
           ),
-          SizedBox(width: isSmall ? 4 : 8),
+          const SizedBox(width: 12),
+          // Pronunciation Toggle
+          IconButton(
+            onPressed: () {
+              ref.read(showPronunciationProvider.notifier).update((state) => !state);
+              AudioService.haptic(HapticType.tap).ignore();
+            },
+            icon: Icon(
+              showPronunciation ? Icons.record_voice_over : Icons.voice_over_off,
+              color: showPronunciation 
+                  ? SeedlingColors.seedlingGreen 
+                  : SeedlingColors.textSecondary.withValues(alpha: 0.6),
+              size: isSmall ? 20 : 24,
+            ),
+            tooltip: 'Toggle Pronunciation',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          SizedBox(width: isSmall ? 8 : 12),
           SeedlingMascot(size: mascotSize, state: MascotState.idle),
         ],
       ),
     );
   }
+
 }
 
 // ================================================================

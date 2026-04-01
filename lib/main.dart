@@ -12,6 +12,7 @@ import 'services/sync_manager.dart';
 import 'services/subscription_service.dart';
 import 'services/audio_service.dart';
 import 'services/notification_service.dart';
+import 'services/vocabulary_service.dart';
 import 'core/typography.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -37,6 +38,9 @@ void main() async {
   // Initialize database
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
+  
+  // Normalize categories (converts display names to IDs for existing data)
+  await VocabularyService.normalizeDatabaseCategories();
   
   // Initialize SFX — warm up all audio channels before the first quiz.
   await AudioService.instance.initialize();

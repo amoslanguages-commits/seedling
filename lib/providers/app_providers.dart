@@ -30,6 +30,8 @@ final nativeLanguageProvider = Provider<String>((ref) {
   return active?.nativeLanguage.code ?? 'en';
 });
 final isPremiumProvider = StateProvider<bool>((ref) => false);
+final showPronunciationProvider = StateProvider<bool>((ref) => false);
+
 
 final wordsForStudyProvider = FutureProvider<List<Word>>((ref) async {
   final db = ref.watch(databaseProvider);

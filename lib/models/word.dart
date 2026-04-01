@@ -15,15 +15,18 @@ class Word {
   final String? subDomain;
   final String? microCategory;
   final List<PartOfSpeech> partsOfSpeech;
+  final String? partOfSpeechRaw;
   final List<String> categoryIds;
   
   // Enhanced metadata
   final String? gender;
   final String? definition;
   final String? exampleSentence;
+  final String? exampleSentenceTranslation;
   final String? exampleSentencePronunciation;
   final String? pronunciation;
   final String? etymology;
+  final String? article;
   final List<String> tags;
   final int difficulty; // Changed from String to int (1-5)
   
@@ -54,13 +57,16 @@ class Word {
     this.subDomain,
     this.microCategory,
     this.partsOfSpeech = const [PartOfSpeech.noun],
+    this.partOfSpeechRaw,
     this.categoryIds = const ['general'],
     this.gender,
     this.definition,
     this.exampleSentence,
+    this.exampleSentenceTranslation,
     this.exampleSentencePronunciation,
     this.pronunciation,
     this.etymology,
+    this.article,
     this.tags = const [],
     this.difficulty = 1,
     this.frequency,
@@ -129,29 +135,46 @@ class Word {
   String get targetArticle => hasTargetArticle ? languageSpecific['article']!.toString() : '';
 
   // Use this whenever playing the word through TTS
-  String get ttsWord => hasTargetArticle ? '$targetArticle $word' : word;
+  String get ttsWord => (article != null && article!.isNotEmpty) ? '$article $word' : word;
   
+  // Quiz Helpers for Multiplayer Arena
+  List<String>? _customOptions;
+  void setOptions(List<String> opt) => _customOptions = opt;
+
+  String get question => word; // Show the target word as the question
   
+  // Use provided options or fall back to native translation with placeholders
+  List<String> get options {
+    if (_customOptions != null && _customOptions!.isNotEmpty) return _customOptions!;
+    return [translation, 'Option A', 'Option B', 'Option C']..shuffle();
+  }
+  
+  int get correctIndex => options.indexOf(translation);
+  
+  String get pos => partsOfSpeech.isNotEmpty ? partsOfSpeech.first.name : 'Noun';
+  
+  static Word fromJson(Map<String, dynamic> json) => Word.fromMap(json);
+
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'vocabulary_id': id,
       'word': word,
-      'translation': translation,
-      'language_code': languageCode,
+      'definition': translation, // definition serves as translation in the quiz
+      'lang_code': languageCode,
       'target_language_code': targetLanguageCode,
       'concept_id': conceptId,
       'concept_type': conceptType,
       'domain': domain,
       'sub_domain': subDomain,
       'micro_category': microCategory,
-      'parts_of_speech': partsOfSpeech.map((p) => p.name).join(','),
-      'category_ids': categoryIds.join(','),
+      'part_of_speech': partsOfSpeech.map((p) => p.name).join(','),
       'gender': gender,
-      'definition': definition,
       'example_sentence': exampleSentence,
+      'example_sentence_translation': exampleSentenceTranslation,
       'example_sentence_pronunciation': exampleSentencePronunciation,
       'pronunciation': pronunciation,
       'etymology': etymology,
+      'article': article,
       'tags': tags.join(','),
       'difficulty': difficulty,
       'frequency': frequency,
@@ -161,12 +184,10 @@ class Word {
       'streak': streak,
       'total_reviews': totalReviews,
       'times_correct': timesCorrect,
+      'image_id': imageId,
       'language_specific': languageSpecific.isNotEmpty 
           ? jsonEncode(languageSpecific) 
           : null,
-      'image_id': imageId,
-      // Keep 'category' for minor compatibility during transition if needed
-      'category': category, 
     };
   }
   
@@ -185,24 +206,25 @@ class Word {
     }
 
     return Word(
-      id: map['id'],
-      word: map['word'],
-      translation: map['translation'],
-      languageCode: map['language_code'],
-      targetLanguageCode: map['target_language_code'],
+      id: map['vocabulary_id'] ?? map['id'],
+      word: map['word'] ?? '',
+      translation: map['translation'] ?? map['meaning'] ?? map['word'] ?? '', // Prioritize literal translation
+      languageCode: map['lang_code'] ?? map['language_code'] ?? 'en',
+      targetLanguageCode: map['target_language_code'] ?? 'de',
       conceptId: map['concept_id'],
       conceptType: map['concept_type'],
       domain: map['domain'],
       subDomain: map['sub_domain'],
       microCategory: map['micro_category'],
-      partsOfSpeech: (map['parts_of_speech'] as String? ?? 'noun')
+      partsOfSpeech: (map['part_of_speech'] as String? ?? map['parts_of_speech'] as String? ?? 'noun')
           .split(',')
           .where((s) => s.isNotEmpty)
           .map((s) => PartOfSpeech.values.firstWhere(
-                (e) => e.name == s,
+                (e) => e.name == s.toLowerCase(),
                 orElse: () => PartOfSpeech.noun,
               ))
           .toList(),
+      partOfSpeechRaw: map['part_of_speech'] ?? map['part_of_speech_raw'],
       categoryIds: (map['category_ids'] as String? ?? map['category'] as String? ?? 'general')
           .split(',')
           .where((s) => s.isNotEmpty)
@@ -210,6 +232,7 @@ class Word {
       gender: map['gender'],
       definition: map['definition'],
       exampleSentence: map['example_sentence'],
+      exampleSentenceTranslation: map['example_sentence_translation'],
       exampleSentencePronunciation: map['example_sentence_pronunciation'],
       pronunciation: map['pronunciation'],
       etymology: map['etymology'],
@@ -228,8 +251,11 @@ class Word {
       timesCorrect: map['times_correct'] ?? 0,
       imageId: map['image_id'],
       languageSpecific: map['language_specific'] != null 
-          ? jsonDecode(map['language_specific']) 
-          : {},
+          ? (map['language_specific'] is String 
+              ? jsonDecode(map['language_specific']) 
+              : map['language_specific']) 
+              : {},
+      article: map['article'],
     );
   }
 }

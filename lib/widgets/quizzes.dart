@@ -4,8 +4,11 @@ import 'dart:async';
 import '../core/colors.dart';
 import '../core/typography.dart';
 import '../models/word.dart';
+import '../models/taxonomy.dart';
 import '../widgets/progress.dart';
 import 'quizzes_v2.dart';
+import 'quizzes_gender.dart';
+import 'quizzes_power.dart';
 import 'seed_planting.dart';
 import '../services/audio_service.dart';
 import '../services/tts_service.dart';
@@ -40,6 +43,8 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
   int? _selectedIndex;
   bool _hasAnswered = false;
   double _currentGrowth = 0.0;
+  bool _usedHint = false;
+  bool _showHint = false;
   
   @override
   void initState() {
@@ -90,7 +95,16 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
     }
     
     Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) widget.onAnswer(isCorrect, isCorrect ? 1 : 0);
+      // If hint was used and answer is correct: neutral (mastery=0, not wrong queue advance)
+      // If answer is wrong: normal wrong (mastery=0, requires re-learning)
+      // If no hint and correct: full mastery=1
+      if (!mounted) return;
+      
+      if (!isCorrect) {
+        widget.onAnswer(false, 0);
+      } else {
+        widget.onAnswer(true, _usedHint ? 0 : 1);
+      }
     });
   }
   
@@ -150,6 +164,36 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Hint panel
+                  if (_showHint && widget.word.definition != null) ...[  
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: SeedlingColors.sunlight.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: SeedlingColors.sunlight.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('💡', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.word.definition!,
+                              style: SeedlingTypography.body.copyWith(
+                                fontSize: 13,
+                                color: SeedlingColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   Text(
                     'What does this mean?',
                     style: SeedlingTypography.caption.copyWith(
@@ -174,18 +218,37 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
+                      // Lifeline hint button — only if definition exists
+                      if (widget.word.definition != null && !_hasAnswered) ...[  
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _usedHint = true;
+                              _showHint = true;
+                            });
+                            AudioService.haptic(HapticType.tap).ignore();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _usedHint
+                                  ? SeedlingColors.sunlight.withValues(alpha: 0.25)
+                                  : SeedlingColors.textSecondary.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.lightbulb_outline_rounded,
+                              size: 18,
+                              color: _usedHint
+                                  ? SeedlingColors.sunlight
+                                  : SeedlingColors.textSecondary.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                  if (widget.word.pronunciation != null) ...[
-                    SizedBox(height: isSmallScreen ? 2 : 5),
-                    Text(
-                      widget.word.pronunciation!,
-                      style: SeedlingTypography.caption.copyWith(
-                        fontStyle: FontStyle.italic,
-                        fontSize: isSmallScreen ? 11 : 12,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1904,6 +1967,7 @@ class QuizManager extends StatefulWidget {
   final Word? newWordToPlant;
   final Future<void> Function(Word)? onWordPlanted;
   final Function(int totalCorrect, int totalQuestions) onProgressUpdate;
+  final void Function(Word word, bool correct)? onWordAnswered;
   final VoidCallback onSessionComplete;
 
   const QuizManager({
@@ -1913,6 +1977,7 @@ class QuizManager extends StatefulWidget {
     this.newWordToPlant,
     this.onWordPlanted,
     required this.onProgressUpdate,
+    this.onWordAnswered,
     required this.onSessionComplete,
   });
 
@@ -1927,6 +1992,7 @@ class _QuizManagerState extends State<QuizManager> {
   bool _newWordInjected  = false;    // has the new word been added to queue?
   bool _newWordPlanted   = false;    // has the SeedPlantingScreen been shown?
   bool _showPlanting     = false;    // triggers SeedPlantingScreen overlay
+  Word? _wiltedWordToReplant;        // word that dropped to mastery 0
   
   late final Stopwatch _stopwatch;
 
@@ -1944,6 +2010,17 @@ class _QuizManagerState extends State<QuizManager> {
     }
     
     _currentQuizType = _determineQuizType();
+    
+    // STARTUP READINESS: If queue is empty, trigger planting or check if session is done
+    // We use a post-frame callback to ensure the first build can happen before any potential 
+    // redirects or state changes triggered by the queue state.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _maybeInjectNewWord();
+        _checkDone();
+      }
+    });
+
     // Play session-start whoosh + start ambient garden layer
     AudioService.instance.play(SFX.quizStart);
     AudioService.haptic(HapticType.tap);
@@ -1973,9 +2050,38 @@ class _QuizManagerState extends State<QuizManager> {
       }
     }
     
-    // For review words, use the normal queue's randomized type (excluding milestones here, 
-    // milestones are handled separately if we want, but letting the queue decide is fine).
-    return _queue.nextQuizType();
+    // For review words, inject articleChallenge or imageMatch when conditions are met
+    final word = card.word;
+
+    // Gender quiz: reviewed noun (mastery >= 2) with a target article
+    if (word.hasTargetArticle &&
+        word.primaryPOS == PartOfSpeech.noun &&
+        word.masteryLevel >= 2 &&
+        math.Random().nextDouble() < 0.4) { // 40% chance when eligible
+      return 'articleChallenge';
+    }
+
+    // Image-first quiz: any word with an imageId (30% chance)
+    if (word.imageId != null &&
+        word.imageId!.isNotEmpty &&
+        math.Random().nextDouble() < 0.3) {
+      return 'imageMatch';
+    }
+
+    // Power Learning Quizzes for active output (Mastery >= 3)
+    // 50% chance to do a power quiz when eligible, to interleave with easier recall types.
+    if (word.masteryLevel >= 3 && math.Random().nextDouble() < 0.5) {
+      if (word.exampleSentence != null && math.Random().nextDouble() < 0.5) {
+        return 'forestCloze';
+      } else {
+        return 'leafLetter';
+      }
+    }
+    
+    // For review words, use the normal queue's randomized type
+    final nextType = _queue.nextQuizType();
+    debugPrint('[QuizManager] Determine type for ${word.ttsWord}: $nextType (mastery: ${word.masteryLevel})');
+    return nextType;
   }
 
   // ── Readiness check (called after each answer) ────────────────────
@@ -2004,14 +2110,16 @@ class _QuizManagerState extends State<QuizManager> {
 
   void _checkDone() {
     final queueEmpty = _queue.isEmpty;
+    final wPlantingDone = _wiltedWordToReplant == null;
     final plantingDone = widget.newWordToPlant == null ||
         (_newWordInjected && _newWordPlanted);
-    if (queueEmpty && plantingDone) {
+    
+    if (queueEmpty && plantingDone && wPlantingDone) {
       AudioService.instance.stopAmbient();
       AudioService.instance.play(SFX.sessionComplete);
       AudioService.haptic(HapticType.sessionComplete);
       widget.onSessionComplete();
-    } else if (queueEmpty && !_newWordInjected && widget.newWordToPlant != null) {
+    } else if (queueEmpty && !_newWordInjected && widget.newWordToPlant != null && wPlantingDone) {
       // Queue empty but we never reached readiness — force plant now.
       setState(() {
         _newWordInjected = true;
@@ -2020,29 +2128,115 @@ class _QuizManagerState extends State<QuizManager> {
     }
   }
 
-  void _handleAnswer(bool correct, int mastery) {
+  void _onWiltedPlantingComplete() {
+    AudioService.instance.play(SFX.wordPlanted);
+    AudioService.haptic(HapticType.plant);
+    setState(() {
+      _showPlanting = false;
+      _wiltedWordToReplant = null;
+      _currentQuizType = _determineQuizType();
+    });
+    _checkDone();
+  }
+
+  Future<void> _showDeepRootEtymology(BuildContext context, Word word) {
+    return showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        decoration: BoxDecoration(
+          color: SeedlingColors.cardBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [
+            BoxShadow(
+              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+              blurRadius: 24,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.psychology_rounded, size: 48, color: SeedlingColors.seedlingGreen),
+              const SizedBox(height: 16),
+              Text('Deep Root', style: SeedlingTypography.heading2),
+              const SizedBox(height: 8),
+              Text(
+                'Did you know?',
+                style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.morningDew.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  word.etymology ?? '',
+                  style: SeedlingTypography.body.copyWith(height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 32),
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: SeedlingColors.seedlingGreen,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Got it',
+                    style: SeedlingTypography.body.copyWith(
+                      color: SeedlingColors.background,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleAnswer(bool correct, int mastery) async {
     if (!mounted) return;
     
+    debugPrint('[QuizManager] Word Answered: ${correct ? 'CORRECT' : 'WRONG'} (mastery gain: $mastery)');
+
     final elapsedMs = _stopwatch.elapsedMilliseconds;
     _stopwatch.stop();
     _stopwatch.reset();
+
+    final currentCard = _queue.current;
+    if (currentCard != null) {
+      widget.onWordAnswered?.call(currentCard.word, correct);
+    }
     
     // — FIRE SFX + HAPTIC IMMEDIATELY — (before setState for zero-latency)
     if (correct) {
       final streak = _queue.streak;
       if (streak > 0 && streak % 3 == 0) {
-        // Streak milestone: bigger fanfare
         AudioService.instance.play(SFX.streakBonus);
         AudioService.haptic(HapticType.levelUp);
       } else {
-        // Escalating correct chord based on streak tier (pitch shifts up each tier)
         AudioService.instance.playCorrect(streak: streak);
         AudioService.haptic(HapticType.correct);
       }
 
-      // 🌳 Mastery Celebration: fire confetti when EngraveRoot is completed
       if (_currentQuizType == 'engraveRoot' && mastery >= 1) {
-        final word = _queue.current?.word;
+        final word = currentCard?.word;
         if (word != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -2055,11 +2249,32 @@ class _QuizManagerState extends State<QuizManager> {
       AudioService.instance.play(SFX.wrongAnswer);
       AudioService.haptic(HapticType.wrong).ignore();
       AudioService.haptic(HapticType.wrong);
+
+      if (currentCard != null && 
+          currentCard.word.etymology != null && 
+          currentCard.word.etymology!.trim().isNotEmpty) {
+        // Pause briefly for the shake animation, then show Deep Root hook
+        await Future.delayed(const Duration(milliseconds: 600));
+        if (mounted) {
+          await _showDeepRootEtymology(context, currentCard.word);
+        }
+      }
     }
+
+    if (!mounted) return;
 
     setState(() {
       _queue.advance(correct: correct, timeTakenMs: elapsedMs);
       widget.onProgressUpdate(_queue.totalCorrect, _queue.totalAnswered);
+      
+      // Wilted seed logic: Drop to 0 needs re-planting
+      if (!correct && currentCard != null && currentCard.kind == _CardKind.reviewWord) {
+        if (currentCard.word.masteryLevel <= 1) {
+          _wiltedWordToReplant = currentCard.word;
+          _showPlanting = true;
+        }
+      }
+
       _maybeInjectNewWord();
       if (!_showPlanting) {
         _currentQuizType = _determineQuizType();
@@ -2074,25 +2289,39 @@ class _QuizManagerState extends State<QuizManager> {
   @override
   Widget build(BuildContext context) {
     // ── Planting overlay ──────────────────────────────────────────
-    if (_showPlanting && widget.newWordToPlant != null) {
+    if (_showPlanting && (_wiltedWordToReplant != null || widget.newWordToPlant != null)) {
+      final wordToPlant = _wiltedWordToReplant ?? widget.newWordToPlant!;
+      final isWilted = _wiltedWordToReplant != null;
       return SeedPlantingScreen(
-        words: [widget.newWordToPlant!],
+        words: [wordToPlant],
         initialBatchSize: 1,
-        headerLabel: 'Plant Something New 🌱',
+        headerLabel: isWilted ? 'Wilted Seed: Re-Plant 🌱' : 'Plant Something New 🌱',
         isEmbedded: true,
-        onWordPlanted: widget.onWordPlanted,
-        onPlantingComplete: _onPlantingComplete,
+        onWordPlanted: isWilted ? null : widget.onWordPlanted,
+        onPlantingComplete: isWilted ? _onWiltedPlantingComplete : _onPlantingComplete,
       );
     }
 
     // ── Session complete spinner (briefly shown) ──────────────────
+    // ── Transition state or Empty check ─────────────────────────
     if (_queue.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
+            const SizedBox(height: 24),
+            Text('Nurturing your session...', 
+              style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary)),
+          ],
+        ),
+      );
     }
 
     final card    = _queue.current!;
     final current = card.word;
     final options = _generateOptions(current);
+    final targetOptions = _generateTargetOptions(current);
 
     // ── Pick quiz widget ──────────────────────────────────────────
     switch (_currentQuizType) {
@@ -2238,6 +2467,36 @@ class _QuizManagerState extends State<QuizManager> {
           );
         }
 
+      // ── Gender: Article Choice ───────────────────────────────────
+      case 'articleChallenge':
+        return ArticleChoiceQuiz(
+          word: current,
+          onAnswer: _handleAnswer,
+        );
+
+      // ── Image-First: Image Match ─────────────────────────────────
+      case 'imageMatch':
+        return ImageMatchQuiz(
+          word: current,
+          options: options,
+          onAnswer: _handleAnswer,
+        );
+
+      // ── Power Learning: Leaf Letter Quiz ─────────────────────────
+      case 'leafLetter':
+        return LeafLetterQuiz(
+          word: current,
+          onAnswer: _handleAnswer,
+        );
+
+      // ── Power Learning: Forest Cloze Quiz ────────────────────────
+      case 'forestCloze':
+        return ForestClozeQuiz(
+          word: current,
+          options: targetOptions,
+          onAnswer: _handleAnswer,
+        );
+
       default:
         return DeepRootQuiz(
           word: current,
@@ -2276,43 +2535,131 @@ class _QuizManagerState extends State<QuizManager> {
 
   List<String> _generateOptions(Word correctWord) {
     final rng = math.Random();
-    
-    // Contextual Distractors: Favor words with similar length/spelling (anticheating)
     final allSessionWords = _getAllSessionWords();
-    final validPool = allSessionWords
-        .where((w) => w.id != correctWord.id)
+
+    // ── POS-Aware Tiered Distractor Selection ─────────────────────────────
+    // Tier 1: Same POS + same subDomain (most confusable — hardest)
+    // Tier 2: Same POS + same domain
+    // Tier 3: Same POS only
+    // Tier 4: Any word (last resort for tiny vocabularies)
+    List<String> pool = [];
+
+    final others = allSessionWords.where((w) => w.id != correctWord.id);
+
+    pool = others
+        .where((w) =>
+            w.primaryPOS == correctWord.primaryPOS &&
+            w.subDomain != null &&
+            w.subDomain == correctWord.subDomain)
         .map((w) => w.translation)
-        .toSet() // Remove duplicates if any
+        .toSet()
         .toList();
-        
-    // Sort by Levenshtein distance to find "difficult" distractors
-    validPool.sort((a, b) => 
-      _levenshtein(correctWord.translation, a).compareTo(
-      _levenshtein(correctWord.translation, b))
-    );
-    
-    // Shuffle the best candidates to avoid predictable patterns
-    final candidates = validPool.take(6).toList()..shuffle(rng);
-    
-    // Take up to 3 distractors for 3-4 options total
+
+    if (pool.length < 3) {
+      pool = others
+          .where((w) =>
+              w.primaryPOS == correctWord.primaryPOS &&
+              w.domain != null &&
+              w.domain == correctWord.domain)
+          .map((w) => w.translation)
+          .toSet()
+          .toList();
+    }
+
+    if (pool.length < 3) {
+      pool = others
+          .where((w) => w.primaryPOS == correctWord.primaryPOS)
+          .map((w) => w.translation)
+          .toSet()
+          .toList();
+    }
+
+    if (pool.length < 3) {
+      pool = others.map((w) => w.translation).toSet().toList();
+    }
+
+    // Within chosen tier, rank by Levenshtein similarity for extra difficulty
+    pool.sort((a, b) =>
+        _levenshtein(correctWord.translation, a)
+            .compareTo(_levenshtein(correctWord.translation, b)));
+
+    final candidates = pool.take(6).toList()..shuffle(rng);
     final wrong = candidates.take(3).toList();
     return [correctWord.translation, ...wrong]..shuffle(rng);
+  }
+
+  List<String> _generateTargetOptions(Word correctWord) {
+    final rng = math.Random();
+    final allSessionWords = _getAllSessionWords();
+
+    List<String> pool = [];
+    final others = allSessionWords.where((w) => w.id != correctWord.id);
+
+    pool = others
+        .where((w) =>
+            w.primaryPOS == correctWord.primaryPOS &&
+            w.subDomain != null &&
+            w.subDomain == correctWord.subDomain)
+        .map((w) => w.word)
+        .toSet()
+        .toList();
+
+    if (pool.length < 3) {
+      pool = others
+          .where((w) =>
+              w.primaryPOS == correctWord.primaryPOS &&
+              w.domain != null &&
+              w.domain == correctWord.domain)
+          .map((w) => w.word)
+          .toSet()
+          .toList();
+    }
+
+    if (pool.length < 3) {
+      pool = others
+          .where((w) => w.primaryPOS == correctWord.primaryPOS)
+          .map((w) => w.word)
+          .toSet()
+          .toList();
+    }
+
+    if (pool.length < 3) {
+      pool = others.map((w) => w.word).toSet().toList();
+    }
+
+    // Within chosen tier, rank by Levenshtein similarity for extra difficulty
+    pool.sort((a, b) =>
+        _levenshtein(correctWord.word, a)
+            .compareTo(_levenshtein(correctWord.word, b)));
+
+    final candidates = pool.take(6).toList()..shuffle(rng);
+    final wrong = candidates.take(3).toList();
+    return [correctWord.word, ...wrong]..shuffle(rng);
   }
 
   String _getDecoy(Word word) {
     final allSessionWords = _getAllSessionWords();
     final others = allSessionWords.where((w) => w.id != word.id).toList();
     if (others.isEmpty) return '—';
-    
-    final validPool = others.map((w) => w.translation).toSet().toList();
-    // Sort by similarity for a better "decoy" challenge
-    validPool.sort((a, b) => 
-      _levenshtein(word.translation, a).compareTo(
-      _levenshtein(word.translation, b))
-    );
-    
-    // Pick from top 3 closest ones
-    return validPool.take(3).toList()[math.Random().nextInt(math.min(3, validPool.length))];
+
+    // POS-first: prefer same POS + domain for realistic decoys
+    List<Word> pool = others
+        .where((w) =>
+            w.primaryPOS == word.primaryPOS && w.domain == word.domain)
+        .toList();
+
+    if (pool.isEmpty) {
+      pool = others.where((w) => w.primaryPOS == word.primaryPOS).toList();
+    }
+    if (pool.isEmpty) pool = others;
+
+    final validPool = pool.map((w) => w.translation).toSet().toList();
+    validPool.sort((a, b) =>
+        _levenshtein(word.translation, a)
+            .compareTo(_levenshtein(word.translation, b)));
+
+    final top = validPool.take(3).toList();
+    return top[math.Random().nextInt(top.length)];
   }
 
   Word? _getWordFromTranslation(String translation) {

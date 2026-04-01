@@ -336,56 +336,60 @@ class WelcomeStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(30),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Animated mascot
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 800),
-            builder: (context, value, child) {
-              return Transform.scale(
-                scale: 0.5 + (value * 0.5),
-                child: const SeedlingMascot(
-                  size: 150,
-                  state: MascotState.celebrating,
-                ),
-              );
-            },
-          ),
-          
-          const SizedBox(height: 40),
-          
-          Text(
-            'Welcome to Seedling',
-            style: SeedlingTypography.heading1.copyWith(fontSize: 32),
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: 20),
-          
-          Text(
-            'Grow your vocabulary naturally, one word at a time. Let\'s set up your learning journey.',
-            style: SeedlingTypography.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: 40),
-          
-          // Feature highlights
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildHighlightItem('🌱', 'Learn'),
-              const SizedBox(width: 30),
-              _buildHighlightItem('🔥', 'Streak'),
-              const SizedBox(width: 30),
-              _buildHighlightItem('🏆', 'Achieve'),
-            ],
-          ),
-        ],
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            // Animated mascot
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 800),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: 0.5 + (value * 0.5),
+                  child: const SeedlingMascot(
+                    size: 150,
+                    state: MascotState.celebrating,
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 40),
+            
+            Text(
+              'Welcome to Seedling',
+              style: SeedlingTypography.heading1.copyWith(fontSize: 32),
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 20),
+            
+            Text(
+              'Grow your vocabulary naturally, one word at a time. Let\'s set up your learning journey.',
+              style: SeedlingTypography.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 40),
+            
+            // Feature highlights
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildHighlightItem('🌱', 'Learn'),
+                const SizedBox(width: 30),
+                _buildHighlightItem('🔥', 'Streak'),
+                const SizedBox(width: 30),
+                _buildHighlightItem('🏆', 'Achieve'),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -808,116 +812,119 @@ class DailyGoalStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
     
-    return Padding(
-      padding: const EdgeInsets.all(30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Set your daily goal',
-            style: SeedlingTypography.heading2,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'How many words do you want to learn each day? You can change this anytime.',
-            style: SeedlingTypography.body,
-          ),
-          const SizedBox(height: 40),
-          
-          // Goal options
-          ...goalOptions.map((goal) {
-            final isSelected = controller.dailyGoal == goal;
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Set your daily goal',
+              style: SeedlingTypography.heading2,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'How many words do you want to learn each day? You can change this anytime.',
+              style: SeedlingTypography.body,
+            ),
+            const SizedBox(height: 40),
             
-            return GestureDetector(
-              onTap: () => controller.setDailyGoal(goal),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 15),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
-                      : SeedlingColors.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
+            // Goal options
+            ...goalOptions.map((goal) {
+              final isSelected = controller.dailyGoal == goal;
+              
+              return GestureDetector(
+                onTap: () => controller.setDailyGoal(goal),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
                     color: isSelected
-                        ? SeedlingColors.seedlingGreen
-                        : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                    width: isSelected ? 2 : 1,
+                        ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                        : SeedlingColors.cardBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? SeedlingColors.seedlingGreen
+                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                      width: isSelected ? 2 : 1,
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? SeedlingColors.seedlingGreen
-                            : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$goal',
-                          style: SeedlingTypography.heading2.copyWith(
-                            color: isSelected ? SeedlingColors.textPrimary : SeedlingColors.textPrimary,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? SeedlingColors.seedlingGreen
+                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$goal',
+                            style: SeedlingTypography.heading2.copyWith(
+                              color: isSelected ? SeedlingColors.textPrimary : SeedlingColors.textPrimary,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            goalDescriptions[goal]!.split(' - ')[1],
-                            style: SeedlingTypography.body.copyWith(
-                              fontWeight: FontWeight.w600,
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              goalDescriptions[goal]!.split(' - ')[1],
+                              style: SeedlingTypography.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${(goal * 7)} words/week • ${(goal * 30)} words/month',
-                            style: SeedlingTypography.caption,
-                          ),
-                        ],
+                            Text(
+                              '${(goal * 7)} words/week • ${(goal * 30)} words/month',
+                              style: SeedlingTypography.caption,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (isSelected)
-                      const Icon(
-                        Icons.check_circle,
-                        color: SeedlingColors.seedlingGreen,
-                        size: 28,
-                      ),
-                  ],
-                ),
-              ),
-            );
-          }),
-          
-          const Spacer(),
-          
-          // Info tip
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: SeedlingColors.water.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.lightbulb, color: SeedlingColors.water),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Tip: Consistency matters more than quantity. Start small and build up!',
-                    style: SeedlingTypography.caption,
+                      if (isSelected)
+                        const Icon(
+                          Icons.check_circle,
+                          color: SeedlingColors.seedlingGreen,
+                          size: 28,
+                        ),
+                    ],
                   ),
                 ),
-              ],
+              );
+            }),
+            
+            const SizedBox(height: 40),
+            
+            // Info tip
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: SeedlingColors.water.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb, color: SeedlingColors.water),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Tip: Consistency matters more than quantity. Start small and build up!',
+                      style: SeedlingTypography.caption,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -932,182 +939,185 @@ class RemindersStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
     
-    return Padding(
-      padding: const EdgeInsets.all(30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Learning reminders',
-            style: SeedlingTypography.heading2,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Get notified to maintain your streak and reach your daily goal.',
-            style: SeedlingTypography.body,
-          ),
-          const SizedBox(height: 40),
-          
-          // Notification toggle
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: SeedlingColors.cardBackground,
-              borderRadius: BorderRadius.circular(16),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Learning reminders',
+              style: SeedlingTypography.heading2,
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: controller.enableNotifications
-                        ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
-                        : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 10),
+            Text(
+              'Get notified to maintain your streak and reach your daily goal.',
+              style: SeedlingTypography.body,
+            ),
+            const SizedBox(height: 40),
+            
+            // Notification toggle
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: SeedlingColors.cardBackground,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: controller.enableNotifications
+                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
+                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.notifications,
+                      color: controller.enableNotifications
+                          ? SeedlingColors.seedlingGreen
+                          : SeedlingColors.textSecondary,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.notifications,
-                    color: controller.enableNotifications
-                        ? SeedlingColors.seedlingGreen
-                        : SeedlingColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Push Notifications',
-                        style: SeedlingTypography.body.copyWith(
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Push Notifications',
+                          style: SeedlingTypography.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Daily reminders and streak alerts',
-                        style: SeedlingTypography.caption,
-                      ),
-                    ],
+                        Text(
+                          'Daily reminders and streak alerts',
+                          style: SeedlingTypography.caption,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Switch(
-                  value: controller.enableNotifications,
-                  onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setNotifications(value),
-                  activeThumbColor: SeedlingColors.seedlingGreen,
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Reminder time picker (if notifications enabled)
-          if (controller.enableNotifications)
-            GestureDetector(
-              onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: controller.reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
-                );
-                if (time != null) {
-                  ref.read(onboardingControllerProvider.notifier).setReminderTime(time);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: SeedlingColors.cardBackground,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: SeedlingColors.morningDew.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.access_time),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Reminder Time',
-                            style: SeedlingTypography.body.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            controller.reminderTime != null
-                                ? 'Daily at ${controller.reminderTime!.format(context)}'
-                                : 'Tap to set time',
-                            style: SeedlingTypography.caption,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: SeedlingColors.textSecondary),
-                  ],
-                ),
+                  Switch(
+                    value: controller.enableNotifications,
+                    onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setNotifications(value),
+                    activeThumbColor: SeedlingColors.seedlingGreen,
+                  ),
+                ],
               ),
             ),
-          
-          const SizedBox(height: 20),
-          
-          // Sound toggle
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: SeedlingColors.cardBackground,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
+            
+            const SizedBox(height: 20),
+            
+            // Reminder time picker (if notifications enabled)
+            if (controller.enableNotifications)
+              GestureDetector(
+                onTap: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: controller.reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
+                  );
+                  if (time != null) {
+                    ref.read(onboardingControllerProvider.notifier).setReminderTime(time);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: controller.enableSounds
-                        ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
-                        : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(12),
+                    color: SeedlingColors.cardBackground,
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    Icons.volume_up,
-                    color: controller.enableSounds
-                        ? SeedlingColors.seedlingGreen
-                        : SeedlingColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        'Sound Effects',
-                        style: SeedlingTypography.body.copyWith(
-                          fontWeight: FontWeight.w600,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.access_time),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Reminder Time',
+                              style: SeedlingTypography.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              controller.reminderTime != null
+                                  ? 'Daily at ${controller.reminderTime!.format(context)}'
+                                  : 'Tap to set time',
+                              style: SeedlingTypography.caption,
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        'Play sounds during learning',
-                        style: SeedlingTypography.caption,
-                      ),
+                      const Icon(Icons.chevron_right, color: SeedlingColors.textSecondary),
                     ],
                   ),
                 ),
-                Switch(
-                  value: controller.enableSounds,
-                  onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setSounds(value),
-                  activeThumbColor: SeedlingColors.seedlingGreen,
-                ),
-              ],
+              ),
+            
+            const SizedBox(height: 20),
+            
+            // Sound toggle
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: SeedlingColors.cardBackground,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: controller.enableSounds
+                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
+                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.volume_up,
+                      color: controller.enableSounds
+                          ? SeedlingColors.seedlingGreen
+                          : SeedlingColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sound Effects',
+                          style: SeedlingTypography.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Play sounds during learning',
+                          style: SeedlingTypography.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: controller.enableSounds,
+                    onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setSounds(value),
+                    activeThumbColor: SeedlingColors.seedlingGreen,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
@@ -1225,77 +1235,81 @@ class GetStartedStep extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
     
-    return Padding(
-      padding: const EdgeInsets.all(30),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Summary card
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  SeedlingColors.seedlingGreen,
-                  SeedlingColors.deepRoot,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            // Summary card
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    SeedlingColors.seedlingGreen,
+                    SeedlingColors.deepRoot,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: SeedlingColors.textPrimary,
+                    size: 60,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'You\'re all set!',
+                    style: SeedlingTypography.heading2.copyWith(
+                      color: SeedlingColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildSummaryRow(
+                    'Native',
+                    _getLanguageName(controller.nativeLanguage),
+                  ),
+                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  _buildSummaryRow(
+                    'Learning',
+                    _getLanguageName(controller.targetLanguage),
+                  ),
+                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  _buildSummaryRow(
+                    'Daily Goal',
+                    '${controller.dailyGoal} words',
+                  ),
+                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  _buildSummaryRow(
+                    'Reminders',
+                    controller.enableNotifications ? 'Enabled' : 'Disabled',
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(24),
             ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: SeedlingColors.textPrimary,
-                  size: 60,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'You\'re all set!',
-                  style: SeedlingTypography.heading2.copyWith(
-                    color: SeedlingColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildSummaryRow(
-                  'Native',
-                  _getLanguageName(controller.nativeLanguage),
-                ),
-                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
-                _buildSummaryRow(
-                  'Learning',
-                  _getLanguageName(controller.targetLanguage),
-                ),
-                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
-                _buildSummaryRow(
-                  'Daily Goal',
-                  '${controller.dailyGoal} words',
-                ),
-                const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
-                _buildSummaryRow(
-                  'Reminders',
-                  controller.enableNotifications ? 'Enabled' : 'Disabled',
-                ),
-              ],
+            
+            const SizedBox(height: 40),
+            
+            Text(
+              'Ready to start your learning journey?',
+              style: SeedlingTypography.bodyLarge,
+              textAlign: TextAlign.center,
             ),
-          ),
-          
-          const SizedBox(height: 40),
-          
-          Text(
-            'Ready to start your learning journey?',
-            style: SeedlingTypography.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: 20),
-          
-          Text(
-            'You can change these settings anytime in the app.',
-            style: SeedlingTypography.caption,
-            textAlign: TextAlign.center,
-          ),
-        ],
+            
+            const SizedBox(height: 20),
+            
+            Text(
+              'You can change these settings anytime in the app.',
+              style: SeedlingTypography.caption,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

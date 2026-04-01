@@ -8,6 +8,7 @@ import '../core/app_utils.dart';
 import '../models/word.dart';
 import '../widgets/cards.dart';
 import '../widgets/target_word_display.dart';
+import '../widgets/example_sentence_display.dart';
 import '../services/tts_service.dart';
 
 class WordDetailScreen extends ConsumerStatefulWidget {
@@ -77,18 +78,6 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 10),
-                  if (widget.word.pronunciation != null) ...[
-                    Text(
-                      widget.word.pronunciation!,
-                      style: SeedlingTypography.caption.copyWith(
-                        color: SeedlingColors.morningDew,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 18,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
                   // TTS replay button
                   OutlinedButton.icon(
                     onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
@@ -164,12 +153,7 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                   if (widget.word.exampleSentence != null) ...[
                     Text('Example', style: SeedlingTypography.caption),
                     const SizedBox(height: 8),
-                    Text(
-                      '"${widget.word.exampleSentence}"',
-                      style: SeedlingTypography.body.copyWith(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
+                    ExampleSentenceDisplay(word: widget.word),
                   ],
                   if (widget.word.definition != null) ...[
                     const SizedBox(height: 16),

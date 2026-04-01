@@ -20,7 +20,7 @@ class DatabaseHelper {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
     return await openDatabase(
       dbPath,
-      version: 5,
+      version: 7,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -45,6 +45,7 @@ class DatabaseHelper {
         gender TEXT,
         definition TEXT,
         example_sentence TEXT,
+        example_sentence_translation TEXT,
         example_sentence_pronunciation TEXT,
         pronunciation TEXT,
         etymology TEXT,
@@ -59,7 +60,8 @@ class DatabaseHelper {
         language_specific TEXT,
         frequency TEXT,
         category TEXT, -- kept for backward compatibility if needed
-        image_id TEXT
+        image_id TEXT,
+        part_of_speech_raw TEXT
       )
     ''');
     
@@ -124,6 +126,14 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE words ADD COLUMN micro_category TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN gender TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN example_sentence_pronunciation TEXT');
+    }
+    
+    if (oldVersion < 6) {
+      await db.execute('ALTER TABLE words ADD COLUMN part_of_speech_raw TEXT');
+    }
+    
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE words ADD COLUMN example_sentence_translation TEXT');
     }
   }
   
@@ -199,7 +209,7 @@ class DatabaseHelper {
           'total_reviews': current.totalReviews + 1,
           'times_correct': newTimesCorrect,
           'last_reviewed': DateTime.now().toIso8601String(),
-          'next_review': _calculateNextReview(newMastery).toIso8601String(),
+          'next_review': _calculateNextReview(newMastery, current.frequency).toIso8601String(),
         },
         where: 'id = ?',
         whereArgs: [wordId],
@@ -207,10 +217,24 @@ class DatabaseHelper {
     }
   }
   
-  DateTime _calculateNextReview(int masteryLevel) {
-    final intervals = [1, 3, 7, 14, 30]; // days
-    final days = intervals[math.min(masteryLevel, intervals.length - 1)];
-    return DateTime.now().add(Duration(days: days));
+  /// Calculates next review date using SM-2-style intervals, weighted by word frequency.
+  /// High-frequency words ("very high") are reviewed 2× more often than low-frequency ones.
+  DateTime _calculateNextReview(int masteryLevel, String? frequency) {
+    final baseIntervals = [1, 3, 7, 14, 30]; // days per mastery level
+    final baseDays = baseIntervals[math.min(masteryLevel, baseIntervals.length - 1)];
+
+    // Frequency multiplier: common words need more aggressive drilling
+    final multiplier = switch (frequency?.toLowerCase().trim()) {
+      'very high' => 0.5,
+      'high'      => 0.75,
+      'medium'    => 1.0,
+      'low'       => 1.5,
+      'very low'  => 2.5,
+      _           => 1.0,
+    };
+
+    final adjustedDays = math.max(1, (baseDays * multiplier).round());
+    return DateTime.now().add(Duration(days: adjustedDays));
   }
   
   // ── SRS: words due for review today ─────────────────────────────────────
@@ -224,6 +248,7 @@ class DatabaseHelper {
     String? domain,
     String? subDomain,
     String? partOfSpeech,
+    String? microCategory,
     int limit = 15,
   }) async {
     final db = await database;
@@ -242,6 +267,11 @@ class DatabaseHelper {
     if (subDomain != null && subDomain.isNotEmpty) {
       where += ' AND sub_domain = ?';
       args.add(subDomain);
+    }
+
+    if (microCategory != null && microCategory.isNotEmpty) {
+      where += ' AND micro_category = ?';
+      args.add(microCategory);
     }
 
     if (categoryId != null && categoryId.isNotEmpty) {
@@ -278,6 +308,7 @@ class DatabaseHelper {
     String? domain,
     String? subDomain,
     String? partOfSpeech,
+    String? microCategory,
   }) async {
     final db = await database;
     String where =
@@ -292,6 +323,11 @@ class DatabaseHelper {
     if (subDomain != null && subDomain.isNotEmpty) {
       where += ' AND sub_domain = ?';
       args.add(subDomain);
+    }
+
+    if (microCategory != null && microCategory.isNotEmpty) {
+      where += ' AND micro_category = ?';
+      args.add(microCategory);
     }
 
     if (categoryId != null && categoryId.isNotEmpty) {
@@ -326,16 +362,40 @@ class DatabaseHelper {
   // ── Mark a word as planted (mastery 0 → 1, schedules first review) ───────
   Future<void> markWordAsPlanted(int wordId) async {
     final db = await database;
+    // Fetch word to get its frequency for weighted scheduling
+    final rows = await db.query('words', where: 'id = ?', whereArgs: [wordId]);
+    final frequency = rows.isNotEmpty ? rows.first['frequency'] as String? : null;
     await db.update(
       'words',
       {
         'mastery_level': 1,
         'last_reviewed': DateTime.now().toIso8601String(),
-        'next_review': _calculateNextReview(1).toIso8601String(),
+        'next_review': _calculateNextReview(1, frequency).toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [wordId],
     );
+  }
+
+  /// Returns total vs mastered word counts for a specific micro-category.
+  Future<Map<String, int>> getMicroCategoryProgress(
+    String microCategory,
+    String languageCode,
+    String targetLanguageCode,
+  ) async {
+    final db = await database;
+    final total = await db.rawQuery(
+      'SELECT COUNT(*) as c FROM words WHERE micro_category = ? AND language_code = ? AND target_language_code = ?',
+      [microCategory, languageCode, targetLanguageCode],
+    );
+    final mastered = await db.rawQuery(
+      'SELECT COUNT(*) as c FROM words WHERE micro_category = ? AND language_code = ? AND target_language_code = ? AND mastery_level >= 3',
+      [microCategory, languageCode, targetLanguageCode],
+    );
+    return {
+      'total': (total.first['c'] as int? ?? 0),
+      'mastered': (mastered.first['c'] as int? ?? 0),
+    };
   }
 
   Future<int> getTotalWordsLearned(String languageCode) async {
@@ -600,4 +660,77 @@ class DatabaseHelper {
     );
     return result.first['count'] as int? ?? 0;
   }
+
+  // ── INTELLIGENT DISTRACTORS ────────────────────────────────────────────────
+  
+  /// Fetches intelligent distractors that match the semantic domain and part of speech
+  /// of the target word. Falls back to part-of-speech only, then random words.
+  Future<List<Word>> getIntelligentDistractors(
+    Word correctWord, {
+    int limit = 3,
+  }) async {
+    final db = await database;
+    final List<Word> distractors = [];
+    final needed = limit;
+
+    // Helper function to query with specific conditions
+    Future<List<Word>> fetchWithConditions(String extraWhere, List<dynamic> extraArgs) async {
+      final maps = await db.query(
+        'words',
+        where: 'language_code = ? AND target_language_code = ? AND id != ?' + extraWhere,
+        whereArgs: [correctWord.languageCode, correctWord.targetLanguageCode, correctWord.id ?? -1, ...extraArgs],
+        orderBy: 'RANDOM()',
+        limit: needed - distractors.length,
+      );
+      return maps.map((m) => Word.fromMap(m)).toList();
+    }
+
+    // 1. Try to find words in the EXACT same Micro Category & Part of Speech
+    if (correctWord.microCategory != null && correctWord.microCategory!.isNotEmpty) {
+      final pos = correctWord.partOfSpeechRaw ?? 'noun';
+      distractors.addAll(await fetchWithConditions(
+        ' AND micro_category = ? AND parts_of_speech LIKE ?', 
+        [correctWord.microCategory, '%$pos%']
+      ));
+    }
+
+    // 2. Try same Sub-Domain & POS
+    if (distractors.length < needed && correctWord.subDomain != null && correctWord.subDomain!.isNotEmpty) {
+      final pos = correctWord.partOfSpeechRaw ?? 'noun';
+      final fetched = await fetchWithConditions(
+        ' AND sub_domain = ? AND parts_of_speech LIKE ?', 
+        [correctWord.subDomain, '%$pos%']
+      );
+      distractors.addAll(fetched.where((w) => !distractors.any((d) => d.id == w.id)));
+    }
+
+    // 3. Try same Domain & POS
+    if (distractors.length < needed && correctWord.domain != null && correctWord.domain!.isNotEmpty) {
+      final pos = correctWord.partOfSpeechRaw ?? 'noun';
+      final fetched = await fetchWithConditions(
+        ' AND domain = ? AND parts_of_speech LIKE ?', 
+        [correctWord.domain, '%$pos%']
+      );
+      distractors.addAll(fetched.where((w) => !distractors.any((d) => d.id == w.id)));
+    }
+
+    // 4. Fallback to just same Part of Speech
+    if (distractors.length < needed) {
+      final pos = correctWord.partOfSpeechRaw ?? 'noun';
+      final fetched = await fetchWithConditions(
+        ' AND parts_of_speech LIKE ?', 
+        ['%$pos%']
+      );
+      distractors.addAll(fetched.where((w) => !distractors.any((d) => d.id == w.id)));
+    }
+
+    // 5. Ultimate fallback to purely random words in the same language pair
+    if (distractors.length < needed) {
+      final fetched = await fetchWithConditions('', []);
+      distractors.addAll(fetched.where((w) => !distractors.any((d) => d.id == w.id)));
+    }
+
+    return distractors;
+  }
 }
+

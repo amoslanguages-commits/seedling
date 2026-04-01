@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../learning.dart';
-import '../social/competitions_screen.dart';
+import '../social/multiplayer/compete_home_screen.dart';
 import '../../providers/app_providers.dart';
 import '../profile_screen.dart';
 import '../../models/taxonomy.dart';
@@ -23,7 +23,7 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
 
   final List<Widget> _tabs = [
     const _HomeTab(),
-    const CompetitionsScreen(),
+    const CompeteHomeScreen(),
     const ProfileScreen(),
   ];
 
@@ -124,10 +124,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           ),
 
           // Smart Focus Hub
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(24, 8, 24, 0),
-              child: _SmartFocusHub(),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: _SmartFocusHub(tabIndex: _selectedTab),
             ),
           ),
 
@@ -228,7 +228,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
 // ─── Smart Focus Hub ──────────────────────────────────────────────────────────
 
 class _SmartFocusHub extends ConsumerStatefulWidget {
-  const _SmartFocusHub();
+  final int tabIndex;
+  const _SmartFocusHub({required this.tabIndex});
 
   @override
   ConsumerState<_SmartFocusHub> createState() => _SmartFocusHubState();
@@ -377,6 +378,17 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
   }
 
   _HubConfig _getConfig(FocusState focus) {
+    if (widget.tabIndex == 1) {
+      return const _HubConfig(
+        gradientColors: [Color(0xFF2C5282), Color(0xFF4299E1)],
+        glowColor: Color(0xFF2C5282),
+        emoji: '🌳',
+        badge: 'SENTENCE SPRINT',
+        title: 'Master Your Grammar',
+        subtitle: 'Build complex sentences now',
+      );
+    }
+
     switch (focus.mode) {
       case FocusMode.watering:
         return _HubConfig(
@@ -409,6 +421,13 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
   }
 
   void _handleTap(BuildContext context, FocusState focus) {
+    if (widget.tabIndex == 1) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const SentenceSessionScreen(mode: SentenceQuizMode.fillBranch),
+      ));
+      return;
+    }
+
     switch (focus.mode) {
       case FocusMode.watering:
         Navigator.of(context).push(MaterialPageRoute(
@@ -522,22 +541,60 @@ class _StatMiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: SeedlingColors.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            SeedlingColors.cardBackground,
+            SeedlingColors.cardBackground.withValues(alpha: 0.7),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: SeedlingTypography.heading3.copyWith(fontSize: 18)),
-              Text(label, style: SeedlingTypography.caption),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: SeedlingTypography.heading3.copyWith(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label.toUpperCase(),
+                  style: SeedlingTypography.caption.copyWith(
+                    fontSize: 9,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w700,
+                    color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -590,40 +647,76 @@ class _CategoryCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,
-          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              resolvedIconColor.withValues(alpha: 0.12),
+              SeedlingColors.cardBackground,
+              SeedlingColors.cardBackground.withValues(alpha: 0.8),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: resolvedIconColor.withValues(alpha: 0.15),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: resolvedIconColor.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: resolvedIconColor.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
+            // Decorative background emoji
+            Positioned(
+              right: -12,
+              bottom: -12,
+              child: Opacity(
+                opacity: 0.06,
+                child: Text(
+                  emojiIcon ?? '🌿',
+                  style: const TextStyle(fontSize: 84),
+                ),
+              ),
+            ),
+            
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(14.0),
               child: Row(
                 children: [
                   // Emoji Vessel
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: resolvedIconColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(14),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          resolvedIconColor.withValues(alpha: 0.25),
+                          resolvedIconColor.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: resolvedIconColor.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     alignment: Alignment.center,
                     child: emojiIcon != null 
-                      ? Text(emojiIcon!, style: const TextStyle(fontSize: 22))
-                      : Icon(iconData!, color: resolvedIconColor, size: 22),
+                      ? Text(emojiIcon!, style: const TextStyle(fontSize: 24))
+                      : Icon(iconData!, color: resolvedIconColor, size: 24),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   // Content
                   Expanded(
                     child: Column(
@@ -634,32 +727,60 @@ class _CategoryCard extends StatelessWidget {
                           title,
                           style: SeedlingTypography.heading3.copyWith(
                             fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                            color: SeedlingColors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
                             Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(3),
-                                child: LinearProgressIndicator(
-                                  value: progress,
-                                  backgroundColor: resolvedIconColor.withValues(alpha: 0.08),
-                                  valueColor: AlwaysStoppedAnimation<Color>(resolvedIconColor),
-                                  minHeight: 4,
-                                ),
+                              child: Stack(
+                                children: [
+                                  // Background Track
+                                  Container(
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: resolvedIconColor.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  // Dynamic Progress
+                                  FractionallySizedBox(
+                                    widthFactor: progress.clamp(0.05, 1.0),
+                                    child: Container(
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            resolvedIconColor,
+                                            resolvedIconColor.withValues(alpha: 0.7),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: resolvedIconColor.withValues(alpha: 0.2),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Text(
                               '$learnedCount/$totalCount',
                               style: SeedlingTypography.caption.copyWith(
                                 fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: SeedlingColors.textSecondary,
+                                fontWeight: FontWeight.w700,
+                                color: SeedlingColors.textSecondary.withValues(alpha: 0.8),
                               ),
                             ),
                           ],
@@ -667,15 +788,14 @@ class _CategoryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Space for review icon
-                  const SizedBox(width: 24),
+                  const SizedBox(width: 8),
                 ],
               ),
             ),
             // Review Trigger (floating in corner)
             Positioned(
-              top: 4,
-              right: 4,
+              top: 6,
+              right: 6,
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -696,10 +816,17 @@ class _CategoryCard extends StatelessWidget {
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(6.0),
-                    child: Icon(
-                      Icons.auto_stories_rounded,
-                      size: 16,
-                      color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.03),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.auto_stories_rounded,
+                        size: 14,
+                        color: SeedlingColors.textSecondary.withValues(alpha: 0.4),
+                      ),
                     ),
                   ),
                 ),
@@ -818,78 +945,142 @@ class _SentenceModeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accentColor.withValues(alpha: 0.1),
+              SeedlingColors.cardBackground,
+              SeedlingColors.cardBackground.withValues(alpha: 0.9),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: accentColor.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: accentColor.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Row(
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
+            // Decorative background emoji
+            Positioned(
+              right: -15,
+              bottom: -15,
+              child: Opacity(
+                opacity: 0.05,
+                child: Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 100),
+                ),
               ),
-              alignment: Alignment.center,
-              child: Text(emoji, style: const TextStyle(fontSize: 26)),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style:
-                            SeedlingTypography.heading3.copyWith(fontSize: 15),
+                  // Icon Vessel
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          accentColor.withValues(alpha: 0.25),
+                          accentColor.withValues(alpha: 0.08),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accentColor.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          spreadRadius: 1,
                         ),
-                        child: Text(
-                          tag,
-                          style: SeedlingTypography.caption.copyWith(
-                            fontSize: 9,
-                            color: accentColor,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(emoji, style: const TextStyle(fontSize: 28)),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: SeedlingTypography.heading3.copyWith(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.3,
+                                  color: SeedlingColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _Badge(label: tag, color: accentColor),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: SeedlingTypography.body.copyWith(
+                            color: SeedlingColors.textSecondary.withValues(alpha: 0.85),
+                            fontSize: 13,
+                            height: 1.3,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: SeedlingTypography.body.copyWith(
-                      color: SeedlingColors.textSecondary,
-                      fontSize: 12,
+                      ],
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: SeedlingColors.textSecondary.withValues(alpha: 0.4),
+                    size: 16,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded,
-                color: accentColor.withValues(alpha: 0.7), size: 22),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: SeedlingTypography.caption.copyWith(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
         ),
       ),
     );

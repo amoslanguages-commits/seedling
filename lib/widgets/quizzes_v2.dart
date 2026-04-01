@@ -51,6 +51,8 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
   late AnimationController _rootGrowController;
   int? _selectedIndex;
   bool _hasAnswered = false;
+  bool _usedHint = false;
+  bool _showHint = false;
 
   @override
   void initState() {
@@ -90,7 +92,13 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
       AudioService.haptic(HapticType.wrong).ignore();
     }
     Future.delayed(const Duration(milliseconds: 1600), () {
-      if (mounted) widget.onAnswer(isCorrect, isCorrect ? 1 : 0);
+      if (mounted) {
+        if (!isCorrect) {
+          widget.onAnswer(false, 0);
+        } else {
+          widget.onAnswer(true, _usedHint ? 0 : 1);
+        }
+      }
     });
   }
 
@@ -125,6 +133,36 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Hint panel
+                  if (_showHint && widget.word.definition != null) ...[  
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: SeedlingColors.sunlight.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: SeedlingColors.sunlight.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('💡', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.word.definition!,
+                              style: SeedlingTypography.body.copyWith(
+                                fontSize: 13,
+                                color: SeedlingColors.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   Text('What does this mean?',
                       style: SeedlingTypography.caption.copyWith(
                         color: SeedlingColors.textSecondary,
@@ -151,16 +189,37 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
+                      // Lifeline hint button
+                      if (widget.word.definition != null && !_hasAnswered) ...[  
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _usedHint = true;
+                              _showHint = true;
+                            });
+                            AudioService.haptic(HapticType.tap).ignore();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _usedHint
+                                  ? SeedlingColors.sunlight.withValues(alpha: 0.25)
+                                  : SeedlingColors.textSecondary.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.lightbulb_outline_rounded,
+                              size: 18,
+                              color: _usedHint
+                                  ? SeedlingColors.sunlight
+                                  : SeedlingColors.textSecondary.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                  if (widget.word.pronunciation != null) ...[
-                    const SizedBox(height: 4),
-                    Text(widget.word.pronunciation!,
-                        style: SeedlingTypography.caption.copyWith(
-                          fontStyle: FontStyle.italic,
-                          fontSize: isSmallScreen ? 11 : 12,
-                        )),
-                  ],
                 ],
               ),
             ),
@@ -524,7 +583,7 @@ class DeepRootGardenPainter extends CustomPainter {
       old.hasAnswered != hasAnswered;
 }
 
-// â”€â”€ QUIZ TYPE 2: BLOOM OR WILT (True/False) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── QUIZ TYPE 2: BLOOM OR WILT (True/False) ─────────────────
 // A word + translation pair appears.
 // User taps ðŸ’§ (True) or â˜ ï¸ (Wrong).
 // Correct â†’ plant blooms fully. Wrong â†’ plant droops.
@@ -759,7 +818,7 @@ class _BloomOrWiltQuizState extends State<BloomOrWiltQuiz>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(isTrue ? 'ðŸ’§' : 'ðŸ¥€',
+            Text(isTrue ? '💧' : '🥀',
                 style: TextStyle(fontSize: isSmallScreen ? 18 : 22)),
             SizedBox(width: isSmallScreen ? 6 : 8),
             Text(
@@ -1880,15 +1939,6 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                           ),
                         ],
                       ),
-                      if (widget.word.pronunciation != null) ...[
-                        const SizedBox(height: 4),
-                        Text(widget.word.pronunciation!,
-                            style: SeedlingTypography.caption
-                                .copyWith(
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: isSmallScreen ? 11 : 12,
-                                )),
-                      ],
                     ],
                   ),
                 ),
@@ -2759,5 +2809,266 @@ class _SparklePainter extends CustomPainter {
   @override
   bool shouldRepaint(_SparklePainter old) => old.progress != progress;
 }
+
+
+// ================================================================
+// IMAGE MATCH QUIZ (Feature 6: Image-First Learning)
+// ================================================================
+// Shows one large image + 2-4 text translation buttons.
+// Tests the visual → word memory pathway (Picture Superiority Effect).
+//
+// Only used when word.imageId != null.
+// ================================================================
+
+class ImageMatchQuiz extends StatefulWidget {
+  final Word word;
+  final List<String> options; // translation strings from QuizManager
+  final Function(bool correct, int masteryGained) onAnswer;
+
+  const ImageMatchQuiz({
+    super.key,
+    required this.word,
+    required this.options,
+    required this.onAnswer,
+  });
+
+  @override
+  State<ImageMatchQuiz> createState() => _ImageMatchQuizState();
+}
+
+class _ImageMatchQuizState extends State<ImageMatchQuiz>
+    with TickerProviderStateMixin {
+  late AnimationController _entryController;
+  late AnimationController _shakeController;
+  late AnimationController _bloomController;
+  int? _selectedIndex;
+  bool _hasAnswered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500))
+      ..forward();
+    _shakeController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 450));
+    _bloomController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _shakeController.dispose();
+    _bloomController.dispose();
+    super.dispose();
+  }
+
+  void _handleAnswer(int index) {
+    if (_hasAnswered) return;
+    final isCorrect = widget.options[index] == widget.word.translation;
+    setState(() {
+      _selectedIndex = index;
+      _hasAnswered = true;
+    });
+    if (isCorrect) {
+      _bloomController.forward();
+      AudioService.haptic(HapticType.correct).ignore();
+      // Speak the word AFTER answering as reinforcement
+      TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+    } else {
+      _shakeController.forward(from: 0);
+      AudioService.haptic(HapticType.wrong).ignore();
+    }
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) widget.onAnswer(isCorrect, isCorrect ? 1 : 0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final isSmall = constraints.maxHeight < 620;
+      final imageSize = isSmall ? 160.0 : 220.0;
+
+      return FadeTransition(
+        opacity: _entryController,
+        child: Column(
+          children: [
+            // ── Instruction label ───────────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(top: isSmall ? 16 : 28, bottom: 8),
+              child: Text(
+                'What do you see?',
+                style: SeedlingTypography.caption.copyWith(
+                  color: SeedlingColors.textSecondary,
+                  fontSize: isSmall ? 12 : 13,
+                ),
+              ),
+            ),
+
+            // ── Image ───────────────────────────────────────────────
+            AnimatedBuilder(
+              animation: Listenable.merge([_bloomController, _shakeController]),
+              builder: (_, __) {
+                final shake =
+                    math.sin(_shakeController.value * math.pi * 8) *
+                        10 *
+                        (1 - _shakeController.value);
+                final scale = 1.0 + (_bloomController.value * 0.06);
+                return Transform.translate(
+                  offset: Offset(shake, 0),
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: imageSize,
+                      height: imageSize,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: SeedlingColors.seedlingGreen
+                                .withValues(alpha: _hasAnswered ? 0.3 : 0.15),
+                            blurRadius: _hasAnswered ? 28 : 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                        border: _hasAnswered
+                            ? Border.all(
+                                color: _selectedIndex != null &&
+                                        widget.options[_selectedIndex!] == widget.word.translation
+                                    ? SeedlingColors.success
+                                    : SeedlingColors.error,
+                                width: 3,
+                              )
+                            : null,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.asset(
+                          'assets/images/words/${widget.word.imageId}.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: SeedlingColors.cardBackground,
+                            child: const Icon(Icons.image_not_supported,
+                                color: SeedlingColors.textSecondary, size: 48),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // ── Correct word reveal (after answering wrong) ─────────
+            if (_hasAnswered &&
+                _selectedIndex != null &&
+                widget.options[_selectedIndex!] != widget.word.translation) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: SeedlingColors.success.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        color: SeedlingColors.success, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.word.translation,
+                      style: SeedlingTypography.bodyLarge.copyWith(
+                        color: SeedlingColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const Spacer(),
+
+            // ── Answer buttons ──────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, isSmall ? 20 : 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: widget.options.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final option = entry.value;
+                  final isSelected = _selectedIndex == index;
+                  final isCorrect = option == widget.word.translation;
+
+                  Color bgColor = SeedlingColors.cardBackground;
+                  Color borderColor =
+                      SeedlingColors.morningDew.withValues(alpha: 0.35);
+
+                  if (_hasAnswered) {
+                    if (isCorrect) {
+                      bgColor = SeedlingColors.success.withValues(alpha: 0.18);
+                      borderColor = SeedlingColors.success;
+                    } else if (isSelected && !isCorrect) {
+                      bgColor = SeedlingColors.error.withValues(alpha: 0.15);
+                      borderColor = SeedlingColors.error;
+                    }
+                  } else if (isSelected) {
+                    bgColor =
+                        SeedlingColors.seedlingGreen.withValues(alpha: 0.1);
+                    borderColor = SeedlingColors.seedlingGreen;
+                  }
+
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: isSmall ? 8 : 11),
+                    child: GestureDetector(
+                      onTap: () => _handleAnswer(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        padding: EdgeInsets.symmetric(
+                          vertical: isSmall ? 13 : 17,
+                          horizontal: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border:
+                              Border.all(color: borderColor, width: isSelected || (_hasAnswered && isCorrect) ? 2.0 : 1.0),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                option,
+                                style: SeedlingTypography.bodyLarge.copyWith(
+                                  fontSize: isSmall ? 14 : 16,
+                                ),
+                              ),
+                            ),
+                            if (_hasAnswered && isCorrect)
+                              const Icon(Icons.check_circle,
+                                  color: SeedlingColors.success, size: 20),
+                            if (_hasAnswered && isSelected && !isCorrect)
+                              const Icon(Icons.cancel,
+                                  color: SeedlingColors.error, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
 
 
