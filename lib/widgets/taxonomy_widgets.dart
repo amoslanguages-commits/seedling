@@ -9,13 +9,13 @@ import '../core/typography.dart';
 class CategoryFilterWidget extends StatefulWidget {
   final Function(List<String> selectedCategories) onFilterChanged;
   final List<String> initialSelected;
-  
+
   const CategoryFilterWidget({
     super.key,
     required this.onFilterChanged,
     this.initialSelected = const [],
   });
-  
+
   @override
   State<CategoryFilterWidget> createState() => _CategoryFilterWidgetState();
 }
@@ -23,13 +23,13 @@ class CategoryFilterWidget extends StatefulWidget {
 class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
   late List<String> _selectedIds;
   String? _expandedParentId;
-  
+
   @override
   void initState() {
     super.initState();
     _selectedIds = List.from(widget.initialSelected);
   }
-  
+
   void _toggleCategory(String id) {
     setState(() {
       if (_selectedIds.contains(id)) {
@@ -40,23 +40,20 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
     });
     widget.onFilterChanged(_selectedIds);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final rootCategories = CategoryTaxonomy.getRootCategories();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Categories',
-          style: SeedlingTypography.heading3,
-        ),
+        Text('Categories', style: SeedlingTypography.heading3),
         const SizedBox(height: 15),
-        
+
         // Root categories with expand/collapse
         ...rootCategories.map((cat) => _buildCategoryTile(cat)),
-        
+
         if (_selectedIds.isNotEmpty) ...[
           const SizedBox(height: 15),
           Wrap(
@@ -65,9 +62,12 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
             children: _selectedIds.map((id) {
               final cat = CategoryTaxonomy.getCategory(id);
               if (cat == null) return const SizedBox.shrink();
-              
+
               return Chip(
-                label: Text(cat.name, style: SeedlingTypography.caption.copyWith(color: cat.color)),
+                label: Text(
+                  cat.name,
+                  style: SeedlingTypography.caption.copyWith(color: cat.color),
+                ),
                 backgroundColor: cat.color.withValues(alpha: 0.1),
                 deleteIconColor: cat.color,
                 onDeleted: () => _toggleCategory(id),
@@ -78,13 +78,13 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
       ],
     );
   }
-  
+
   Widget _buildCategoryTile(SemanticCategory category) {
     final isSelected = _selectedIds.contains(category.id);
     final isExpanded = _expandedParentId == category.id;
     final subCategories = CategoryTaxonomy.getSubCategories(category.id);
     final hasChildren = subCategories.isNotEmpty;
-    
+
     return Column(
       children: [
         GestureDetector(
@@ -93,7 +93,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isSelected 
+              color: isSelected
                   ? category.color.withValues(alpha: 0.1)
                   : SeedlingColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
@@ -139,40 +139,43 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
                       ),
                     ),
                   ),
-                if (isSelected)
-                  Icon(Icons.check_circle, color: category.color),
+                if (isSelected) Icon(Icons.check_circle, color: category.color),
               ],
             ),
           ),
         ),
-        
+
         // Subcategories
         if (isExpanded && hasChildren)
           Padding(
             padding: const EdgeInsets.only(left: 20),
             child: Column(
-              children: subCategories.map((sub) => _buildSubCategoryTile(sub)).toList(),
+              children: subCategories
+                  .map((sub) => _buildSubCategoryTile(sub))
+                  .toList(),
             ),
           ),
       ],
     );
   }
-  
+
   Widget _buildSubCategoryTile(SemanticCategory category) {
     final isSelected = _selectedIds.contains(category.id);
-    
+
     return GestureDetector(
       onTap: () => _toggleCategory(category.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected 
+          color: isSelected
               ? category.color.withValues(alpha: 0.1)
               : SeedlingColors.background,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? category.color.withValues(alpha: 0.5) : Colors.transparent,
+            color: isSelected
+                ? category.color.withValues(alpha: 0.5)
+                : Colors.transparent,
           ),
         ),
         child: Row(
@@ -180,13 +183,9 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
             Text(category.icon, style: const TextStyle(fontSize: 20)),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                category.name,
-                style: SeedlingTypography.body,
-              ),
+              child: Text(category.name, style: SeedlingTypography.body),
             ),
-            if (isSelected)
-              Icon(Icons.check, color: category.color, size: 18),
+            if (isSelected) Icon(Icons.check, color: category.color, size: 18),
           ],
         ),
       ),
@@ -200,27 +199,24 @@ class POSFilterWidget extends StatelessWidget {
   final List<PartOfSpeech> selectedPOS;
   final Function(List<PartOfSpeech>) onChanged;
   final String languageCode;
-  
+
   const POSFilterWidget({
     super.key,
     required this.selectedPOS,
     required this.onChanged,
     required this.languageCode,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final relevantPOS = _getRelevantPOS(languageCode);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Part of Speech',
-          style: SeedlingTypography.heading3,
-        ),
+        Text('Part of Speech', style: SeedlingTypography.heading3),
         const SizedBox(height: 15),
-        
+
         Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -229,7 +225,7 @@ class POSFilterWidget extends StatelessWidget {
       ],
     );
   }
-  
+
   List<PartOfSpeech> _getRelevantPOS(String languageCode) {
     final universal = [
       PartOfSpeech.noun,
@@ -237,18 +233,22 @@ class POSFilterWidget extends StatelessWidget {
       PartOfSpeech.adjective,
       PartOfSpeech.adverb,
     ];
-    
+
     switch (languageCode) {
-      case 'ja': return [...universal, PartOfSpeech.particle, PartOfSpeech.classifier];
-      case 'ko': return [...universal, PartOfSpeech.postposition, PartOfSpeech.particle];
-      case 'zh': return [...universal, PartOfSpeech.classifier, PartOfSpeech.particle];
-      default: return universal;
+      case 'ja':
+        return [...universal, PartOfSpeech.particle, PartOfSpeech.classifier];
+      case 'ko':
+        return [...universal, PartOfSpeech.postposition, PartOfSpeech.particle];
+      case 'zh':
+        return [...universal, PartOfSpeech.classifier, PartOfSpeech.particle];
+      default:
+        return universal;
     }
   }
-  
+
   Widget _buildPOSChip(PartOfSpeech pos) {
     final isSelected = selectedPOS.contains(pos);
-    
+
     return FilterChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
@@ -271,7 +271,9 @@ class POSFilterWidget extends StatelessWidget {
       selectedColor: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
       checkmarkColor: SeedlingColors.seedlingGreen,
       labelStyle: SeedlingTypography.caption.copyWith(
-        color: isSelected ? SeedlingColors.seedlingGreen : SeedlingColors.textPrimary,
+        color: isSelected
+            ? SeedlingColors.seedlingGreen
+            : SeedlingColors.textPrimary,
       ),
     );
   }
@@ -282,18 +284,14 @@ class POSFilterWidget extends StatelessWidget {
 class EnhancedWordCard extends StatelessWidget {
   final Word word;
   final VoidCallback? onTap;
-  
-  const EnhancedWordCard({
-    super.key,
-    required this.word,
-    this.onTap,
-  });
-  
+
+  const EnhancedWordCard({super.key, required this.word, this.onTap});
+
   @override
   Widget build(BuildContext context) {
     final primaryCat = word.primaryCategory;
     final allCategories = word.getAllCategories();
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -302,7 +300,8 @@ class EnhancedWordCard extends StatelessWidget {
           color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: primaryCat?.color.withValues(alpha: 0.3) ?? Colors.transparent,
+            color:
+                primaryCat?.color.withValues(alpha: 0.3) ?? Colors.transparent,
           ),
           boxShadow: [
             BoxShadow(
@@ -317,34 +316,45 @@ class EnhancedWordCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                ...word.partsOfSpeech.take(2).map((pos) => Container(
-                  margin: const EdgeInsets.only(right: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: SeedlingColors.morningDew.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${pos.icon} ${pos.displayName}',
-                    style: SeedlingTypography.caption.copyWith(fontSize: 10),
-                  ),
-                )),
+                ...word.partsOfSpeech
+                    .take(2)
+                    .map(
+                      (pos) => Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: SeedlingColors.morningDew.withValues(
+                            alpha: 0.2,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${pos.icon} ${pos.displayName}',
+                          style: SeedlingTypography.caption.copyWith(
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
                 const Spacer(),
                 Row(
-                  children: allCategories.take(3).map((cat) => 
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: Text(cat.icon),
-                    ),
-                  ).toList(),
+                  children: allCategories
+                      .take(3)
+                      .map(
+                        (cat) => Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(cat.icon),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              word.word,
-              style: SeedlingTypography.heading2,
-            ),
+            Text(word.word, style: SeedlingTypography.heading2),
             const SizedBox(height: 2),
             Text(
               word.translation,
@@ -357,20 +367,27 @@ class EnhancedWordCard extends StatelessWidget {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: allCategories.map((cat) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: cat.color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    cat.name,
-                    style: SeedlingTypography.caption.copyWith(
-                      color: cat.color,
-                      fontSize: 10,
-                    ),
-                  ),
-                )).toList(),
+                children: allCategories
+                    .map(
+                      (cat) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cat.color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          cat.name,
+                          style: SeedlingTypography.caption.copyWith(
+                            color: cat.color,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ],
           ],

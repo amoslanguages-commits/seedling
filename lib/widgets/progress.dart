@@ -45,7 +45,10 @@ class _StemProgressBarState extends State<StemProgressBar>
       animation: _pulseController,
       builder: (context, _) {
         return CustomPaint(
-          size: Size(double.infinity, widget.height + (widget.showLeaves ? 28 : 0)),
+          size: Size(
+            double.infinity,
+            widget.height + (widget.showLeaves ? 28 : 0),
+          ),
           painter: StemProgressPainter(
             progress: widget.progress,
             showLeaves: widget.showLeaves,
@@ -86,7 +89,10 @@ class StemProgressPainter extends CustomPainter {
       ..strokeWidth = size.height + 4
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
-        Offset(startX, centerY), Offset(startX + maxWidth, centerY), trackGlowPaint);
+      Offset(startX, centerY),
+      Offset(startX + maxWidth, centerY),
+      trackGlowPaint,
+    );
 
     final trackPaint = Paint()
       ..color = SeedlingColors.morningDew.withValues(alpha: 0.35)
@@ -94,7 +100,10 @@ class StemProgressPainter extends CustomPainter {
       ..strokeWidth = size.height
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(
-        Offset(startX, centerY), Offset(startX + maxWidth, centerY), trackPaint);
+      Offset(startX, centerY),
+      Offset(startX + maxWidth, centerY),
+      trackPaint,
+    );
 
     // ── Progress stem (gradient) ───────────────────────────────────────
     if (progressWidth > 0) {
@@ -108,7 +117,10 @@ class StemProgressPainter extends CustomPainter {
         ..strokeWidth = size.height
         ..strokeCap = StrokeCap.round;
       canvas.drawLine(
-          Offset(startX, centerY), Offset(progressEndX, centerY), stemPaint);
+        Offset(startX, centerY),
+        Offset(progressEndX, centerY),
+        stemPaint,
+      );
 
       // Tip leaf
       if (showLeaves) {
@@ -135,11 +147,25 @@ class StemProgressPainter extends CustomPainter {
     const backSize = 9.0;
 
     // Left mini-leaf
-    _drawLeafShape(canvas, -3, 0, -0.4, backSize,
-        const Color(0xFF2D6A4F), const Color(0xFF74C69D));
+    _drawLeafShape(
+      canvas,
+      -3,
+      0,
+      -0.4,
+      backSize,
+      const Color(0xFF2D6A4F),
+      const Color(0xFF74C69D),
+    );
     // Main tip leaf
-    _drawLeafShape(canvas, 0, 0, 0.0, tipSize,
-        const Color(0xFF40916C), const Color(0xFF95D5B2));
+    _drawLeafShape(
+      canvas,
+      0,
+      0,
+      0.0,
+      tipSize,
+      const Color(0xFF40916C),
+      const Color(0xFF95D5B2),
+    );
 
     // Pulsing glow at very tip
     final glowAlpha = 0.12 + pulse * 0.18;
@@ -162,8 +188,15 @@ class StemProgressPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawLeafShape(Canvas canvas, double ox, double oy, double angle,
-      double leafSize, Color base, Color tip) {
+  void _drawLeafShape(
+    Canvas canvas,
+    double ox,
+    double oy,
+    double angle,
+    double leafSize,
+    Color base,
+    Color tip,
+  ) {
     canvas.save();
     canvas.translate(ox, oy);
     canvas.rotate(angle);
@@ -174,8 +207,10 @@ class StemProgressPainter extends CustomPainter {
       ..quadraticBezierTo(leafSize * 0.5, -leafSize * 0.35, 0, 0);
 
     final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, 0), Offset(0, -leafSize), [base, tip])
+      ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, -leafSize), [
+        base,
+        tip,
+      ])
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, paint);
 
@@ -195,7 +230,12 @@ class StemProgressPainter extends CustomPainter {
 
   // Milestone: small flower bud when reached, dot when not
   void _drawMilestoneMarker(
-      Canvas canvas, double x, double y, bool reached, double barHeight) {
+    Canvas canvas,
+    double x,
+    double y,
+    bool reached,
+    double barHeight,
+  ) {
     if (reached) {
       // Full blossom marker
       final petalPaint = Paint()

@@ -34,7 +34,10 @@ class SocialService {
     return (response as List).map((data) {
       final bool isSender = data['user_id'] == currentUserId;
       final friendData = isSender ? data['receiver'] : data['sender'];
-      return Friend.fromMap(friendData, statusOverride: FriendshipStatus.accepted);
+      return Friend.fromMap(
+        friendData,
+        statusOverride: FriendshipStatus.accepted,
+      );
     }).toList();
   }
 
@@ -54,7 +57,10 @@ class SocialService {
 
     return (response as List).map((data) {
       final senderData = data['sender'];
-      return Friend.fromMap(senderData, statusOverride: FriendshipStatus.pending);
+      return Friend.fromMap(
+        senderData,
+        statusOverride: FriendshipStatus.pending,
+      );
     }).toList();
   }
 
@@ -64,7 +70,9 @@ class SocialService {
 
     final response = await _supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, user_stats(total_xp, current_streak)')
+        .select(
+          'id, display_name, avatar_url, user_stats(total_xp, current_streak)',
+        )
         .neq('id', currentUserId!)
         .or('display_name.ilike.%$query%,email.ilike.%$query%')
         .limit(10);
@@ -121,7 +129,9 @@ class SocialService {
         ''')
         .order('end_date', ascending: true);
 
-    return (response as List).map((data) => Competition.fromMap(data, currentUserId!)).toList();
+    return (response as List)
+        .map((data) => Competition.fromMap(data, currentUserId!))
+        .toList();
   }
 
   /// Join a competition
@@ -133,5 +143,63 @@ class SocialService {
       'user_id': currentUserId,
       'score': 0,
     });
+  }
+
+  // ================ RANKINGS ================
+
+  /// Get global rankings (top users by XP)
+  Future<List<Friend>> getGlobalRankings({int limit = 50}) async {
+    final response = await _supabase
+        .from('user_stats')
+        .select('''
+          total_xp,
+          current_streak,
+          profiles(id, display_name, avatar_url)
+        ''')
+        .order('total_xp', ascending: false)
+        .limit(limit);
+
+    return (response as List).map<Friend>((data) {
+      final profile = data['profiles'];
+      return Friend(
+        userId: profile['id'],
+        displayName: profile['display_name'] ?? 'Unknown Explorer',
+        avatarUrl: profile['avatar_url'],
+        totalXP: data['total_xp'] ?? 0,
+        currentStreak: data['current_streak'] ?? 0,
+        status: FriendshipStatus.none, // Generic for global rankings
+      );
+    }).toList();
+  }
+
+  // ================ USER COMPETE STATS ================
+
+  /// Get the current user's compete stats from Supabase user_stats
+  Future<Map<String, dynamic>?> getUserCompeteStats() async {
+    if (currentUserId == null) return null;
+
+    final response = await _supabase
+        .from('user_stats')
+        .select('total_xp, current_streak, total_words_learned')
+        .eq('user_id', currentUserId!)
+        .maybeSingle();
+
+    return response;
+  }
+
+  /// Get the current user's global rank position (1-indexed)
+  Future<int> getGlobalRankPosition() async {
+    if (currentUserId == null) return 0;
+
+    // Count how many users have more XP than the current user
+    final myStats = await getUserCompeteStats();
+    final myXP = (myStats?['total_xp'] as int?) ?? 0;
+
+    final response = await _supabase
+        .from('user_stats')
+        .select('user_id')
+        .gt('total_xp', myXP);
+
+    return ((response as List).length) + 1;
   }
 }

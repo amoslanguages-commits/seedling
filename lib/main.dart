@@ -13,35 +13,37 @@ import 'services/subscription_service.dart';
 import 'services/audio_service.dart';
 import 'services/notification_service.dart';
 import 'services/vocabulary_service.dart';
+import 'services/settings_service.dart';
 import 'core/typography.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-  
+
   // Initialize Supabase
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
-  
+
   // Initialize Services
   await AuthService().initialize();
   await SyncManager().initialize();
   await SubscriptionService().initialize();
-  
+  await SettingsService().initialize();
+
   // Initialize database
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
-  
+
   // Normalize categories (converts display names to IDs for existing data)
   await VocabularyService.normalizeDatabaseCategories();
-  
+
   // Initialize SFX — warm up all audio channels before the first quiz.
   await AudioService.instance.initialize();
 
@@ -52,8 +54,7 @@ void main() async {
     // Query live due count — language pair defaults used here since providers
     // aren't ready yet. For a real user this fires after preferences load.
     try {
-      final dueCount =
-          await dbHelper.getDueCount('en', 'es'); // default pair
+      final dueCount = await dbHelper.getDueCount('en', 'es'); // default pair
       final practicedToday =
           (await dbHelper.getWordsReviewedToday('en', 'es')) > 0;
       await NotificationService.instance.scheduleSmartReminder(
@@ -65,11 +66,7 @@ void main() async {
     }
   }
 
-  runApp(
-    const ProviderScope(
-      child: SeedlingApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: SeedlingApp()));
 }
 
 class SeedlingApp extends StatelessWidget {
@@ -85,7 +82,7 @@ class SeedlingApp extends StatelessWidget {
         brightness: Brightness.dark, // Signature Dark Forest Mode
         primaryColor: SeedlingColors.seedlingGreen,
         scaffoldBackgroundColor: SeedlingColors.background,
-        
+
         // Custom Color Scheme for specialized widgets
         colorScheme: ColorScheme.fromSeed(
           seedColor: SeedlingColors.seedlingGreen,
@@ -144,7 +141,9 @@ class SeedlingApp extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(32),
             ),
-            textStyle: SeedlingTypography.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+            textStyle: SeedlingTypography.bodyLarge.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),

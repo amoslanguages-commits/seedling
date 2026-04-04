@@ -7,7 +7,7 @@ class Word {
   final String translation;
   final String languageCode;
   final String targetLanguageCode;
-  
+
   // New taxonomy support
   final String? conceptId;
   final String? conceptType;
@@ -17,7 +17,7 @@ class Word {
   final List<PartOfSpeech> partsOfSpeech;
   final String? partOfSpeechRaw;
   final List<String> categoryIds;
-  
+
   // Enhanced metadata
   final String? gender;
   final String? definition;
@@ -29,7 +29,7 @@ class Word {
   final String? article;
   final List<String> tags;
   final int difficulty; // Changed from String to int (1-5)
-  
+
   // Learning progress
   int masteryLevel;
   DateTime? lastReviewed;
@@ -37,14 +37,14 @@ class Word {
   int streak;
   int totalReviews;
   int timesCorrect; // New field from taxonomy
-  
+
   // Image illustration
   final String? imageId; // e.g. 'Img_42' → assets/images/words/Img_42.jpg
 
   // Language-specific
   final String? frequency;
   final Map<String, dynamic> languageSpecific;
-  
+
   Word({
     this.id,
     required this.word,
@@ -86,20 +86,20 @@ class Word {
   // Check if word belongs to a category (handles hierarchy)
   bool belongsToCategory(String categoryId) {
     if (categoryIds.contains(categoryId)) return true;
-    
+
     // Check parent categories
     for (final id in categoryIds) {
       final cat = CategoryTaxonomy.getCategory(id);
       if (cat != null && cat.parentIds.contains(categoryId)) return true;
     }
-    
+
     return false;
   }
 
   // Get all applicable categories (including parents)
   List<SemanticCategory> getAllCategories() {
     final allCats = <SemanticCategory>{};
-    
+
     for (final id in categoryIds) {
       final cat = CategoryTaxonomy.getCategory(id);
       if (cat != null) {
@@ -111,7 +111,7 @@ class Word {
         }
       }
     }
-    
+
     return allCats.toList();
   }
 
@@ -120,61 +120,76 @@ class Word {
     return CategoryTaxonomy.getCategory(categoryIds.first);
   }
 
-  PartOfSpeech get primaryPOS => partsOfSpeech.isNotEmpty 
-      ? partsOfSpeech.first 
-      : PartOfSpeech.noun;
-      
+  PartOfSpeech get primaryPOS =>
+      partsOfSpeech.isNotEmpty ? partsOfSpeech.first : PartOfSpeech.noun;
+
   // Article support for target languages
   bool get hasTargetArticle {
     if (!partsOfSpeech.contains(PartOfSpeech.noun)) return false;
     // Check if target language requires article prefixing
-    if (!['de', 'nl', 'es', 'fr', 'it', 'pt', 'ca'].contains(targetLanguageCode.toLowerCase())) return false;
-    return languageSpecific['article'] != null && languageSpecific['article'].toString().isNotEmpty;
+    if (![
+      'de',
+      'nl',
+      'es',
+      'fr',
+      'it',
+      'pt',
+      'ca',
+    ].contains(targetLanguageCode.toLowerCase()))
+      return false;
+    return languageSpecific['article'] != null &&
+        languageSpecific['article'].toString().isNotEmpty;
   }
 
-  String get targetArticle => hasTargetArticle ? languageSpecific['article']!.toString() : '';
+  String get targetArticle =>
+      hasTargetArticle ? languageSpecific['article']!.toString() : '';
 
   // Use this whenever playing the word through TTS
-  String get ttsWord => (article != null && article!.isNotEmpty) ? '$article $word' : word;
-  
+  String get ttsWord =>
+      (article != null && article!.isNotEmpty) ? '$article $word' : word;
+
   // Quiz Helpers for Multiplayer Arena
   List<String>? _customOptions;
   void setOptions(List<String> opt) => _customOptions = opt;
 
   String get question => word; // Show the target word as the question
-  
+
   // Use provided options or fall back to native translation with placeholders
   List<String> get options {
-    if (_customOptions != null && _customOptions!.isNotEmpty) return _customOptions!;
+    if (_customOptions != null && _customOptions!.isNotEmpty)
+      return _customOptions!;
     return [translation, 'Option A', 'Option B', 'Option C']..shuffle();
   }
-  
+
   int get correctIndex => options.indexOf(translation);
-  
-  String get pos => partsOfSpeech.isNotEmpty ? partsOfSpeech.first.name : 'Noun';
-  
+
+  String get pos =>
+      partsOfSpeech.isNotEmpty ? partsOfSpeech.first.name : 'Noun';
+
   static Word fromJson(Map<String, dynamic> json) => Word.fromMap(json);
 
   Map<String, dynamic> toMap() {
     return {
-      'vocabulary_id': id,
+      'id': id,
       'word': word,
-      'definition': translation, // definition serves as translation in the quiz
-      'lang_code': languageCode,
+      'translation': translation,
+      'language_code': languageCode,
       'target_language_code': targetLanguageCode,
       'concept_id': conceptId,
       'concept_type': conceptType,
       'domain': domain,
       'sub_domain': subDomain,
       'micro_category': microCategory,
-      'part_of_speech': partsOfSpeech.map((p) => p.name).join(','),
+      'parts_of_speech': partsOfSpeech.map((p) => p.name).join(','),
+      'part_of_speech_raw': partOfSpeechRaw,
+      'category_ids': categoryIds.join(','),
       'gender': gender,
+      'definition': definition,
       'example_sentence': exampleSentence,
       'example_sentence_translation': exampleSentenceTranslation,
       'example_sentence_pronunciation': exampleSentencePronunciation,
       'pronunciation': pronunciation,
       'etymology': etymology,
-      'article': article,
       'tags': tags.join(','),
       'difficulty': difficulty,
       'frequency': frequency,
@@ -185,21 +200,28 @@ class Word {
       'total_reviews': totalReviews,
       'times_correct': timesCorrect,
       'image_id': imageId,
-      'language_specific': languageSpecific.isNotEmpty 
-          ? jsonEncode(languageSpecific) 
+      'language_specific': languageSpecific.isNotEmpty
+          ? jsonEncode(languageSpecific)
           : null,
     };
   }
-  
+
   factory Word.fromMap(Map<String, dynamic> map) {
     // Handle difficulty string to int conversion if coming from old DB
     int difficultyInt = 1;
     if (map['difficulty'] is String) {
       switch (map['difficulty']) {
-        case 'beginner': difficultyInt = 1; break;
-        case 'intermediate': difficultyInt = 3; break;
-        case 'advanced': difficultyInt = 5; break;
-        default: difficultyInt = 1;
+        case 'beginner':
+          difficultyInt = 1;
+          break;
+        case 'intermediate':
+          difficultyInt = 3;
+          break;
+        case 'advanced':
+          difficultyInt = 5;
+          break;
+        default:
+          difficultyInt = 1;
       }
     } else {
       difficultyInt = map['difficulty'] ?? 1;
@@ -208,7 +230,11 @@ class Word {
     return Word(
       id: map['vocabulary_id'] ?? map['id'],
       word: map['word'] ?? '',
-      translation: map['translation'] ?? map['meaning'] ?? map['word'] ?? '', // Prioritize literal translation
+      translation:
+          map['translation'] ??
+          map['meaning'] ??
+          map['word'] ??
+          '', // Prioritize literal translation
       languageCode: map['lang_code'] ?? map['language_code'] ?? 'en',
       targetLanguageCode: map['target_language_code'] ?? 'de',
       conceptId: map['concept_id'],
@@ -216,19 +242,27 @@ class Word {
       domain: map['domain'],
       subDomain: map['sub_domain'],
       microCategory: map['micro_category'],
-      partsOfSpeech: (map['part_of_speech'] as String? ?? map['parts_of_speech'] as String? ?? 'noun')
-          .split(',')
-          .where((s) => s.isNotEmpty)
-          .map((s) => PartOfSpeech.values.firstWhere(
-                (e) => e.name == s.toLowerCase(),
-                orElse: () => PartOfSpeech.noun,
-              ))
-          .toList(),
+      partsOfSpeech:
+          (map['part_of_speech'] as String? ??
+                  map['parts_of_speech'] as String? ??
+                  'noun')
+              .split(',')
+              .where((s) => s.isNotEmpty)
+              .map(
+                (s) => PartOfSpeech.values.firstWhere(
+                  (e) => e.name == s.toLowerCase(),
+                  orElse: () => PartOfSpeech.noun,
+                ),
+              )
+              .toList(),
       partOfSpeechRaw: map['part_of_speech'] ?? map['part_of_speech_raw'],
-      categoryIds: (map['category_ids'] as String? ?? map['category'] as String? ?? 'general')
-          .split(',')
-          .where((s) => s.isNotEmpty)
-          .toList(),
+      categoryIds:
+          (map['category_ids'] as String? ??
+                  map['category'] as String? ??
+                  'general')
+              .split(',')
+              .where((s) => s.isNotEmpty)
+              .toList(),
       gender: map['gender'],
       definition: map['definition'],
       exampleSentence: map['example_sentence'],
@@ -236,25 +270,28 @@ class Word {
       exampleSentencePronunciation: map['example_sentence_pronunciation'],
       pronunciation: map['pronunciation'],
       etymology: map['etymology'],
-      tags: (map['tags'] as String? ?? '').split(',').where((s) => s.isNotEmpty).toList(),
+      tags: (map['tags'] as String? ?? '')
+          .split(',')
+          .where((s) => s.isNotEmpty)
+          .toList(),
       difficulty: difficultyInt,
       frequency: map['frequency'],
       masteryLevel: map['mastery_level'] ?? 0,
-      lastReviewed: map['last_reviewed'] != null 
-          ? DateTime.parse(map['last_reviewed']) 
+      lastReviewed: map['last_reviewed'] != null
+          ? DateTime.parse(map['last_reviewed'])
           : null,
-      nextReview: map['next_review'] != null 
-          ? DateTime.parse(map['next_review']) 
+      nextReview: map['next_review'] != null
+          ? DateTime.parse(map['next_review'])
           : null,
       streak: map['streak'] ?? 0,
       totalReviews: map['total_reviews'] ?? 0,
       timesCorrect: map['times_correct'] ?? 0,
       imageId: map['image_id'],
-      languageSpecific: map['language_specific'] != null 
-          ? (map['language_specific'] is String 
-              ? jsonDecode(map['language_specific']) 
-              : map['language_specific']) 
-              : {},
+      languageSpecific: map['language_specific'] != null
+          ? (map['language_specific'] is String
+                ? jsonDecode(map['language_specific'])
+                : map['language_specific'])
+          : {},
       article: map['article'],
     );
   }

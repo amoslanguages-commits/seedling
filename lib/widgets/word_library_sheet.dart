@@ -108,23 +108,23 @@ class _WordLibraryBottomSheetState
 
   void _cycleSortMode() {
     setState(() {
-      _sortMode = _SortMode.values[
-          (_sortMode.index + 1) % _SortMode.values.length];
+      _sortMode =
+          _SortMode.values[(_sortMode.index + 1) % _SortMode.values.length];
       _filteredWords = _sorted(List.from(_filteredWords));
     });
   }
 
   String get _sortLabel => switch (_sortMode) {
-        _SortMode.mastery => 'Mastery',
-        _SortMode.alphabetical => 'A→Z',
-        _SortMode.recent => 'Recent',
-      };
+    _SortMode.mastery => 'Mastery',
+    _SortMode.alphabetical => 'A→Z',
+    _SortMode.recent => 'Recent',
+  };
 
   IconData get _sortIcon => switch (_sortMode) {
-        _SortMode.mastery => Icons.local_florist_rounded,
-        _SortMode.alphabetical => Icons.sort_by_alpha_rounded,
-        _SortMode.recent => Icons.access_time_rounded,
-      };
+    _SortMode.mastery => Icons.local_florist_rounded,
+    _SortMode.alphabetical => Icons.sort_by_alpha_rounded,
+    _SortMode.recent => Icons.access_time_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -142,10 +142,12 @@ class _WordLibraryBottomSheetState
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                        color: SeedlingColors.seedlingGreen))
+                      color: SeedlingColors.seedlingGreen,
+                    ),
+                  )
                 : _filteredWords.isEmpty
-                    ? _buildEmptyState()
-                    : _buildWordList(),
+                ? _buildEmptyState()
+                : _buildWordList(),
           ),
         ],
       ),
@@ -202,8 +204,8 @@ class _WordLibraryBottomSheetState
                 ),
                 child: Text(
                   CategoryTaxonomy.getCategory(
-                              widget.subDomain ?? widget.categoryId ?? '')
-                          ?.icon ??
+                        widget.subDomain ?? widget.categoryId ?? '',
+                      )?.icon ??
                       '🌱',
                   style: const TextStyle(fontSize: 20),
                 ),
@@ -226,13 +228,16 @@ class _WordLibraryBottomSheetState
                 onTap: _cycleSortMode,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.themeColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: widget.themeColor.withValues(alpha: 0.25)),
+                      color: widget.themeColor.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -253,8 +258,10 @@ class _WordLibraryBottomSheetState
               const SizedBox(width: 4),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded,
-                    color: SeedlingColors.textSecondary),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: SeedlingColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -283,15 +290,20 @@ class _WordLibraryBottomSheetState
             hintStyle: SeedlingTypography.caption.copyWith(
               color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
             ),
-            prefixIcon: Icon(Icons.search_rounded,
-                color: SeedlingColors.textSecondary.withValues(alpha: 0.5),
-                size: 20),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: SeedlingColors.textSecondary.withValues(alpha: 0.5),
+              size: 20,
+            ),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
-                    icon: Icon(Icons.clear_rounded,
-                        color:
-                            SeedlingColors.textSecondary.withValues(alpha: 0.5),
-                        size: 18),
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: SeedlingColors.textSecondary.withValues(
+                        alpha: 0.5,
+                      ),
+                      size: 18,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       _applyFilter();
@@ -299,8 +311,10 @@ class _WordLibraryBottomSheetState
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
           ),
         ),
       ),
@@ -313,13 +327,15 @@ class _WordLibraryBottomSheetState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(isSearching ? '🔍' : '🌱',
-              style: const TextStyle(fontSize: 48)),
+          Text(isSearching ? '🔍' : '🌱', style: const TextStyle(fontSize: 48)),
           const SizedBox(height: 16),
           Text(
-            isSearching ? 'No words match your search.' : 'No seeds planted yet.',
-            style: SeedlingTypography.body
-                .copyWith(color: SeedlingColors.textSecondary),
+            isSearching
+                ? 'No words match your search.'
+                : 'No seeds planted yet.',
+            style: SeedlingTypography.body.copyWith(
+              color: SeedlingColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -339,7 +355,7 @@ class _WordLibraryBottomSheetState
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
         // ── Burst Mode Clusters (shown when micro-categories exist) ──
-        if (clusters.isNotEmpty && _searchController.text.isEmpty) ...[  
+        if (clusters.isNotEmpty && _searchController.text.isEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 6, top: 4),
             child: Row(
@@ -376,9 +392,8 @@ class _WordLibraryBottomSheetState
                   onTap: () {
                     Navigator.of(ctx).push(
                       MaterialPageRoute(
-                        builder: (_) => LearningSessionScreen(
-                          microCategory: mcName,
-                        ),
+                        builder: (_) =>
+                            LearningSessionScreen(microCategory: mcName),
                       ),
                     );
                   },
@@ -421,9 +436,10 @@ class _WordLibraryBottomSheetState
                                   ),
                                   if (isMastered)
                                     const Center(
-                                      child: Text('🌸',
-                                          style:
-                                              TextStyle(fontSize: 14)),
+                                      child: Text(
+                                        '🌸',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
                                     ),
                                 ],
                               ),
@@ -431,9 +447,13 @@ class _WordLibraryBottomSheetState
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: widget.themeColor.withValues(alpha: 0.12),
+                                color: widget.themeColor.withValues(
+                                  alpha: 0.12,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -544,7 +564,8 @@ class _WordListTile extends StatelessWidget {
           color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-              color: SeedlingColors.morningDew.withValues(alpha: 0.08)),
+            color: SeedlingColors.morningDew.withValues(alpha: 0.08),
+          ),
         ),
         child: Row(
           children: [
@@ -554,7 +575,8 @@ class _WordListTile extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: themeColor.withValues(
-                    alpha: 0.2 + (word.masteryLevel / 5) * 0.75),
+                  alpha: 0.2 + (word.masteryLevel / 5) * 0.75,
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -585,9 +607,11 @@ class _WordListTile extends StatelessWidget {
             // Mastery dot row
             _buildMasteryDots(),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right_rounded,
-                color: SeedlingColors.morningDew.withValues(alpha: 0.4),
-                size: 18),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+              size: 18,
+            ),
           ],
         ),
       ),
@@ -689,8 +713,10 @@ class _WordDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          Text(word.word,
-              style: SeedlingTypography.heading1.copyWith(fontSize: 36)),
+          Text(
+            word.word,
+            style: SeedlingTypography.heading1.copyWith(fontSize: 36),
+          ),
           const SizedBox(height: 4),
           Text(
             word.translation,
@@ -706,20 +732,28 @@ class _WordDetailSheet extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('MASTERY  ', style: SeedlingTypography.caption.copyWith(letterSpacing: 1.2)),
-              ...List.generate(5, (i) => Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: i < word.masteryLevel
-                          ? SeedlingColors.seedlingGreen
-                          : SeedlingColors.morningDew.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                  )),
-              Text('  ${word.masteryLevel}/5',
-                  style: SeedlingTypography.caption),
+              Text(
+                'MASTERY  ',
+                style: SeedlingTypography.caption.copyWith(letterSpacing: 1.2),
+              ),
+              ...List.generate(
+                5,
+                (i) => Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: i < word.masteryLevel
+                        ? SeedlingColors.seedlingGreen
+                        : SeedlingColors.morningDew.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Text(
+                '  ${word.masteryLevel}/5',
+                style: SeedlingTypography.caption,
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -731,8 +765,10 @@ class _WordDetailSheet extends StatelessWidget {
               _buildLargeActionButton(
                 icon: Icons.volume_up_rounded,
                 label: 'Pronounce',
-                onTap: () => TtsService.instance
-                    .speak(word.ttsWord, word.targetLanguageCode),
+                onTap: () => TtsService.instance.speak(
+                  word.ttsWord,
+                  word.targetLanguageCode,
+                ),
               ),
             ],
           ),
@@ -746,13 +782,13 @@ class _WordDetailSheet extends StatelessWidget {
               color: SeedlingColors.cardBackground,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                  color: SeedlingColors.morningDew.withValues(alpha: 0.15)),
+                color: SeedlingColors.morningDew.withValues(alpha: 0.15),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (word.definition != null &&
-                    word.definition!.isNotEmpty) ...[
+                if (word.definition != null && word.definition!.isNotEmpty) ...[
                   _buildSectionTitle('DEFINITION'),
                   const SizedBox(height: 8),
                   Text(word.definition!, style: SeedlingTypography.body),
@@ -766,10 +802,15 @@ class _WordDetailSheet extends StatelessWidget {
                       const Spacer(),
                       IconButton(
                         visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.volume_up_rounded,
-                            color: SeedlingColors.seedlingGreen, size: 20),
+                        icon: const Icon(
+                          Icons.volume_up_rounded,
+                          color: SeedlingColors.seedlingGreen,
+                          size: 20,
+                        ),
                         onPressed: () => TtsService.instance.speak(
-                            word.exampleSentence!, word.targetLanguageCode),
+                          word.exampleSentence!,
+                          word.targetLanguageCode,
+                        ),
                       ),
                     ],
                   ),
@@ -824,10 +865,11 @@ class _WordDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildLargeActionButton(
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
+  Widget _buildLargeActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -848,9 +890,12 @@ class _WordDetailSheet extends StatelessWidget {
             child: Icon(icon, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label,
-              style:
-                  SeedlingTypography.caption.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: SeedlingTypography.caption.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

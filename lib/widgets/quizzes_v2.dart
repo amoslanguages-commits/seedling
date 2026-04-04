@@ -57,13 +57,22 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
   @override
   void initState() {
     super.initState();
-    TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+    TtsService.instance.speak(
+      widget.word.ttsWord,
+      widget.word.targetLanguageCode,
+    );
     _bloomController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
     _shakeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _rootGrowController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _rootGrowController.forward();
   }
 
@@ -107,15 +116,15 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxHeight < 620;
-        
+
         return Column(
           children: [
             // Word card
             Container(
               margin: EdgeInsets.fromLTRB(24, isSmallScreen ? 12 : 24, 24, 0),
               padding: EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 20 : 28, 
-                vertical: isSmallScreen ? 14 : 22
+                horizontal: isSmallScreen ? 20 : 28,
+                vertical: isSmallScreen ? 14 : 22,
               ),
               decoration: BoxDecoration(
                 color: SeedlingColors.cardBackground,
@@ -128,22 +137,28 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                   ),
                 ],
                 border: Border.all(
-                    color: SeedlingColors.morningDew.withValues(alpha: 0.4)),
+                  color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Hint panel
-                  if (_showHint && widget.word.definition != null) ...[  
+                  if (_showHint && widget.word.definition != null) ...[
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: SeedlingColors.sunlight.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: SeedlingColors.sunlight.withValues(alpha: 0.4)),
+                        border: Border.all(
+                          color: SeedlingColors.sunlight.withValues(alpha: 0.4),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -163,34 +178,40 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                       ),
                     ),
                   ],
-                  Text('What does this mean?',
-                      style: SeedlingTypography.caption.copyWith(
-                        color: SeedlingColors.textSecondary,
-                        fontSize: isSmallScreen ? 11 : 12,
-                      )),
+                  Text(
+                    'What does this mean?',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                      fontSize: isSmallScreen ? 11 : 12,
+                    ),
+                  ),
                   SizedBox(height: isSmallScreen ? 6 : 10),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       TargetWordDisplay(
                         word: widget.word,
-                          style: SeedlingTypography.heading1.copyWith(
-                            fontSize: isSmallScreen ? 30 : 38, 
-                            letterSpacing: 0.5
-                          )),
+                        style: SeedlingTypography.heading1.copyWith(
+                          fontSize: isSmallScreen ? 30 : 38,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
-                          Icons.volume_up_rounded, 
+                          Icons.volume_up_rounded,
                           color: SeedlingColors.seedlingGreen,
                           size: isSmallScreen ? 22 : 24,
                         ),
-                        onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+                        onPressed: () => TtsService.instance.speak(
+                          widget.word.ttsWord,
+                          widget.word.targetLanguageCode,
+                        ),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
                       // Lifeline hint button
-                      if (widget.word.definition != null && !_hasAnswered) ...[  
+                      if (widget.word.definition != null && !_hasAnswered) ...[
                         const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () {
@@ -204,8 +225,12 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: _usedHint
-                                  ? SeedlingColors.sunlight.withValues(alpha: 0.25)
-                                  : SeedlingColors.textSecondary.withValues(alpha: 0.08),
+                                  ? SeedlingColors.sunlight.withValues(
+                                      alpha: 0.25,
+                                    )
+                                  : SeedlingColors.textSecondary.withValues(
+                                      alpha: 0.08,
+                                    ),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -213,7 +238,9 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                               size: 18,
                               color: _usedHint
                                   ? SeedlingColors.sunlight
-                                  : SeedlingColors.textSecondary.withValues(alpha: 0.5),
+                                  : SeedlingColors.textSecondary.withValues(
+                                      alpha: 0.5,
+                                    ),
                             ),
                           ),
                         ),
@@ -227,10 +254,14 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
             // Garden visualization
             Expanded(
               child: AnimatedBuilder(
-                animation:
-                    Listenable.merge([_bloomController, _shakeController, _rootGrowController]),
+                animation: Listenable.merge([
+                  _bloomController,
+                  _shakeController,
+                  _rootGrowController,
+                ]),
                 builder: (ctx, _) {
-                  final shake = math.sin(_shakeController.value * math.pi * 8) *
+                  final shake =
+                      math.sin(_shakeController.value * math.pi * 8) *
                       12 *
                       (1 - _shakeController.value);
                   return Transform.translate(
@@ -252,7 +283,10 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
                           if (_hasAnswered) return;
                           final size = context.size ?? Size.zero;
                           final idx = _getRootIndexAtOffset(
-                              details.localPosition, size, widget.options.length);
+                            details.localPosition,
+                            size,
+                            widget.options.length,
+                          );
                           if (idx != null) _handleAnswer(idx);
                         },
                       ),
@@ -263,7 +297,7 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
             ),
           ],
         );
-      }
+      },
     );
   }
 
@@ -314,21 +348,25 @@ class DeepRootGardenPainter extends CustomPainter {
 
     // Soil layer
     final soilPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          SeedlingColors.soil.withValues(alpha: 0.85),
-          SeedlingColors.deepRoot.withValues(alpha: 0.95),
-        ],
-      ).createShader(
-          Rect.fromLTWH(0, groundY, size.width, size.height - groundY));
+      ..shader =
+          LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              SeedlingColors.soil.withValues(alpha: 0.85),
+              SeedlingColors.deepRoot.withValues(alpha: 0.95),
+            ],
+          ).createShader(
+            Rect.fromLTWH(0, groundY, size.width, size.height - groundY),
+          );
     // Wavy ground line
     final groundPath = Path()..moveTo(0, groundY);
     for (double x = 0; x <= size.width; x += 30) {
       groundPath.quadraticBezierTo(
-        x + 15, groundY + 6 * math.sin((x / size.width) * math.pi * 5),
-        x + 30, groundY,
+        x + 15,
+        groundY + 6 * math.sin((x / size.width) * math.pi * 5),
+        x + 30,
+        groundY,
       );
     }
     groundPath
@@ -343,7 +381,10 @@ class DeepRootGardenPainter extends CustomPainter {
     final rng = math.Random(7);
     for (int i = 0; i < 8; i++) {
       canvas.drawCircle(
-        Offset(rng.nextDouble() * size.width, groundY + 10 + rng.nextDouble() * 20),
+        Offset(
+          rng.nextDouble() * size.width,
+          groundY + 10 + rng.nextDouble() * 20,
+        ),
         2 + rng.nextDouble() * 4,
         rockPaint,
       );
@@ -363,10 +404,14 @@ class DeepRootGardenPainter extends CustomPainter {
   void _drawCentralPlant(Canvas canvas, Size size, double groundY) {
     final cx = size.width / 2;
     final isCorrectSelected =
-        hasAnswered && selectedIndex != null && options[selectedIndex!] == correctAnswer;
+        hasAnswered &&
+        selectedIndex != null &&
+        options[selectedIndex!] == correctAnswer;
 
     // Stem
-    final stemH = (isSmallScreen ? 40.0 : 60.0) + bloomProgress * (isSmallScreen ? 30 : 40);
+    final stemH =
+        (isSmallScreen ? 40.0 : 60.0) +
+        bloomProgress * (isSmallScreen ? 30 : 40);
     final stemPaint = Paint()
       ..color = Color.lerp(
         SeedlingColors.seedlingGreen,
@@ -393,8 +438,22 @@ class DeepRootGardenPainter extends CustomPainter {
           bloomProgress,
         )!
         ..style = PaintingStyle.fill;
-      _drawLeaf(canvas, cx, groundY - 30 * rootGrowProgress, -0.5, 22 * lp, leafPaint);
-      _drawLeaf(canvas, cx, groundY - 45 * rootGrowProgress, 0.5, 20 * lp, leafPaint);
+      _drawLeaf(
+        canvas,
+        cx,
+        groundY - 30 * rootGrowProgress,
+        -0.5,
+        22 * lp,
+        leafPaint,
+      );
+      _drawLeaf(
+        canvas,
+        cx,
+        groundY - 45 * rootGrowProgress,
+        0.5,
+        20 * lp,
+        leafPaint,
+      );
     }
 
     // Bloom flower burst on correct
@@ -412,16 +471,19 @@ class DeepRootGardenPainter extends CustomPainter {
       ..color = SeedlingColors.sunlight.withValues(alpha: p)
       ..style = PaintingStyle.fill;
     final glowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          SeedlingColors.sunlight.withValues(alpha: 0.35 * p),
-          SeedlingColors.sunlight.withValues(alpha: 0.0),
-        ],
-        stops: const [0.5, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: Offset(cx, cy),
-        radius: petalLen * 1.2 + 16,
-      ));
+      ..shader =
+          RadialGradient(
+            colors: [
+              SeedlingColors.sunlight.withValues(alpha: 0.35 * p),
+              SeedlingColors.sunlight.withValues(alpha: 0.0),
+            ],
+            stops: const [0.5, 1.0],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(cx, cy),
+              radius: petalLen * 1.2 + 16,
+            ),
+          );
     canvas.drawCircle(Offset(cx, cy), petalLen * 1.2 + 16, glowPaint);
     for (int i = 0; i < petals; i++) {
       final angle = (i / petals) * math.pi * 2;
@@ -432,12 +494,14 @@ class DeepRootGardenPainter extends CustomPainter {
         ..quadraticBezierTo(
           cx + math.cos(angle + 0.4) * petalLen * 0.6,
           cy + math.sin(angle + 0.4) * petalLen * 0.6,
-          ex, ey,
+          ex,
+          ey,
         )
         ..quadraticBezierTo(
           cx + math.cos(angle - 0.4) * petalLen * 0.6,
           cy + math.sin(angle - 0.4) * petalLen * 0.6,
-          cx, cy,
+          cx,
+          cy,
         );
       canvas.drawPath(path, petalPaint);
     }
@@ -449,7 +513,12 @@ class DeepRootGardenPainter extends CustomPainter {
   }
 
   void _drawRoot(
-      Canvas canvas, Size size, double cx, double groundY, int index) {
+    Canvas canvas,
+    Size size,
+    double cx,
+    double groundY,
+    int index,
+  ) {
     final isSelected = selectedIndex == index;
     final isCorrect = options[index] == correctAnswer;
 
@@ -479,9 +548,12 @@ class DeepRootGardenPainter extends CustomPainter {
     final rootPath = Path()..moveTo(cx, groundY);
     final wave = (index % 2 == 0 ? 1 : -1) * 18.0;
     rootPath.cubicTo(
-      cx + wave, groundY + rootH * 0.3,
-      cx - wave, groundY + rootH * 0.6,
-      cx + wave * 0.5, groundY + rootH,
+      cx + wave,
+      groundY + rootH * 0.3,
+      cx - wave,
+      groundY + rootH * 0.6,
+      cx + wave * 0.5,
+      groundY + rootH,
     );
     canvas.drawPath(rootPath, rootPaint);
 
@@ -506,12 +578,13 @@ class DeepRootGardenPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(cx + wave * 0.5, tipY),
       isSelected || (hasAnswered && isCorrect) ? 8 : 5,
-      Paint()..color = rootColor..style = PaintingStyle.fill,
+      Paint()
+        ..color = rootColor
+        ..style = PaintingStyle.fill,
     );
 
     // Touch hint circles (invisible hit zones)
-    final hitPaint = Paint()
-      ..color = Colors.transparent;
+    final hitPaint = Paint()..color = Colors.transparent;
     canvas.drawCircle(Offset(cx, groundY + rootH / 2), 40, hitPaint);
 
     // Option text label in root zone
@@ -519,12 +592,28 @@ class DeepRootGardenPainter extends CustomPainter {
     final labelWidth = math.min(90.0, (size.width / options.length) - 4.0);
     final labelHeight = isSmallScreen ? 28.0 : 36.0;
 
-    _drawRootLabel(canvas, options[index], cx, groundY + rootH * 0.5,
-        rootColor, isSelected || (hasAnswered && isCorrect), labelWidth, labelHeight);
+    _drawRootLabel(
+      canvas,
+      options[index],
+      cx,
+      groundY + rootH * 0.5,
+      rootColor,
+      isSelected || (hasAnswered && isCorrect),
+      labelWidth,
+      labelHeight,
+    );
   }
 
-  void _drawRootLabel(Canvas canvas, String text, double cx, double cy,
-      Color color, bool highlighted, double labelWidth, double labelHeight) {
+  void _drawRootLabel(
+    Canvas canvas,
+    String text,
+    double cx,
+    double cy,
+    Color color,
+    bool highlighted,
+    double labelWidth,
+    double labelHeight,
+  ) {
     final bg = Paint()
       ..color = (highlighted
           ? color.withValues(alpha: 0.18)
@@ -532,7 +621,11 @@ class DeepRootGardenPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final rrect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(cx, cy), width: labelWidth, height: labelHeight),
+      Rect.fromCenter(
+        center: Offset(cx, cy),
+        width: labelWidth,
+        height: labelHeight,
+      ),
       Radius.circular(labelHeight / 2),
     );
     canvas.drawRRect(rrect, bg);
@@ -557,12 +650,17 @@ class DeepRootGardenPainter extends CustomPainter {
       textAlign: TextAlign.center,
     );
     tp.layout(maxWidth: labelWidth - 8);
-    tp.paint(canvas,
-        Offset(cx - tp.width / 2, cy - tp.height / 2));
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y, double angle,
-      double size, Paint paint) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double size,
+    Paint paint,
+  ) {
     if (size <= 0) return;
     canvas.save();
     canvas.translate(x, y);
@@ -581,401 +679,6 @@ class DeepRootGardenPainter extends CustomPainter {
       old.rootGrowProgress != rootGrowProgress ||
       old.selectedIndex != selectedIndex ||
       old.hasAnswered != hasAnswered;
-}
-
-// ── QUIZ TYPE 2: BLOOM OR WILT (True/False) ─────────────────
-// A word + translation pair appears.
-// User taps ðŸ’§ (True) or â˜ ï¸ (Wrong).
-// Correct â†’ plant blooms fully. Wrong â†’ plant droops.
-
-class BloomOrWiltQuiz extends StatefulWidget {
-  final Word word;
-  final String shownTranslation; // may be correct OR a decoy
-  final bool isCorrectPair;
-  final Function(bool correct, int masteryGained) onAnswer;
-
-  const BloomOrWiltQuiz({
-    super.key,
-    required this.word,
-    required this.shownTranslation,
-    required this.isCorrectPair,
-    required this.onAnswer,
-  });
-
-  @override
-  State<BloomOrWiltQuiz> createState() => _BloomOrWiltQuizState();
-}
-
-class _BloomOrWiltQuizState extends State<BloomOrWiltQuiz>
-    with TickerProviderStateMixin {
-  late AnimationController _plantController;
-  late AnimationController _resultController;
-  bool? _userSaidTrue;
-  bool _hasAnswered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
-    _plantController = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 800),
-        value: 0.6);
-    _resultController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
-  }
-
-  @override
-  void dispose() {
-    _plantController.dispose();
-    _resultController.dispose();
-    super.dispose();
-  }
-
-  void _handleAnswer(bool userSaidTrue) {
-    if (_hasAnswered) return;
-    setState(() {
-      _userSaidTrue = userSaidTrue;
-      _hasAnswered = true;
-    });
-    final isCorrect = userSaidTrue == widget.isCorrectPair;
-    if (isCorrect) {
-      _plantController.animateTo(1.0,
-          duration: const Duration(milliseconds: 800), curve: Curves.easeOut);
-      AudioService.instance.playCorrect(streak: 0);
-      AudioService.haptic(HapticType.correct).ignore();
-    } else {
-      _plantController.animateTo(0.1,
-          duration: const Duration(milliseconds: 800), curve: Curves.easeIn);
-      AudioService.instance.play(SFX.wrongAnswer);
-      AudioService.haptic(HapticType.wrong).ignore();
-    }
-    _resultController.forward();
-    Future.delayed(const Duration(milliseconds: 1600), () {
-      if (mounted) widget.onAnswer(isCorrect, isCorrect ? 1 : 0);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxHeight < 620;
-        
-        return SafeArea(
-          child: Stack(
-            children: [
-              // Background Plant Visualization
-              Positioned.fill(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_plantController, _resultController]),
-                  builder: (ctx, _) => CustomPaint(
-                    painter: BloomOrWiltPlantPainter(
-                      growthLevel: _plantController.value,
-                      hasAnswered: _hasAnswered,
-                      isCorrect: _hasAnswered
-                          ? (_userSaidTrue == widget.isCorrectPair)
-                          : null,
-                      resultProgress: _resultController.value,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Foreground UI (Card at top, Buttons at bottom)
-              Column(
-                children: [
-                  SizedBox(height: isSmallScreen ? 8 : 16),
-                  
-                  // Word + Translation card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: AnimatedBuilder(
-                      animation: _resultController,
-                      builder: (ctx, child) {
-                        Color border = SeedlingColors.morningDew.withValues(alpha: 0.4);
-                        if (_hasAnswered) {
-                          final isCorrect = _userSaidTrue == widget.isCorrectPair;
-                          border = Color.lerp(
-                            border,
-                            isCorrect ? SeedlingColors.success : SeedlingColors.error,
-                            _resultController.value,
-                          )!;
-                        }
-                        return Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: isSmallScreen ? 20 : 28, 
-                              vertical: isSmallScreen ? 16 : 24
-                          ),
-                          decoration: BoxDecoration(
-                            color: SeedlingColors.cardBackground,
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(color: border, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('Is this correct?',
-                                  style: SeedlingTypography.caption.copyWith(
-                                    color: SeedlingColors.textSecondary,
-                                    fontSize: isSmallScreen ? 11 : 12,
-                                  )),
-                              SizedBox(height: isSmallScreen ? 8 : 14),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TargetWordDisplay(
-                                    word: widget.word,
-                                    style: SeedlingTypography.heading1
-                                        .copyWith(fontSize: isSmallScreen ? 28 : 32),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.volume_up_rounded,
-                                      color: SeedlingColors.seedlingGreen,
-                                      size: isSmallScreen ? 22 : 24,
-                                    ),
-                                    onPressed: () => TtsService.instance.speak(
-                                        widget.word.ttsWord,
-                                        widget.word.targetLanguageCode),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: isSmallScreen ? 6 : 8),
-                              Container(
-                                  height: 1.5,
-                                  width: isSmallScreen ? 40 : 50,
-                                  color: SeedlingColors.morningDew),
-                              SizedBox(height: isSmallScreen ? 6 : 8),
-                              Text(widget.shownTranslation,
-                                  style: SeedlingTypography.body.copyWith(
-                                    fontSize: isSmallScreen ? 18 : 20,
-                                    color: SeedlingColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                  textAlign: TextAlign.center),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // True / False buttons
-                  if (!_hasAnswered)
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(24, 0, 24, isSmallScreen ? 16 : 32),
-                      child: Row(
-                        children: [
-                          Expanded(child: _buildAnswerBtn(false, isSmallScreen)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildAnswerBtn(true, isSmallScreen)),
-                        ],
-                      ),
-                    )
-                  else
-                    SizedBox(height: isSmallScreen ? 64 : 96), // Space for where buttons were
-                ],
-              ),
-            ],
-          ),
-        );
-      }
-    );
-  }
-
-  Widget _buildAnswerBtn(bool isTrue, bool isSmallScreen) {
-    return GestureDetector(
-      onTap: () => _handleAnswer(isTrue),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: isSmallScreen ? 54 : 64,
-        decoration: BoxDecoration(
-          color: isTrue
-              ? SeedlingColors.seedlingGreen.withValues(alpha: 0.12)
-              : SeedlingColors.error.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(isSmallScreen ? 16 : 20),
-          border: Border.all(
-            color: isTrue
-                ? SeedlingColors.seedlingGreen.withValues(alpha: 0.5)
-                : SeedlingColors.error.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(isTrue ? '💧' : '🥀',
-                style: TextStyle(fontSize: isSmallScreen ? 18 : 22)),
-            SizedBox(width: isSmallScreen ? 6 : 8),
-            Text(
-              isTrue ? 'Correct' : 'Wrong',
-              style: SeedlingTypography.body.copyWith(
-                color: isTrue
-                    ? SeedlingColors.seedlingGreen
-                    : SeedlingColors.error,
-                fontWeight: FontWeight.w600,
-                fontSize: isSmallScreen ? 14 : 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class BloomOrWiltPlantPainter extends CustomPainter {
-  final double growthLevel;
-  final bool hasAnswered;
-  final bool? isCorrect;
-  final double resultProgress;
-
-  BloomOrWiltPlantPainter({
-    required this.growthLevel,
-    required this.hasAnswered,
-    this.isCorrect,
-    required this.resultProgress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final groundY = size.height * 0.7;
-
-    // Soil mound
-    final soilPaint = Paint()
-      ..color = SeedlingColors.soil.withValues(alpha: 0.7)
-      ..style = PaintingStyle.fill;
-    final soilPath = Path()
-      ..moveTo(cx - 50, groundY)
-      ..quadraticBezierTo(cx, groundY - 12, cx + 50, groundY)
-      ..lineTo(cx + 55, groundY + 14)
-      ..lineTo(cx - 55, groundY + 14)
-      ..close();
-    canvas.drawPath(soilPath, soilPaint);
-
-    final stemH = growthLevel * 130;
-    final isWilting = hasAnswered && isCorrect == false;
-
-    // Wilt droop
-    final droopAngle = isWilting ? resultProgress * 1.2 : 0.0;
-
-    // Stem
-    canvas.save();
-    canvas.translate(cx, groundY);
-    canvas.rotate(droopAngle * -0.3);
-
-    final stemColor = isWilting
-        ? Color.lerp(SeedlingColors.seedlingGreen, SeedlingColors.error,
-            resultProgress * 0.7)!
-        : Color.lerp(SeedlingColors.seedlingGreen, SeedlingColors.sunlight,
-            growthLevel > 0.85 ? (growthLevel - 0.85) / 0.15 : 0)!;
-
-    final stemPaint = Paint()
-      ..color = stemColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(Offset.zero, Offset(0, -stemH), stemPaint);
-
-    // Leaves
-    if (growthLevel > 0.3) {
-      final leafP = Paint()
-        ..color = Color.lerp(
-          SeedlingColors.freshSprout,
-          isWilting ? SeedlingColors.error.withValues(alpha: 0.6) : SeedlingColors.sunlight,
-          resultProgress * (isWilting ? 0.5 : 0),
-        )!
-        ..style = PaintingStyle.fill;
-      _drawLeaf(canvas, 0, -stemH * 0.4, -0.55, 28 * growthLevel, leafP);
-      _drawLeaf(canvas, 0, -stemH * 0.65, 0.6, 24 * growthLevel, leafP);
-    }
-
-    // Bloom petals when correct + fully grown
-    if (isCorrect == true && growthLevel > 0.85) {
-      final fp = (growthLevel - 0.85) / 0.15 * resultProgress;
-      _drawBloom(canvas, 0, -stemH, fp);
-    }
-
-    canvas.restore();
-  }
-
-  void _drawLeaf(Canvas canvas, double x, double y, double angle,
-      double size, Paint paint) {
-    if (size <= 0) return;
-    canvas.save();
-    canvas.translate(x, y);
-    canvas.rotate(angle);
-    final path = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(-size / 2, -size / 3, 0, -size)
-      ..quadraticBezierTo(size / 2, -size / 3, 0, 0);
-    canvas.drawPath(path, paint);
-    canvas.restore();
-  }
-
-  void _drawBloom(Canvas canvas, double cx, double cy, double p) {
-    if (p <= 0) return;
-    const petals = 7;
-    final petalLen = 24.0 * p;
-    final pp = Paint()
-      ..color = SeedlingColors.sunlight.withValues(alpha: p * 0.95)
-      ..style = PaintingStyle.fill;
-    final radius = petalLen + 8;
-    final glow = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          SeedlingColors.sunlight.withValues(alpha: 0.3 * p),
-          SeedlingColors.sunlight.withValues(alpha: 0.0),
-        ],
-        stops: const [0.5, 1.0],
-      ).createShader(Rect.fromCircle(
-        center: Offset(cx, cy),
-        radius: radius + 14,
-      ));
-    canvas.drawCircle(Offset(cx, cy), radius + 14, glow);
-    for (int i = 0; i < petals; i++) {
-      final a = (i / petals) * math.pi * 2;
-      final ex = cx + math.cos(a) * petalLen;
-      final ey = cy + math.sin(a) * petalLen;
-      final path = Path()
-        ..moveTo(cx, cy)
-        ..quadraticBezierTo(
-          cx + math.cos(a + 0.4) * petalLen * 0.55,
-          cy + math.sin(a + 0.4) * petalLen * 0.55,
-          ex, ey,
-        )
-        ..quadraticBezierTo(
-          cx + math.cos(a - 0.4) * petalLen * 0.55,
-          cy + math.sin(a - 0.4) * petalLen * 0.55,
-          cx, cy,
-        );
-      canvas.drawPath(path, pp);
-    }
-    canvas.drawCircle(Offset(cx, cy), 8 * p,
-        Paint()..color = SeedlingColors.deepRoot);
-  }
-
-  @override
-  bool shouldRepaint(covariant BloomOrWiltPlantPainter old) =>
-      old.growthLevel != growthLevel ||
-      old.hasAnswered != hasAnswered ||
-      old.resultProgress != resultProgress;
 }
 
 // â”€â”€ QUIZ TYPE 3: SEED SORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1011,11 +714,18 @@ class _SeedSortQuizState extends State<SeedSortQuiz>
   @override
   void initState() {
     super.initState();
-    TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+    TtsService.instance.speak(
+      widget.word.ttsWord,
+      widget.word.targetLanguageCode,
+    );
     _fallController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _sortController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
     _fallController.forward();
   }
 
@@ -1077,8 +787,7 @@ class _SeedSortQuizState extends State<SeedSortQuiz>
                 final seedY = _isDragging
                     ? _dragPos.dy - 40
                     : startY + (endY - startY) * _fallController.value;
-                final seedX =
-                    _isDragging ? _dragPos.dx - 40 : W / 2 - 40;
+                final seedX = _isDragging ? _dragPos.dx - 40 : W / 2 - 40;
 
                 return Positioned(
                   left: seedX,
@@ -1088,20 +797,17 @@ class _SeedSortQuizState extends State<SeedSortQuiz>
                   child: GestureDetector(
                     onPanStart: (_fallController.isCompleted)
                         ? (d) => setState(() {
-                              _isDragging = true;
-                              _dragPos = d.localPosition +
-                                  Offset(seedX, seedY);
-                            })
+                            _isDragging = true;
+                            _dragPos = d.localPosition + Offset(seedX, seedY);
+                          })
                         : null,
                     onPanUpdate: _isDragging
-                        ? (d) => setState(
-                            () => _dragPos += d.delta)
+                        ? (d) => setState(() => _dragPos += d.delta)
                         : null,
                     onPanEnd: _isDragging
                         ? (_) {
                             // Detect closest pot
-                            final curPos =
-                                Offset(_dragPos.dx, _dragPos.dy);
+                            final curPos = Offset(_dragPos.dx, _dragPos.dy);
                             final d0 = (curPos - pot0Center).distance;
                             final d1 = (curPos - pot1Center).distance;
                             if (d0 < 90) {
@@ -1115,8 +821,9 @@ class _SeedSortQuizState extends State<SeedSortQuiz>
                         : null,
                     child: CustomPaint(
                       painter: DraggableSeedPainter(
-                          label: widget.word.ttsWord,
-                          isDragging: _isDragging),
+                        label: widget.word.ttsWord,
+                        isDragging: _isDragging,
+                      ),
                     ),
                   ),
                 );
@@ -1132,10 +839,7 @@ class _SeedSortQuizState extends State<SeedSortQuiz>
                 child: TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 500),
-                  builder: (ctx, v, child) => Opacity(
-                    opacity: v,
-                    child: child,
-                  ),
+                  builder: (ctx, v, child) => Opacity(opacity: v, child: child),
                   child: Text(
                     'Drag the seed into the right pot',
                     textAlign: TextAlign.center,
@@ -1156,8 +860,7 @@ class DraggableSeedPainter extends CustomPainter {
   final String label;
   final bool isDragging;
 
-  DraggableSeedPainter(
-      {required this.label, required this.isDragging});
+  DraggableSeedPainter({required this.label, required this.isDragging});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1169,20 +872,16 @@ class DraggableSeedPainter extends CustomPainter {
     if (isDragging) {
       final glowRadius = 42 * scale;
       final glowPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            SeedlingColors.seedlingGreen.withValues(alpha: 0.25),
-            SeedlingColors.seedlingGreen.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromCircle(
-          center: Offset(cx, cy),
-          radius: glowRadius + 14,
-        ));
-      canvas.drawCircle(
-        Offset(cx, cy),
-        glowRadius + 14,
-        glowPaint,
-      );
+        ..shader =
+            RadialGradient(
+              colors: [
+                SeedlingColors.seedlingGreen.withValues(alpha: 0.25),
+                SeedlingColors.seedlingGreen.withValues(alpha: 0.0),
+              ],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius + 14),
+            );
+      canvas.drawCircle(Offset(cx, cy), glowRadius + 14, glowPaint);
     }
 
     // Seed body
@@ -1191,12 +890,17 @@ class DraggableSeedPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final path = _seedPath(cx, cy, 36 * scale, 46 * scale);
-    
+
     canvas.save();
     canvas.translate(3, 5);
-    canvas.drawShadow(path, SeedlingColors.deepRoot.withValues(alpha: 0.25), 6.0, false);
+    canvas.drawShadow(
+      path,
+      SeedlingColors.deepRoot.withValues(alpha: 0.25),
+      6.0,
+      false,
+    );
     canvas.restore();
-    
+
     canvas.drawPath(path, seedPaint);
 
     final highlightPaint = Paint()
@@ -1205,7 +909,9 @@ class DraggableSeedPainter extends CustomPainter {
     canvas.save();
     canvas.clipPath(path);
     canvas.drawPath(
-        _seedPath(cx - 8, cy - 10, 14 * scale, 18 * scale), highlightPaint);
+      _seedPath(cx - 8, cy - 10, 14 * scale, 18 * scale),
+      highlightPaint,
+    );
     canvas.restore();
 
     // Label
@@ -1231,8 +937,22 @@ class DraggableSeedPainter extends CustomPainter {
   Path _seedPath(double cx, double cy, double rw, double rh) {
     return Path()
       ..moveTo(cx, cy - rh)
-      ..cubicTo(cx + rw, cy - rh * 0.6, cx + rw * 0.8, cy + rh * 0.4, cx, cy + rh)
-      ..cubicTo(cx - rw * 0.8, cy + rh * 0.4, cx - rw, cy - rh * 0.6, cx, cy - rh)
+      ..cubicTo(
+        cx + rw,
+        cy - rh * 0.6,
+        cx + rw * 0.8,
+        cy + rh * 0.4,
+        cx,
+        cy + rh,
+      )
+      ..cubicTo(
+        cx - rw * 0.8,
+        cy + rh * 0.4,
+        cx - rw,
+        cy - rh * 0.6,
+        cx,
+        cy - rh,
+      )
       ..close();
   }
 
@@ -1271,28 +991,35 @@ class SeedSortBgPainter extends CustomPainter {
 
     Color potColor = SeedlingColors.soil;
     if (isDropCorrect) {
-      potColor = Color.lerp(SeedlingColors.soil, SeedlingColors.success, sortProgress)!;
+      potColor = Color.lerp(
+        SeedlingColors.soil,
+        SeedlingColors.success,
+        sortProgress,
+      )!;
     } else if (isDropWrong) {
-      potColor = Color.lerp(SeedlingColors.soil, SeedlingColors.error, sortProgress)!;
+      potColor = Color.lerp(
+        SeedlingColors.soil,
+        SeedlingColors.error,
+        sortProgress,
+      )!;
     }
 
     // Pot glow
     if (isDropped) {
       final glowPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            potColor.withValues(alpha: 0.25 * sortProgress),
-            potColor.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromCircle(
-          center: Offset(cx, cy),
-          radius: 85, // 65 + 20
-        ));
-      canvas.drawCircle(
-        Offset(cx, cy),
-        85,
-        glowPaint,
-      );
+        ..shader =
+            RadialGradient(
+              colors: [
+                potColor.withValues(alpha: 0.25 * sortProgress),
+                potColor.withValues(alpha: 0.0),
+              ],
+            ).createShader(
+              Rect.fromCircle(
+                center: Offset(cx, cy),
+                radius: 85, // 65 + 20
+              ),
+            );
+      canvas.drawCircle(Offset(cx, cy), 85, glowPaint);
     }
 
     // Pot body
@@ -1318,10 +1045,8 @@ class SeedSortBgPainter extends CustomPainter {
 
     // Soil in pot
     canvas.drawOval(
-      Rect.fromCenter(
-          center: Offset(cx, cy - 2), width: 74, height: 18),
-      Paint()
-        ..color = SeedlingColors.deepRoot.withValues(alpha: 0.9),
+      Rect.fromCenter(center: Offset(cx, cy - 2), width: 74, height: 18),
+      Paint()..color = SeedlingColors.deepRoot.withValues(alpha: 0.9),
     );
 
     // Tiny sprout if correct drop
@@ -1339,14 +1064,26 @@ class SeedSortBgPainter extends CustomPainter {
       );
       if (sp > 0.5) {
         final lp = ((sp - 0.5) / 0.5);
-        _drawLeaf(canvas, cx, cy - 8 - 20 * sp, -0.5, 14 * lp,
-            Paint()
-              ..color = SeedlingColors.freshSprout
-              ..style = PaintingStyle.fill);
-        _drawLeaf(canvas, cx, cy - 8 - 26 * sp, 0.5, 12 * lp,
-            Paint()
-              ..color = SeedlingColors.freshSprout
-              ..style = PaintingStyle.fill);
+        _drawLeaf(
+          canvas,
+          cx,
+          cy - 8 - 20 * sp,
+          -0.5,
+          14 * lp,
+          Paint()
+            ..color = SeedlingColors.freshSprout
+            ..style = PaintingStyle.fill,
+        );
+        _drawLeaf(
+          canvas,
+          cx,
+          cy - 8 - 26 * sp,
+          0.5,
+          12 * lp,
+          Paint()
+            ..color = SeedlingColors.freshSprout
+            ..style = PaintingStyle.fill,
+        );
       }
     }
 
@@ -1358,8 +1095,8 @@ class SeedSortBgPainter extends CustomPainter {
           color: isDropCorrect
               ? SeedlingColors.success
               : isDropWrong
-                  ? SeedlingColors.error
-                  : SeedlingColors.textPrimary,
+              ? SeedlingColors.error
+              : SeedlingColors.textPrimary,
           fontWeight: FontWeight.w600,
           fontSize: 15,
         ),
@@ -1368,12 +1105,17 @@ class SeedSortBgPainter extends CustomPainter {
       textAlign: TextAlign.center,
     );
     tp.layout(maxWidth: 100);
-    tp.paint(canvas,
-        Offset(cx - tp.width / 2, cy + 58));
+    tp.paint(canvas, Offset(cx - tp.width / 2, cy + 58));
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y, double angle,
-      double sz, Paint paint) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double sz,
+    Paint paint,
+  ) {
     if (sz <= 0) return;
     canvas.save();
     canvas.translate(x, y);
@@ -1424,13 +1166,16 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
   void initState() {
     super.initState();
     _shuffledWords = List.from(widget.words)..shuffle();
-    _shuffledTranslations =
-        _shuffledWords.map((w) => w.translation).toList()..shuffle();
+    _shuffledTranslations = _shuffledWords.map((w) => w.translation).toList()
+      ..shuffle();
     _pulseController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
     _connectController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
   }
 
   @override
@@ -1490,12 +1235,17 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
           ),
           child: Column(
             children: [
-              Text('Connect the Roots',
-                  style: SeedlingTypography.heading2
-                      .copyWith(color: SeedlingColors.textPrimary)),
+              Text(
+                'Connect the Roots',
+                style: SeedlingTypography.heading2.copyWith(
+                  color: SeedlingColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Match each word to its meaning',
-                  style: SeedlingTypography.caption),
+              Text(
+                'Match each word to its meaning',
+                style: SeedlingTypography.caption,
+              ),
               const SizedBox(height: 12),
               // Progress bar
               Container(
@@ -1512,7 +1262,7 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
                       gradient: const LinearGradient(
                         colors: [
                           SeedlingColors.seedlingGreen,
-                          SeedlingColors.freshSprout
+                          SeedlingColors.freshSprout,
                         ],
                       ),
                       borderRadius: BorderRadius.circular(4),
@@ -1527,90 +1277,115 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
         // Root network area
         Expanded(
           child: AnimatedBuilder(
-            animation:
-                Listenable.merge([_pulseController, _connectController]),
+            animation: Listenable.merge([_pulseController, _connectController]),
             builder: (ctx, _) {
-              return LayoutBuilder(builder: (ctx, constraints) {
-                final W = constraints.maxWidth;
-                final H = constraints.maxHeight;
-                return GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanUpdate: _selectedWordIdx != null
-                      ? (d) => setState(() => _dragEnd = d.localPosition)
-                      : null,
-                  onPanEnd: _selectedWordIdx != null
-                      ? (_) => setState(() {
+              return LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final W = constraints.maxWidth;
+                  final H = constraints.maxHeight;
+                  return GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onPanUpdate: _selectedWordIdx != null
+                        ? (d) => setState(() => _dragEnd = d.localPosition)
+                        : null,
+                    onPanEnd: _selectedWordIdx != null
+                        ? (_) => setState(() {
                             _selectedWordIdx = null;
                             _dragEnd = null;
                           })
-                      : null,
-                  child: CustomPaint(
-                    size: Size(W, H),
-                    painter: RootNetworkPainter(
-                      words: _shuffledWords.map((w) => w.word).toList(),
-                      translations: _shuffledTranslations,
-                      connections: _connections,
-                      selectedWordIdx: _selectedWordIdx,
-                      pulseValue: _pulseController.value,
-                      connectProgress: _connectController.value,
-                      dragEnd: _dragEnd,
+                        : null,
+                    child: CustomPaint(
+                      size: Size(W, H),
+                      painter: RootNetworkPainter(
+                        words: _shuffledWords.map((w) => w.word).toList(),
+                        translations: _shuffledTranslations,
+                        connections: _connections,
+                        selectedWordIdx: _selectedWordIdx,
+                        pulseValue: _pulseController.value,
+                        connectProgress: _connectController.value,
+                        dragEnd: _dragEnd,
+                      ),
+                      child: Stack(
+                        children: [
+                          // Word nodes
+                          ..._shuffledWords.asMap().entries.map((e) {
+                            final idx = e.key;
+                            final isSmall = H < 500;
+                            final isConnected = _connections.containsKey(idx);
+                            final isSelected = _selectedWordIdx == idx;
+                            final topMargin = isSmall ? 30.0 : 60.0;
+                            final bottomPadding = isSmall ? 40.0 : 80.0;
+                            final nodeY =
+                                topMargin +
+                                idx *
+                                    (H - bottomPadding) /
+                                    _shuffledWords.length;
+                            return Positioned(
+                              left: isSmall ? 8 : 16,
+                              top: nodeY - (isSmall ? 18 : 22),
+                              child: GestureDetector(
+                                onTap: isConnected
+                                    ? null
+                                    : () {
+                                        TtsService.instance.speak(
+                                          e.value.word,
+                                          e.value.targetLanguageCode,
+                                        );
+                                        setState(() {
+                                          _selectedWordIdx =
+                                              _selectedWordIdx == idx
+                                              ? null
+                                              : idx;
+                                          _dragEnd = null;
+                                        });
+                                      },
+                                child: _buildNode(
+                                  e.value.word,
+                                  isConnected,
+                                  isSelected,
+                                  true,
+                                  isSmall,
+                                ),
+                              ),
+                            );
+                          }),
+                          // Translation nodes
+                          ..._shuffledTranslations.asMap().entries.map((e) {
+                            final idx = e.key;
+                            final isSmall = H < 500;
+                            final isConnected = _connections.values.contains(
+                              idx,
+                            );
+                            final topMargin = isSmall ? 30.0 : 60.0;
+                            final bottomPadding = isSmall ? 40.0 : 80.0;
+                            final nodeY =
+                                topMargin +
+                                idx *
+                                    (H - bottomPadding) /
+                                    _shuffledTranslations.length;
+                            return Positioned(
+                              right: isSmall ? 8 : 16,
+                              top: nodeY - (isSmall ? 18 : 22),
+                              child: GestureDetector(
+                                onTap: isConnected
+                                    ? null
+                                    : () => _tryConnect(idx),
+                                child: _buildNode(
+                                  e.value,
+                                  isConnected,
+                                  false,
+                                  false,
+                                  isSmall,
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
                     ),
-                    child: Stack(
-                      children: [
-                        // Word nodes
-                        ..._shuffledWords.asMap().entries.map((e) {
-                          final idx = e.key;
-                          final isSmall = H < 500;
-                          final isConnected = _connections.containsKey(idx);
-                          final isSelected = _selectedWordIdx == idx;
-                          final topMargin = isSmall ? 30.0 : 60.0;
-                          final bottomPadding = isSmall ? 40.0 : 80.0;
-                          final nodeY = topMargin + idx * (H - bottomPadding) / _shuffledWords.length;
-                          return Positioned(
-                            left: isSmall ? 8 : 16,
-                            top: nodeY - (isSmall ? 18 : 22),
-                            child: GestureDetector(
-                              onTap: isConnected
-                                  ? null
-                                  : () {
-                                      TtsService.instance.speak(e.value.word, e.value.targetLanguageCode);
-                                      setState(() {
-                                        _selectedWordIdx =
-                                            _selectedWordIdx == idx ? null : idx;
-                                        _dragEnd = null;
-                                      });
-                                    },
-                              child: _buildNode(
-                                  e.value.word, isConnected, isSelected, true, isSmall),
-                            ),
-                          );
-                        }),
-                        // Translation nodes
-                        ..._shuffledTranslations.asMap().entries.map((e) {
-                          final idx = e.key;
-                          final isSmall = H < 500;
-                          final isConnected =
-                              _connections.values.contains(idx);
-                          final topMargin = isSmall ? 30.0 : 60.0;
-                          final bottomPadding = isSmall ? 40.0 : 80.0;
-                          final nodeY = topMargin + idx * (H - bottomPadding) / _shuffledTranslations.length;
-                          return Positioned(
-                            right: isSmall ? 8 : 16,
-                            top: nodeY - (isSmall ? 18 : 22),
-                            child: GestureDetector(
-                              onTap: isConnected
-                                  ? null
-                                  : () => _tryConnect(idx),
-                              child:
-                                  _buildNode(e.value, isConnected, false, false, isSmall),
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                );
-              });
+                  );
+                },
+              );
             },
           ),
         ),
@@ -1619,27 +1394,32 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
   }
 
   Widget _buildNode(
-      String text, bool connected, bool selected, bool isWordSide, bool isSmall) {
+    String text,
+    bool connected,
+    bool selected,
+    bool isWordSide,
+    bool isSmall,
+  ) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       padding: EdgeInsets.symmetric(
-        horizontal: isSmall ? 10 : 14, 
-        vertical: isSmall ? 6 : 10
+        horizontal: isSmall ? 10 : 14,
+        vertical: isSmall ? 6 : 10,
       ),
       constraints: BoxConstraints(maxWidth: isSmall ? 100 : 120),
       decoration: BoxDecoration(
         color: connected
             ? SeedlingColors.success.withValues(alpha: 0.15)
             : selected
-                ? SeedlingColors.seedlingGreen.withValues(alpha: 0.15)
-                : SeedlingColors.cardBackground,
+            ? SeedlingColors.seedlingGreen.withValues(alpha: 0.15)
+            : SeedlingColors.cardBackground,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: connected
               ? SeedlingColors.success
               : selected
-                  ? SeedlingColors.seedlingGreen
-                  : SeedlingColors.morningDew.withValues(alpha: 0.4),
+              ? SeedlingColors.seedlingGreen
+              : SeedlingColors.morningDew.withValues(alpha: 0.4),
           width: connected || selected ? 2.0 : 1.0,
         ),
         boxShadow: selected
@@ -1648,16 +1428,16 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
                   color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3),
                   blurRadius: 14,
                   spreadRadius: 2,
-                )
+                ),
               ]
             : connected
-                ? [
-                    BoxShadow(
-                      color: SeedlingColors.success.withValues(alpha: 0.2),
-                      blurRadius: 10,
-                    )
-                  ]
-                : null,
+            ? [
+                BoxShadow(
+                  color: SeedlingColors.success.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                ),
+              ]
+            : null,
       ),
       child: Text(
         text,
@@ -1667,9 +1447,11 @@ class _RootNetworkQuizState extends State<RootNetworkQuiz>
           color: connected
               ? SeedlingColors.success
               : selected
-                  ? SeedlingColors.seedlingGreen
-                  : SeedlingColors.textPrimary,
-          fontWeight: connected || selected ? FontWeight.bold : FontWeight.normal,
+              ? SeedlingColors.seedlingGreen
+              : SeedlingColors.textPrimary,
+          fontWeight: connected || selected
+              ? FontWeight.bold
+              : FontWeight.normal,
         ),
       ),
     );
@@ -1715,14 +1497,16 @@ class RootNetworkPainter extends CustomPainter {
       // Glowing root path
       final glowPaint1 = Paint()
         ..color = SeedlingColors.success.withValues(
-            alpha: 0.15 + 0.05 * pulseValue)
+          alpha: 0.15 + 0.05 * pulseValue,
+        )
         ..style = PaintingStyle.stroke
         ..strokeWidth = 14
         ..strokeCap = StrokeCap.round;
-        
+
       final glowPaint2 = Paint()
         ..color = SeedlingColors.success.withValues(
-            alpha: 0.1 + 0.05 * pulseValue)
+          alpha: 0.1 + 0.05 * pulseValue,
+        )
         ..style = PaintingStyle.stroke
         ..strokeWidth = 20
         ..strokeCap = StrokeCap.round;
@@ -1744,7 +1528,8 @@ class RootNetworkPainter extends CustomPainter {
         6 + 3 * pulseValue,
         Paint()
           ..color = SeedlingColors.success.withValues(
-              alpha: 0.5 + 0.3 * pulseValue),
+            alpha: 0.5 + 0.3 * pulseValue,
+          ),
       );
     }
 
@@ -1819,18 +1604,23 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
   late TextEditingController _controller;
   late FocusNode _focusNode;
   late AnimationController _resultAnim;
-  
+
   bool _hasAnswered = false;
   bool _isCorrect = false;
 
   @override
   void initState() {
     super.initState();
-    TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+    TtsService.instance.speak(
+      widget.word.ttsWord,
+      widget.word.targetLanguageCode,
+    );
     _controller = TextEditingController();
     _focusNode = FocusNode()..requestFocus();
     _resultAnim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
   }
 
   @override
@@ -1843,15 +1633,15 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
 
   void _checkAnswer() {
     if (_hasAnswered) return;
-    
+
     final input = _controller.text.trim().toLowerCase();
     if (input.isEmpty) return;
-    
+
     final target = widget.word.translation.toLowerCase();
 
     // Strict Anti-Cheating: exact match required (ignoring case)
     final correct = input == target;
-    
+
     setState(() {
       _hasAnswered = true;
       _isCorrect = correct;
@@ -1860,7 +1650,9 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
     // Play the correct SFX immediately
     if (correct) {
       AudioService.instance.play(SFX.engraveSuccess);
-      AudioService.haptic(HapticType.levelUp); // big vibration = true mastery earned
+      AudioService.haptic(
+        HapticType.levelUp,
+      ); // big vibration = true mastery earned
     } else {
       AudioService.instance.play(SFX.wrongAnswer);
       AudioService.haptic(HapticType.wrong).ignore();
@@ -1880,29 +1672,32 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxHeight < 620;
-        
+
         return SingleChildScrollView(
           child: Column(
             children: [
               SizedBox(height: isSmallScreen ? 16 : 30),
-      
+
               // Word card
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 20 : 28, 
-                    vertical: isSmallScreen ? 16 : 24
+                    horizontal: isSmallScreen ? 20 : 28,
+                    vertical: isSmallScreen ? 16 : 24,
                   ),
                   decoration: BoxDecoration(
                     color: SeedlingColors.cardBackground,
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                        color: SeedlingColors.morningDew.withValues(alpha: 0.4),
-                        width: 2),
+                      color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+                      width: 2,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
+                        color: SeedlingColors.seedlingGreen.withValues(
+                          alpha: 0.12,
+                        ),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -1910,30 +1705,35 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                   ),
                   child: Column(
                     children: [
-                      Text('Engrave the meaning',
-                          style: SeedlingTypography.caption
-                              .copyWith(
-                                color: SeedlingColors.textSecondary,
-                                fontSize: isSmallScreen ? 11 : 12,
-                              )),
+                      Text(
+                        'Engrave the meaning',
+                        style: SeedlingTypography.caption.copyWith(
+                          color: SeedlingColors.textSecondary,
+                          fontSize: isSmallScreen ? 11 : 12,
+                        ),
+                      ),
                       SizedBox(height: isSmallScreen ? 8 : 14),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TargetWordDisplay(
-                          word: widget.word,
-                              style: SeedlingTypography.heading1.copyWith(
-                                fontSize: isSmallScreen ? 28 : 36
-                              ),
-                              textAlign: TextAlign.center),
+                            word: widget.word,
+                            style: SeedlingTypography.heading1.copyWith(
+                              fontSize: isSmallScreen ? 28 : 36,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(width: 8),
                           IconButton(
                             icon: Icon(
-                              Icons.volume_up_rounded, 
+                              Icons.volume_up_rounded,
                               color: SeedlingColors.seedlingGreen,
                               size: isSmallScreen ? 22 : 24,
                             ),
-                            onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
+                            onPressed: () => TtsService.instance.speak(
+                              widget.word.ttsWord,
+                              widget.word.targetLanguageCode,
+                            ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                           ),
@@ -1943,9 +1743,9 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                   ),
                 ),
               ),
-      
+
               SizedBox(height: isSmallScreen ? 24 : 40),
-      
+
               // Active Recall Input
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -1956,11 +1756,13 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                     if (_hasAnswered) {
                       borderColor = Color.lerp(
                         SeedlingColors.morningDew,
-                        _isCorrect ? SeedlingColors.success : SeedlingColors.error,
+                        _isCorrect
+                            ? SeedlingColors.success
+                            : SeedlingColors.error,
                         _resultAnim.value,
                       )!;
                     }
-      
+
                     return Column(
                       children: [
                         TextField(
@@ -1969,28 +1771,40 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                           enabled: !_hasAnswered,
                           textAlign: TextAlign.center,
                           style: SeedlingTypography.heading2.copyWith(
-                            fontSize: isSmallScreen ? 22 : 28
+                            fontSize: isSmallScreen ? 22 : 28,
                           ),
                           decoration: InputDecoration(
                             hintText: 'Type translation...',
                             hintStyle: SeedlingTypography.heading2.copyWith(
-                                fontSize: isSmallScreen ? 20 : 24,
-                                color: SeedlingColors.textSecondary.withValues(alpha: 0.5)),
+                              fontSize: isSmallScreen ? 20 : 24,
+                              color: SeedlingColors.textSecondary.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
                             filled: true,
                             fillColor: SeedlingColors.cardBackground,
                             focusedBorder: const UnderlineInputBorder(
-                              borderSide: BorderSide(color: SeedlingColors.sunlight, width: 3),
+                              borderSide: BorderSide(
+                                color: SeedlingColors.sunlight,
+                                width: 3,
+                              ),
                             ),
                             enabledBorder: const UnderlineInputBorder(
-                              borderSide: BorderSide(color: SeedlingColors.morningDew, width: 2),
+                              borderSide: BorderSide(
+                                color: SeedlingColors.morningDew,
+                                width: 2,
+                              ),
                             ),
                             disabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: borderColor, width: _hasAnswered ? 3 : 2),
+                              borderSide: BorderSide(
+                                color: borderColor,
+                                width: _hasAnswered ? 3 : 2,
+                              ),
                             ),
                           ),
                           onSubmitted: (_) => _checkAnswer(),
                         ),
-                        
+
                         // Reveal answer if failed to enforce strict learning
                         if (_hasAnswered && !_isCorrect) ...[
                           const SizedBox(height: 16),
@@ -1998,17 +1812,21 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                             opacity: _resultAnim.value,
                             child: Column(
                               children: [
-                                Text('The correct translation is:',
-                                    style: SeedlingTypography.caption.copyWith(
-                                        color: SeedlingColors.error,
-                                        fontSize: isSmallScreen ? 10 : 12,
-                                    )),
+                                Text(
+                                  'The correct translation is:',
+                                  style: SeedlingTypography.caption.copyWith(
+                                    color: SeedlingColors.error,
+                                    fontSize: isSmallScreen ? 10 : 12,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
-                                Text(widget.word.translation,
-                                    style: SeedlingTypography.heading2.copyWith(
-                                        color: SeedlingColors.success, 
-                                        fontSize: isSmallScreen ? 22 : 28
-                                    )),
+                                Text(
+                                  widget.word.translation,
+                                  style: SeedlingTypography.heading2.copyWith(
+                                    color: SeedlingColors.success,
+                                    fontSize: isSmallScreen ? 22 : 28,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -2018,16 +1836,16 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                   },
                 ),
               ),
-      
+
               SizedBox(height: isSmallScreen ? 32 : 60),
-      
+
               // Submit Button
               if (!_hasAnswered)
                 Padding(
                   padding: EdgeInsets.only(
-                    bottom: isSmallScreen ? 20 : 40, 
-                    left: 32, 
-                    right: 32
+                    bottom: isSmallScreen ? 20 : 40,
+                    left: 32,
+                    right: 32,
                   ),
                   child: GestureDetector(
                     onTap: _checkAnswer,
@@ -2039,7 +1857,9 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.4),
+                            color: SeedlingColors.seedlingGreen.withValues(
+                              alpha: 0.4,
+                            ),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -2063,11 +1883,10 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
             ],
           ),
         );
-      }
+      },
     );
   }
 }
-
 
 // ================================================================
 // IMAGE QUIZ TYPE 6: PICTURE PICK
@@ -2105,7 +1924,10 @@ class _PicturePickQuizState extends State<PicturePickQuiz>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-    _feedbackAnim = CurvedAnimation(parent: _feedbackController, curve: Curves.elasticOut);
+    _feedbackAnim = CurvedAnimation(
+      parent: _feedbackController,
+      curve: Curves.elasticOut,
+    );
   }
 
   @override
@@ -2129,162 +1951,191 @@ class _PicturePickQuizState extends State<PicturePickQuiz>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxWidth < 360;
-      return Padding(
-        padding: EdgeInsets.all(isSmall ? 12 : 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // -- Prompt: foreign word --
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: SeedlingColors.morningDew.withValues(alpha: 0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '??? Which picture matches?',
-                    style: SeedlingTypography.caption.copyWith(
-                      color: SeedlingColors.textSecondary,
-                      fontSize: isSmall ? 11 : 13,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 360;
+        return Padding(
+          padding: EdgeInsets.all(isSmall ? 12 : 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // -- Prompt: foreign word --
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.cardBackground,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.5),
                   ),
-                  const SizedBox(height: 6),
-                  TargetWordDisplay(
-                    word: widget.word,
-                    style: SeedlingTypography.heading1.copyWith(
-                      fontSize: isSmall ? 26 : 32,
-                      color: SeedlingColors.textPrimary,
+                  boxShadow: [
+                    BoxShadow(
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.12,
+                      ),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '??? Which picture matches?',
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.textSecondary,
+                        fontSize: isSmall ? 11 : 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TargetWordDisplay(
+                      word: widget.word,
+                      style: SeedlingTypography.heading1.copyWith(
+                        fontSize: isSmall ? 26 : 32,
+                        color: SeedlingColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: isSmall ? 16 : 24),
+              SizedBox(height: isSmall ? 16 : 24),
 
-            // -- 2×2 Image Grid --
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(widget.options.length, (i) {
-                  final opt = widget.options[i];
-                  final isCorrect = opt.id == widget.word.id;
-                  final isSelected = _selectedIndex == i;
-                  final showResult = _answered && isSelected;
+              // -- 2×2 Image Grid --
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: List.generate(widget.options.length, (i) {
+                    final opt = widget.options[i];
+                    final isCorrect = opt.id == widget.word.id;
+                    final isSelected = _selectedIndex == i;
+                    final showResult = _answered && isSelected;
 
-                  Color borderColor = SeedlingColors.morningDew.withValues(alpha: 0.3);
-                  if (showResult) {
-                    borderColor = isCorrect ? SeedlingColors.success : SeedlingColors.error;
-                  } else if (_answered && isCorrect) {
-                    borderColor = SeedlingColors.success;
-                  }
+                    Color borderColor = SeedlingColors.morningDew.withValues(
+                      alpha: 0.3,
+                    );
+                    if (showResult) {
+                      borderColor = isCorrect
+                          ? SeedlingColors.success
+                          : SeedlingColors.error;
+                    } else if (_answered && isCorrect) {
+                      borderColor = SeedlingColors.success;
+                    }
 
-                  return GestureDetector(
-                    onTap: () => _onTap(i),
-                    child: AnimatedBuilder(
-                      animation: _feedbackAnim,
-                      builder: (_, child) {
-                        final scale = (showResult && isCorrect)
-                            ? (1.0 + 0.06 * math.sin(_feedbackAnim.value * math.pi))
-                            : 1.0;
-                        return Transform.scale(scale: scale, child: child);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: borderColor, width: 2.5),
-                          boxShadow: [
-                            if (_answered && isCorrect)
-                              BoxShadow(
-                                color: SeedlingColors.success.withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                spreadRadius: 2,
-                              ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              _ImageOrPlaceholder(opt: opt),
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: AnimatedOpacity(
-                                  opacity: _answered ? 1.0 : 0.0,
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.55),
-                                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-                                    ),
-                                    child: Text(
-                                      opt.translation,
-                                      style: const TextStyle(
-                                        color: SeedlingColors.textPrimary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                    return GestureDetector(
+                      onTap: () => _onTap(i),
+                      child: AnimatedBuilder(
+                        animation: _feedbackAnim,
+                        builder: (_, child) {
+                          final scale = (showResult && isCorrect)
+                              ? (1.0 +
+                                    0.06 *
+                                        math.sin(_feedbackAnim.value * math.pi))
+                              : 1.0;
+                          return Transform.scale(scale: scale, child: child);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: borderColor, width: 2.5),
+                            boxShadow: [
+                              if (_answered && isCorrect)
+                                BoxShadow(
+                                  color: SeedlingColors.success.withValues(
+                                    alpha: 0.3,
                                   ),
-                                ),
-                              ),
-                              if (showResult)
-                                Positioned(
-                                  top: 6,
-                                  right: 6,
-                                  child: ScaleTransition(
-                                    scale: _feedbackAnim,
-                                    child: Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: isCorrect ? SeedlingColors.success : SeedlingColors.error,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        isCorrect ? Icons.check_rounded : Icons.close_rounded,
-                                        color: SeedlingColors.textPrimary,
-                                        size: 18,
-                                      ),
-                                    ),
-                                  ),
+                                  blurRadius: 16,
+                                  spreadRadius: 2,
                                 ),
                             ],
                           ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _ImageOrPlaceholder(opt: opt),
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: AnimatedOpacity(
+                                    opacity: _answered ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 5,
+                                        horizontal: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                              bottom: Radius.circular(16),
+                                            ),
+                                      ),
+                                      child: Text(
+                                        opt.translation,
+                                        style: const TextStyle(
+                                          color: SeedlingColors.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (showResult)
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: ScaleTransition(
+                                      scale: _feedbackAnim,
+                                      child: Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: isCorrect
+                                              ? SeedlingColors.success
+                                              : SeedlingColors.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          isCorrect
+                                              ? Icons.check_rounded
+                                              : Icons.close_rounded,
+                                          color: SeedlingColors.textPrimary,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  }),
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    });
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -2334,9 +2185,7 @@ class _ImageOrPlaceholder extends StatelessWidget {
   Widget _buildEmoji() {
     return Container(
       color: SeedlingColors.morningDew.withValues(alpha: 0.15),
-      child: Center(
-        child: Text(_emoji, style: const TextStyle(fontSize: 52)),
-      ),
+      child: Center(child: Text(_emoji, style: const TextStyle(fontSize: 52))),
     );
   }
 }
@@ -2399,118 +2248,128 @@ class _WhatWordIsThisQuizState extends State<WhatWordIsThisQuiz>
   @override
   Widget build(BuildContext context) {
     final path = WordImage.assetPath(widget.word.imageId);
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxWidth < 360;
-      final imageH = constraints.maxHeight * 0.45;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 360;
+        final imageH = constraints.maxHeight * 0.45;
 
-      return Column(
-        children: [
-          SizedBox(
-            height: imageH,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-                  child: path != null
-                      ? Image.asset(
-                          path,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
-                        )
-                      : _buildImagePlaceholder(),
-                ),
-                Positioned(
-                  bottom: 12,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Text(
-                        '?? What word is this?',
-                        style: TextStyle(
-                          color: SeedlingColors.textPrimary,
-                          fontSize: isSmall ? 12 : 14,
-                          fontWeight: FontWeight.w600,
+        return Column(
+          children: [
+            SizedBox(
+              height: imageH,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(28),
+                    ),
+                    child: path != null
+                        ? Image.asset(
+                            path,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _buildImagePlaceholder(),
+                          )
+                        : _buildImagePlaceholder(),
+                  ),
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Text(
+                          '?? What word is this?',
+                          style: TextStyle(
+                            color: SeedlingColors.textPrimary,
+                            fontSize: isSmall ? 12 : 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                if (_answered)
-                  AnimatedBuilder(
-                    animation: _sparkleCtrl,
-                    builder: (_, __) => CustomPaint(
-                      painter: _SparklePainter(_sparkleCtrl.value),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.all(isSmall ? 10 : 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(widget.options.length, (i) {
-                  final opt = widget.options[i];
-                  final isCorrect = opt == widget.word.translation;
-                  final isSelected = _selected == i;
-
-                  Color bg = SeedlingColors.cardBackground;
-                  Color textColor = SeedlingColors.textPrimary;
-                  if (_answered) {
-                    if (isCorrect) {
-                      bg = SeedlingColors.success.withValues(alpha: 0.15);
-                      textColor = SeedlingColors.success;
-                    } else if (isSelected) {
-                      bg = SeedlingColors.error.withValues(alpha: 0.1);
-                      textColor = SeedlingColors.error;
-                    }
-                  }
-
-                  return GestureDetector(
-                    onTap: () => _onTap(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 280),
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        vertical: isSmall ? 10 : 14,
-                        horizontal: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: bg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _answered && isCorrect
-                              ? SeedlingColors.success
-                              : SeedlingColors.morningDew.withValues(alpha: 0.4),
-                          width: _answered && isCorrect ? 2 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        opt,
-                        style: SeedlingTypography.body.copyWith(
-                          fontSize: isSmall ? 14 : 16,
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
+                  if (_answered)
+                    AnimatedBuilder(
+                      animation: _sparkleCtrl,
+                      builder: (_, __) => CustomPaint(
+                        painter: _SparklePainter(_sparkleCtrl.value),
                       ),
                     ),
-                  );
-                }),
+                ],
               ),
             ),
-          ),
-        ],
-      );
-    });
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(isSmall ? 10 : 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(widget.options.length, (i) {
+                    final opt = widget.options[i];
+                    final isCorrect = opt == widget.word.translation;
+                    final isSelected = _selected == i;
+
+                    Color bg = SeedlingColors.cardBackground;
+                    Color textColor = SeedlingColors.textPrimary;
+                    if (_answered) {
+                      if (isCorrect) {
+                        bg = SeedlingColors.success.withValues(alpha: 0.15);
+                        textColor = SeedlingColors.success;
+                      } else if (isSelected) {
+                        bg = SeedlingColors.error.withValues(alpha: 0.1);
+                        textColor = SeedlingColors.error;
+                      }
+                    }
+
+                    return GestureDetector(
+                      onTap: () => _onTap(i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          vertical: isSmall ? 10 : 14,
+                          horizontal: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _answered && isCorrect
+                                ? SeedlingColors.success
+                                : SeedlingColors.morningDew.withValues(
+                                    alpha: 0.4,
+                                  ),
+                            width: _answered && isCorrect ? 2 : 1,
+                          ),
+                        ),
+                        child: Text(
+                          opt,
+                          style: SeedlingTypography.body.copyWith(
+                            fontSize: isSmall ? 14 : 16,
+                            color: textColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildImagePlaceholder() {
@@ -2580,8 +2439,10 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-    _shakeAnim = Tween<double>(begin: 0, end: 1)
-        .animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
+    _shakeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
 
     final rng = math.Random();
     _correctPotIndex = rng.nextBool() ? 0 : 1;
@@ -2620,61 +2481,68 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
   Widget build(BuildContext context) {
     final targetPath = WordImage.assetPath(widget.word.imageId);
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxWidth < 360;
-      final cardW = isSmall ? 140.0 : 170.0;
-      final cardH = cardW;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 360;
+        final cardW = isSmall ? 140.0 : 170.0;
+        final cardH = cardW;
 
-      return Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, isSmall ? 12 : 20, 16, 0),
-            child: Text(
-              '?? Drop the image into the right pot',
-              style: SeedlingTypography.body.copyWith(
-                color: SeedlingColors.textSecondary,
-                fontSize: isSmall ? 13 : 15,
+        return Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(16, isSmall ? 12 : 20, 16, 0),
+              child: Text(
+                '?? Drop the image into the right pot',
+                style: SeedlingTypography.body.copyWith(
+                  color: SeedlingColors.textSecondary,
+                  fontSize: isSmall ? 13 : 15,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          Expanded(
-            flex: 2,
-            child: Center(
-              child: _answered
-                  ? const SizedBox.shrink()
-                  : Draggable<bool>(
-                      data: true,
-                      feedback: _buildCard(targetPath, cardW, cardH, shadow: true),
-                      childWhenDragging: Opacity(
-                        opacity: 0.25,
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: _answered
+                    ? const SizedBox.shrink()
+                    : Draggable<bool>(
+                        data: true,
+                        feedback: _buildCard(
+                          targetPath,
+                          cardW,
+                          cardH,
+                          shadow: true,
+                        ),
+                        childWhenDragging: Opacity(
+                          opacity: 0.25,
+                          child: _buildCard(targetPath, cardW, cardH),
+                        ),
                         child: _buildCard(targetPath, cardW, cardH),
                       ),
-                      child: _buildCard(targetPath, cardW, cardH),
-                    ),
+              ),
             ),
-          ),
 
-          Expanded(
-            flex: 3,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(2, (potIndex) {
-                return _buildPot(
-                  potIndex: potIndex,
-                  label: _potLabels[potIndex],
-                  cardW: cardW,
-                  cardH: cardH,
-                  targetPath: targetPath,
-                );
-              }),
+            Expanded(
+              flex: 3,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(2, (potIndex) {
+                  return _buildPot(
+                    potIndex: potIndex,
+                    label: _potLabels[potIndex],
+                    cardW: cardW,
+                    cardH: cardH,
+                    targetPath: targetPath,
+                  );
+                }),
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildCard(String? path, double w, double h, {bool shadow = false}) {
@@ -2684,14 +2552,23 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: shadow
-            ? [BoxShadow(color: SeedlingColors.deepRoot.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 8))]
+            ? [
+                BoxShadow(
+                  color: SeedlingColors.deepRoot.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ]
             : null,
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: path != null
-            ? Image.asset(path, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _placeholderCard())
+            ? Image.asset(
+                path,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _placeholderCard(),
+              )
             : _placeholderCard(),
       ),
     );
@@ -2746,8 +2623,8 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
                 color: isHovering
                     ? SeedlingColors.seedlingGreen
                     : _answered && isTarget
-                        ? SeedlingColors.success
-                        : SeedlingColors.morningDew.withValues(alpha: 0.4),
+                    ? SeedlingColors.success
+                    : SeedlingColors.morningDew.withValues(alpha: 0.4),
                 width: isHovering || (_answered && isTarget) ? 2.5 : 1.5,
               ),
             ),
@@ -2763,8 +2640,8 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
                     color: _answered && isTarget
                         ? SeedlingColors.success
                         : _answered && isWrongDrop
-                            ? SeedlingColors.error
-                            : SeedlingColors.textPrimary,
+                        ? SeedlingColors.error
+                        : SeedlingColors.textPrimary,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -2773,9 +2650,13 @@ class _GardenSortQuizState extends State<GardenSortQuiz>
                 if (hasDrop) ...[
                   const SizedBox(height: 6),
                   Icon(
-                    isTarget ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                    color: isTarget ? SeedlingColors.success : SeedlingColors.error,
-                  )
+                    isTarget
+                        ? Icons.check_circle_rounded
+                        : Icons.cancel_rounded,
+                    color: isTarget
+                        ? SeedlingColors.success
+                        : SeedlingColors.error,
+                  ),
                 ],
               ],
             ),
@@ -2810,6 +2691,372 @@ class _SparklePainter extends CustomPainter {
   bool shouldRepaint(_SparklePainter old) => old.progress != progress;
 }
 
+// ================================================================
+// BLOOM OR WILT QUIZ (Feature 4: True/False with Reaction)
+// ================================================================
+// Shows a word + a proposed translation.
+// "BLOOM" if correct, "WILT" if incorrect.
+// ================================================================
+
+class BloomOrWiltQuiz extends StatefulWidget {
+  final Word word;
+  final String proposedTranslation;
+  final bool isActuallyCorrect;
+  final Function(bool correct, int masteryGained) onAnswer;
+
+  const BloomOrWiltQuiz({
+    super.key,
+    required this.word,
+    required this.proposedTranslation,
+    required this.isActuallyCorrect,
+    required this.onAnswer,
+  });
+
+  @override
+  State<BloomOrWiltQuiz> createState() => _BloomOrWiltQuizState();
+}
+
+class _BloomOrWiltQuizState extends State<BloomOrWiltQuiz>
+    with TickerProviderStateMixin {
+  late AnimationController _reactionController;
+  late AnimationController _entryController;
+  bool _hasAnswered = false;
+  bool? _selectedCorrect;
+
+  @override
+  void initState() {
+    super.initState();
+    _reactionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _reactionController.dispose();
+    _entryController.dispose();
+    super.dispose();
+  }
+
+  void _handleAnswer(bool userSaidCorrect) {
+    if (_hasAnswered) return;
+    final isCorrect = userSaidCorrect == widget.isActuallyCorrect;
+    setState(() {
+      _hasAnswered = true;
+      _selectedCorrect = userSaidCorrect;
+    });
+
+    if (isCorrect) {
+      _reactionController.forward(); // Bloom
+      AudioService.haptic(HapticType.correct).ignore();
+    } else {
+      _reactionController.forward(); // Wilt (handled by painter state)
+      AudioService.haptic(HapticType.wrong).ignore();
+    }
+
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) widget.onAnswer(isCorrect, isCorrect ? 1 : 0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCorrect =
+        _hasAnswered && _selectedCorrect == widget.isActuallyCorrect;
+
+    return FadeTransition(
+      opacity: _entryController,
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          // ── Plant Reaction Area ──────────────────────────────────
+          SizedBox(
+            height: 240,
+            width: double.infinity,
+            child: AnimatedBuilder(
+              animation: _reactionController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _PlantReactionPainter(
+                    progress: _reactionController.value,
+                    isCorrect: isCorrect,
+                    hasAnswered: _hasAnswered,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const Spacer(),
+
+          // ── Statement Card ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: SeedlingColors.cardBackground,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+                border: Border.all(
+                  color: _hasAnswered
+                      ? (isCorrect
+                                ? SeedlingColors.success
+                                : SeedlingColors.error)
+                            .withValues(alpha: 0.4)
+                      : SeedlingColors.morningDew.withValues(alpha: 0.2),
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    widget.word.word,
+                    style: SeedlingTypography.heading1.copyWith(
+                      color: SeedlingColors.textPrimary,
+                      fontSize: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'means',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.proposedTranslation,
+                    style: SeedlingTypography.heading2.copyWith(
+                      color: SeedlingColors.seedlingGreen,
+                      fontSize: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const Spacer(),
+
+          // ── Choice Buttons ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+            child: Row(
+              children: [
+                // WILT (False)
+                Expanded(
+                  child: _ChoiceButton(
+                    label: 'WILT',
+                    icon: Icons.close_rounded,
+                    color: SeedlingColors.error,
+                    isSelected: _hasAnswered && _selectedCorrect == false,
+                    isAnswered: _hasAnswered,
+                    onTap: () => _handleAnswer(false),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // BLOOM (True)
+                Expanded(
+                  child: _ChoiceButton(
+                    label: 'BLOOM',
+                    icon: Icons.local_florist_rounded,
+                    color: SeedlingColors.seedlingGreen,
+                    isSelected: _hasAnswered && _selectedCorrect == true,
+                    isAnswered: _hasAnswered,
+                    onTap: () => _handleAnswer(true),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChoiceButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final bool isAnswered;
+  final VoidCallback onTap;
+
+  const _ChoiceButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.isAnswered,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final displayColor = isAnswered && !isSelected
+        ? SeedlingColors.textSecondary.withValues(alpha: 0.3)
+        : color;
+
+    return GestureDetector(
+      onTap: isAnswered ? null : onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.15)
+              : SeedlingColors.cardBackground,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? color
+                : SeedlingColors.morningDew.withValues(alpha: 0.2),
+            width: isSelected ? 3 : 1.5,
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: color.withValues(alpha: 0.2), blurRadius: 15)]
+              : null,
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: displayColor, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: SeedlingTypography.caption.copyWith(
+                color: displayColor,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlantReactionPainter extends CustomPainter {
+  final double progress;
+  final bool isCorrect;
+  final bool hasAnswered;
+
+  _PlantReactionPainter({
+    required this.progress,
+    required this.isCorrect,
+    required this.hasAnswered,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * 0.8);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Draw Stem
+    final stemPath = Path();
+    stemPath.moveTo(center.dx, size.height);
+
+    double droop = 0;
+    if (hasAnswered && !isCorrect) {
+      droop = progress * 40; // Wilt droop
+    }
+
+    stemPath.quadraticBezierTo(
+      center.dx + (hasAnswered && !isCorrect ? progress * 20 : 0),
+      size.height * 0.7,
+      center.dx,
+      center.dy - droop,
+    );
+
+    paint.color = hasAnswered && !isCorrect
+        ? Color.lerp(SeedlingColors.seedlingGreen, Colors.brown, progress)!
+        : SeedlingColors.seedlingGreen;
+    paint.strokeWidth = 6;
+    canvas.drawPath(stemPath, paint);
+
+    // Draw Leaves
+    final leafPaint = Paint()..style = PaintingStyle.fill;
+    leafPaint.color = paint.color.withValues(alpha: 0.8);
+
+    // Simple leaf shapes
+    _drawLeaf(canvas, center + const Offset(-15, 20), -0.5, leafPaint);
+    _drawLeaf(canvas, center + const Offset(15, 10), 0.5, leafPaint);
+
+    // Draw Flower/Bud at top
+    final flowerCenter = Offset(center.dx, center.dy - droop);
+    if (!hasAnswered || (hasAnswered && isCorrect)) {
+      // Blooming logic
+      const petalCount = 6;
+      final bloomProgress = hasAnswered ? progress : 0.2;
+      final petalColor = Color.lerp(
+        SeedlingColors.freshSprout,
+        SeedlingColors.hibiscusRed,
+        bloomProgress,
+      )!;
+
+      for (int i = 0; i < petalCount; i++) {
+        final angle = (i * 2 * math.pi / petalCount) + (bloomProgress * 0.5);
+        final petalDist = 10 + (bloomProgress * 25);
+        final petalSize = 8 + (bloomProgress * 15);
+
+        final petalPos = Offset(
+          flowerCenter.dx + math.cos(angle) * petalDist,
+          flowerCenter.dy + math.sin(angle) * petalDist,
+        );
+
+        canvas.drawCircle(
+          petalPos,
+          petalSize,
+          Paint()..color = petalColor.withValues(alpha: 0.7),
+        );
+      }
+      canvas.drawCircle(
+        flowerCenter,
+        10 + bloomProgress * 5,
+        Paint()..color = Colors.amber,
+      );
+    } else {
+      // Wilting logic
+      canvas.drawCircle(
+        flowerCenter,
+        12 * (1 - progress * 0.5),
+        Paint()..color = Colors.brown.withValues(alpha: 0.6),
+      );
+    }
+  }
+
+  void _drawLeaf(Canvas canvas, Offset pos, double angle, Paint paint) {
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy);
+    canvas.rotate(angle);
+    final path = Path();
+    path.moveTo(0, 0);
+    path.quadraticBezierTo(10, -10, 20, 0);
+    path.quadraticBezierTo(10, 10, 0, 0);
+    canvas.drawPath(path, paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_PlantReactionPainter old) =>
+      old.progress != progress || old.isCorrect != isCorrect;
+}
 
 // ================================================================
 // IMAGE MATCH QUIZ (Feature 6: Image-First Learning)
@@ -2848,12 +3095,17 @@ class _ImageMatchQuizState extends State<ImageMatchQuiz>
   void initState() {
     super.initState();
     _entryController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500))
-      ..forward();
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
     _shakeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
     _bloomController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
   }
 
   @override
@@ -2875,7 +3127,10 @@ class _ImageMatchQuizState extends State<ImageMatchQuiz>
       _bloomController.forward();
       AudioService.haptic(HapticType.correct).ignore();
       // Speak the word AFTER answering as reinforcement
-      TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+      TtsService.instance.speak(
+        widget.word.ttsWord,
+        widget.word.targetLanguageCode,
+      );
     } else {
       _shakeController.forward(from: 0);
       AudioService.haptic(HapticType.wrong).ignore();
@@ -2887,188 +3142,218 @@ class _ImageMatchQuizState extends State<ImageMatchQuiz>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxHeight < 620;
-      final imageSize = isSmall ? 160.0 : 220.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxHeight < 620;
+        final imageSize = isSmall ? 160.0 : 220.0;
 
-      return FadeTransition(
-        opacity: _entryController,
-        child: Column(
-          children: [
-            // ── Instruction label ───────────────────────────────────
-            Padding(
-              padding: EdgeInsets.only(top: isSmall ? 16 : 28, bottom: 8),
-              child: Text(
-                'What do you see?',
-                style: SeedlingTypography.caption.copyWith(
-                  color: SeedlingColors.textSecondary,
-                  fontSize: isSmall ? 12 : 13,
-                ),
-              ),
-            ),
-
-            // ── Image ───────────────────────────────────────────────
-            AnimatedBuilder(
-              animation: Listenable.merge([_bloomController, _shakeController]),
-              builder: (_, __) {
-                final shake =
-                    math.sin(_shakeController.value * math.pi * 8) *
-                        10 *
-                        (1 - _shakeController.value);
-                final scale = 1.0 + (_bloomController.value * 0.06);
-                return Transform.translate(
-                  offset: Offset(shake, 0),
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: imageSize,
-                      height: imageSize,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: SeedlingColors.seedlingGreen
-                                .withValues(alpha: _hasAnswered ? 0.3 : 0.15),
-                            blurRadius: _hasAnswered ? 28 : 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                        border: _hasAnswered
-                            ? Border.all(
-                                color: _selectedIndex != null &&
-                                        widget.options[_selectedIndex!] == widget.word.translation
-                                    ? SeedlingColors.success
-                                    : SeedlingColors.error,
-                                width: 3,
-                              )
-                            : null,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(22),
-                        child: Image.asset(
-                          'assets/images/words/${widget.word.imageId}.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: SeedlingColors.cardBackground,
-                            child: const Icon(Icons.image_not_supported,
-                                color: SeedlingColors.textSecondary, size: 48),
-                          ),
-                        ),
-                      ),
-                    ),
+        return FadeTransition(
+          opacity: _entryController,
+          child: Column(
+            children: [
+              // ── Instruction label ───────────────────────────────────
+              Padding(
+                padding: EdgeInsets.only(top: isSmall ? 16 : 28, bottom: 8),
+                child: Text(
+                  'What do you see?',
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.textSecondary,
+                    fontSize: isSmall ? 12 : 13,
                   ),
-                );
-              },
-            ),
-
-            // ── Correct word reveal (after answering wrong) ─────────
-            if (_hasAnswered &&
-                _selectedIndex != null &&
-                widget.options[_selectedIndex!] != widget.word.translation) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: SeedlingColors.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: SeedlingColors.success.withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.check_circle_outline,
-                        color: SeedlingColors.success, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.word.translation,
-                      style: SeedlingTypography.bodyLarge.copyWith(
-                        color: SeedlingColors.success,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ],
 
-            const Spacer(),
-
-            // ── Answer buttons ──────────────────────────────────────
-            Padding(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, isSmall ? 20 : 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: widget.options.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final option = entry.value;
-                  final isSelected = _selectedIndex == index;
-                  final isCorrect = option == widget.word.translation;
-
-                  Color bgColor = SeedlingColors.cardBackground;
-                  Color borderColor =
-                      SeedlingColors.morningDew.withValues(alpha: 0.35);
-
-                  if (_hasAnswered) {
-                    if (isCorrect) {
-                      bgColor = SeedlingColors.success.withValues(alpha: 0.18);
-                      borderColor = SeedlingColors.success;
-                    } else if (isSelected && !isCorrect) {
-                      bgColor = SeedlingColors.error.withValues(alpha: 0.15);
-                      borderColor = SeedlingColors.error;
-                    }
-                  } else if (isSelected) {
-                    bgColor =
-                        SeedlingColors.seedlingGreen.withValues(alpha: 0.1);
-                    borderColor = SeedlingColors.seedlingGreen;
-                  }
-
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: isSmall ? 8 : 11),
-                    child: GestureDetector(
-                      onTap: () => _handleAnswer(index),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        padding: EdgeInsets.symmetric(
-                          vertical: isSmall ? 13 : 17,
-                          horizontal: 20,
-                        ),
+              // ── Image ───────────────────────────────────────────────
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  _bloomController,
+                  _shakeController,
+                ]),
+                builder: (_, __) {
+                  final shake =
+                      math.sin(_shakeController.value * math.pi * 8) *
+                      10 *
+                      (1 - _shakeController.value);
+                  final scale = 1.0 + (_bloomController.value * 0.06);
+                  return Transform.translate(
+                    offset: Offset(shake, 0),
+                    child: Transform.scale(
+                      scale: scale,
+                      child: Container(
+                        width: imageSize,
+                        height: imageSize,
                         decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border:
-                              Border.all(color: borderColor, width: isSelected || (_hasAnswered && isCorrect) ? 2.0 : 1.0),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: SeedlingColors.seedlingGreen.withValues(
+                                alpha: _hasAnswered ? 0.3 : 0.15,
+                              ),
+                              blurRadius: _hasAnswered ? 28 : 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          border: _hasAnswered
+                              ? Border.all(
+                                  color:
+                                      _selectedIndex != null &&
+                                          widget.options[_selectedIndex!] ==
+                                              widget.word.translation
+                                      ? SeedlingColors.success
+                                      : SeedlingColors.error,
+                                  width: 3,
+                                )
+                              : null,
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                option,
-                                style: SeedlingTypography.bodyLarge.copyWith(
-                                  fontSize: isSmall ? 14 : 16,
-                                ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: Image.asset(
+                            'assets/images/words/${widget.word.imageId}.jpg',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: SeedlingColors.cardBackground,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                color: SeedlingColors.textSecondary,
+                                size: 48,
                               ),
                             ),
-                            if (_hasAnswered && isCorrect)
-                              const Icon(Icons.check_circle,
-                                  color: SeedlingColors.success, size: 20),
-                            if (_hasAnswered && isSelected && !isCorrect)
-                              const Icon(Icons.cancel,
-                                  color: SeedlingColors.error, size: 20),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   );
-                }).toList(),
+                },
               ),
-            ),
-          ],
-        ),
-      );
-    });
+
+              // ── Correct word reveal (after answering wrong) ─────────
+              if (_hasAnswered &&
+                  _selectedIndex != null &&
+                  widget.options[_selectedIndex!] !=
+                      widget.word.translation) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: SeedlingColors.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: SeedlingColors.success.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: SeedlingColors.success,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.word.translation,
+                        style: SeedlingTypography.bodyLarge.copyWith(
+                          color: SeedlingColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const Spacer(),
+
+              // ── Answer buttons ──────────────────────────────────────
+              Padding(
+                padding: EdgeInsets.fromLTRB(24, 0, 24, isSmall ? 20 : 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: widget.options.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final option = entry.value;
+                    final isSelected = _selectedIndex == index;
+                    final isCorrect = option == widget.word.translation;
+
+                    Color bgColor = SeedlingColors.cardBackground;
+                    Color borderColor = SeedlingColors.morningDew.withValues(
+                      alpha: 0.35,
+                    );
+
+                    if (_hasAnswered) {
+                      if (isCorrect) {
+                        bgColor = SeedlingColors.success.withValues(
+                          alpha: 0.18,
+                        );
+                        borderColor = SeedlingColors.success;
+                      } else if (isSelected && !isCorrect) {
+                        bgColor = SeedlingColors.error.withValues(alpha: 0.15);
+                        borderColor = SeedlingColors.error;
+                      }
+                    } else if (isSelected) {
+                      bgColor = SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.1,
+                      );
+                      borderColor = SeedlingColors.seedlingGreen;
+                    }
+
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: isSmall ? 8 : 11),
+                      child: GestureDetector(
+                        onTap: () => _handleAnswer(index),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 280),
+                          padding: EdgeInsets.symmetric(
+                            vertical: isSmall ? 13 : 17,
+                            horizontal: 20,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: borderColor,
+                              width: isSelected || (_hasAnswered && isCorrect)
+                                  ? 2.0
+                                  : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  option,
+                                  style: SeedlingTypography.bodyLarge.copyWith(
+                                    fontSize: isSmall ? 14 : 16,
+                                  ),
+                                ),
+                              ),
+                              if (_hasAnswered && isCorrect)
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: SeedlingColors.success,
+                                  size: 20,
+                                ),
+                              if (_hasAnswered && isSelected && !isCorrect)
+                                const Icon(
+                                  Icons.cancel,
+                                  color: SeedlingColors.error,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
-
-
-

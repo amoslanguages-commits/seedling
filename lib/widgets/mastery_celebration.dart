@@ -9,21 +9,15 @@ class MasteryCelebration extends StatefulWidget {
   final String word;
   final VoidCallback? onDismissed;
 
-  const MasteryCelebration({
-    super.key,
-    required this.word,
-    this.onDismissed,
-  });
+  const MasteryCelebration({super.key, required this.word, this.onDismissed});
 
   /// Show the celebration as an overlay on top of the current route.
   static void show(BuildContext context, String word) {
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
-      builder: (ctx) => MasteryCelebration(
-        word: word,
-        onDismissed: () => entry.remove(),
-      ),
+      builder: (ctx) =>
+          MasteryCelebration(word: word, onDismissed: () => entry.remove()),
     );
     overlay.insert(entry);
   }
@@ -91,9 +85,7 @@ class _MasteryCelebrationState extends State<MasteryCelebration>
                   widget.onDismissed?.call();
                 });
               },
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.35),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.35)),
             ),
           ),
 
@@ -152,13 +144,18 @@ class _MasteryCelebrationState extends State<MasteryCelebration>
               ),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 28,
+                ),
                 decoration: BoxDecoration(
                   color: SeedlingColors.cardBackground,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
-                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3),
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.3,
+                      ),
                       blurRadius: 40,
                       spreadRadius: 2,
                     ),
@@ -192,7 +189,9 @@ class _MasteryCelebrationState extends State<MasteryCelebration>
                     const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFD700).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
@@ -212,7 +211,9 @@ class _MasteryCelebrationState extends State<MasteryCelebration>
                     Text(
                       'Tap anywhere to continue',
                       style: SeedlingTypography.caption.copyWith(
-                        color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                        color: SeedlingColors.textSecondary.withValues(
+                          alpha: 0.6,
+                        ),
                         fontSize: 12,
                       ),
                     ),
@@ -230,11 +231,13 @@ class _MasteryCelebrationState extends State<MasteryCelebration>
   Path _drawLeaf(Size size) {
     final path = Path();
     // Simple oval leaf shape
-    path.addOval(Rect.fromCenter(
-      center: Offset(size.width / 2, size.height / 2),
-      width: size.width,
-      height: size.height * 0.55,
-    ));
+    path.addOval(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height / 2),
+        width: size.width,
+        height: size.height * 0.55,
+      ),
+    );
     return path;
   }
 }

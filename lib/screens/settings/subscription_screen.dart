@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../services/subscription_service.dart';
 import '../../widgets/buttons.dart';
-import '../../widgets/cards.dart';
 import '../../core/colors.dart';
+import '../../core/typography.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -13,9 +15,21 @@ class SubscriptionScreen extends StatefulWidget {
   _SubscriptionScreenState createState() => _SubscriptionScreenState();
 }
 
-// ignore: library_private_types_in_public_api
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
+class _SubscriptionScreenState extends State<SubscriptionScreen> with TickerProviderStateMixin {
   bool _isLoading = false;
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleUnlock() async {
     setState(() => _isLoading = true);
@@ -29,102 +43,172 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Seedling Premium'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: SeedlingColors.textPrimary,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.stars_rounded,
-              size: 80,
-              color: Colors.amber,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Grow Faster with Premium',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: SeedlingColors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            _buildFeatureRow(Icons.cloud_sync, 'Cloud Sync across all devices'),
-            _buildFeatureRow(Icons.offline_pin, 'Unrestricted offline learning'),
-            _buildFeatureRow(Icons.analytics, 'Advanced progress statistics'),
-            _buildFeatureRow(Icons.group, 'Join community challenges'),
-            _buildFeatureRow(Icons.psychology, 'AI-powered personalized path'),
-            const SizedBox(height: 48),
-            GrowingCard(
-              child: Column(
-                children: [
-                  const Text(
-                    'Annual Plan',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '\$29.99 / year',
-                    style: TextStyle(
-                      fontSize: 32, 
-                      fontWeight: FontWeight.bold,
-                      color: SeedlingColors.seedlingGreen,
-                    ),
-                  ),
-                  const Text('Save 50% compared to monthly'),
-                  const SizedBox(height: 24),
-                  if (_isLoading)
-                    const CircularProgressIndicator(color: SeedlingColors.seedlingGreen)
-                  else
-                    OrganicButton(
-                      text: 'UNLOCK PREMIUM',
-                      onPressed: _handleUnlock,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Maybe Later',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ],
+  Widget _staggeredSlide(int index, Widget child) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Interval((index * 0.1).clamp(0.0, 1.0), 1.0, curve: Curves.easeOutCubic),
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 30 * (1 - value)),
+          child: Opacity(opacity: value, child: child),
+        );
+      },
+      child: child,
+    );
+  }
+
+  Widget _orb(double size, Color color, double alpha) => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [color.withValues(alpha: alpha), Colors.transparent])),
+  );
+
+  Widget _buildBgMesh() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (_, __) => Stack(children: [
+        Positioned(
+          top: -100 + (math.sin(_pulseController.value * math.pi) * 20),
+          right: -80 + (math.cos(_pulseController.value * math.pi) * 30),
+          child: _orb(450, SeedlingColors.autumnGold, 0.25),
         ),
+        Positioned(
+          top: 150 + (math.cos(_pulseController.value * math.pi) * 40),
+          left: -150 + (math.sin(_pulseController.value * math.pi) * 20),
+          child: _orb(500, SeedlingColors.seedlingGreen, 0.15),
+        ),
+        Positioned(bottom: -50, left: 20, right: 20, child: _orb(300, SeedlingColors.waterBlue, 0.10)),
+        Positioned.fill(
+          child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70), child: Container(color: Colors.transparent)),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildGlassFeatureRow(IconData icon, String title, String subtitle) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+      decoration: BoxDecoration(
+        color: SeedlingColors.cardBackground.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: SeedlingColors.morningDew.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: SeedlingColors.autumnGold.withValues(alpha: 0.2), shape: BoxShape.circle),
+            child: Icon(icon, color: SeedlingColors.autumnGold, size: 24),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFeatureRow(IconData icon, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: SeedlingColors.background,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text(''),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: SeedlingColors.textPrimary,
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+      ),
+      body: Stack(
         children: [
-          Icon(icon, color: SeedlingColors.seedlingGreen),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 16),
+          _buildBgMesh(),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              child: Column(
+                children: [
+                  _staggeredSlide(0, AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (_, __) => Icon(Icons.stars_rounded, size: 80, color: SeedlingColors.autumnGold.withValues(alpha: 0.8 + 0.2 * math.sin(_pulseController.value * math.pi))),
+                  )),
+                  const SizedBox(height: 16),
+                  _staggeredSlide(1, Text(
+                    'Grow Faster with Premium',
+                    style: SeedlingTypography.heading1.copyWith(fontSize: 32, fontWeight: FontWeight.w900),
+                    textAlign: TextAlign.center,
+                  )),
+                  const SizedBox(height: 8),
+                  _staggeredSlide(2, Text(
+                    'Unlock your full language potential.',
+                    style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+                    textAlign: TextAlign.center,
+                  )),
+                  const SizedBox(height: 32),
+                  
+                  _staggeredSlide(3, _buildGlassFeatureRow(Icons.cloud_sync, 'Cloud Sync', 'Access your data across all devices')),
+                  _staggeredSlide(4, _buildGlassFeatureRow(Icons.offline_pin, 'Offline Mode', 'Learn anywhere without restrictions')),
+                  _staggeredSlide(5, _buildGlassFeatureRow(Icons.analytics, 'Advanced Stats', 'Track your progress beautifully')),
+                  _staggeredSlide(6, _buildGlassFeatureRow(Icons.all_inclusive, 'Unlimited Challenges', 'Join any community arena instantly')),
+                  
+                  const SizedBox(height: 48),
+                  
+                  _staggeredSlide(7, AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (_, __) => Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: SeedlingColors.cardBackground.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: SeedlingColors.autumnGold.withValues(alpha: 0.3 + 0.3 * math.sin(_pulseController.value * math.pi)), width: 2),
+                        boxShadow: [
+                          BoxShadow(color: SeedlingColors.autumnGold.withValues(alpha: 0.15 + 0.1 * math.sin(_pulseController.value * math.pi)), blurRadius: 20, spreadRadius: 2)
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          const Text('Annual Pro Plan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          const Text('\$29.99 / year', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: SeedlingColors.autumnGold)),
+                          Container(
+                            margin: const EdgeInsets.only(top: 8, bottom: 24),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(color: SeedlingColors.autumnGold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                            child: const Text('Save 50% vs monthly', style: TextStyle(color: SeedlingColors.autumnGold, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                          if (_isLoading)
+                            const CircularProgressIndicator(color: SeedlingColors.autumnGold)
+                          else
+                            OrganicButton(text: 'UNLOCK PREMIUM', onPressed: _handleUnlock, width: double.infinity, isPremiumActiveMode: true),
+                        ],
+                      ),
+                    ),
+                  )),
+                  
+                  const SizedBox(height: 24),
+                  _staggeredSlide(8, TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Maybe Later', style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary)),
+                  )),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ],

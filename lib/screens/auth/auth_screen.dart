@@ -6,7 +6,6 @@ import '../../widgets/backgrounds.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -69,10 +68,7 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 60),
-                  const SeedlingMascot(
-                    size: 120,
-                    state: MascotState.idle,
-                  ),
+                  const SeedlingMascot(size: 120, state: MascotState.idle),
                   const SizedBox(height: 24),
                   Text(
                     'Seedling',
@@ -118,7 +114,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   const SizedBox(height: 32),
                   if (_isLoading)
-                    const CircularProgressIndicator(color: SeedlingColors.seedlingGreen)
+                    const CircularProgressIndicator(
+                      color: SeedlingColors.seedlingGreen,
+                    )
                   else
                     OrganicButton(
                       text: _isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN',
@@ -128,10 +126,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   TextButton(
                     onPressed: () => setState(() => _isSignUp = !_isSignUp),
                     child: Text(
-                      _isSignUp 
-                        ? 'Already have an account? Sign In' 
-                        : 'New to Seedling? Create Account',
-                      style: const TextStyle(color: SeedlingColors.seedlingGreen),
+                      _isSignUp
+                          ? 'Already have an account? Sign In'
+                          : 'New to Seedling? Create Account',
+                      style: const TextStyle(
+                        color: SeedlingColors.seedlingGreen,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),

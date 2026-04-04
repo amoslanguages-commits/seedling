@@ -10,6 +10,8 @@ import '../../models/taxonomy.dart';
 import '../courses/active_course_banner.dart';
 import '../sentence_session_screen.dart';
 import '../../widgets/word_library_sheet.dart';
+import '../../widgets/gamification_widgets.dart';
+import '../../models/gamification.dart';
 
 class EnhancedHomeScreen extends ConsumerStatefulWidget {
   const EnhancedHomeScreen({super.key});
@@ -50,16 +52,27 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Grow'),
-            BottomNavigationBarItem(icon: Icon(Icons.emoji_events_outlined), activeIcon: Icon(Icons.emoji_events), label: 'Compete'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Roots'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Grow',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.emoji_events_outlined),
+              activeIcon: Icon(Icons.emoji_events),
+              label: 'Compete',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Roots',
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 class _HomeTab extends ConsumerStatefulWidget {
   const _HomeTab();
@@ -83,11 +96,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(24, 20, 24, 16),
-              child: Row(
-                children: [
-                  Expanded(child: ActiveCourseBanner()),
-                ],
-              ),
+              child: Row(children: [Expanded(child: ActiveCourseBanner())]),
             ),
           ),
 
@@ -119,8 +128,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                 ),
               ),
             ),
-            loading: () => const SliverToBoxAdapter(child: LinearProgressIndicator()),
-            error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            loading: () =>
+                const SliverToBoxAdapter(child: LinearProgressIndicator()),
+            error: (_, __) =>
+                const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
 
           // Smart Focus Hub
@@ -130,6 +141,23 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               child: _SmartFocusHub(tabIndex: _selectedTab),
             ),
           ),
+
+          // Daily Quests
+          if (_selectedTab == 0)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                child: ref.watch(dailyChallengesProvider).when(
+                      data: (challenges) =>
+                          DailyChallengesCard(challenges: challenges),
+                      loading: () => const DailyChallengesCard(
+                        challenges: [],
+                        isLoading: true,
+                      ),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+              ),
+            ),
 
           // ─── Pill Tab Bar ─────────────────────────────────────────
           SliverToBoxAdapter(
@@ -174,12 +202,13 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   sliver: categoryStatsAsync.when(
                     data: (catStats) => SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 2.1,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 2.1,
+                          ),
                       delegate: SliverChildListDelegate(
                         subs.map((cat) {
                           final stat = catStats.firstWhere(
@@ -201,8 +230,11 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                         }).toList(),
                       ),
                     ),
-                    loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-                    error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                    loading: () => const SliverToBoxAdapter(
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (_, __) =>
+                        const SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
                 ),
               ];
@@ -222,7 +254,6 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
       ),
     );
   }
-
 }
 
 // ─── Smart Focus Hub ──────────────────────────────────────────────────────────
@@ -313,11 +344,16 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
                   width: 52,
                   height: 52,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15 + 0.08 * _pulseAnimation.value),
+                    color: Colors.white.withValues(
+                      alpha: 0.15 + 0.08 * _pulseAnimation.value,
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   alignment: Alignment.center,
-                  child: Text(config.emoji, style: const TextStyle(fontSize: 26)),
+                  child: Text(
+                    config.emoji,
+                    style: const TextStyle(fontSize: 26),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -326,7 +362,10 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
                     children: [
                       // Label badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(8),
@@ -422,30 +461,40 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
 
   void _handleTap(BuildContext context, FocusState focus) {
     if (widget.tabIndex == 1) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => const SentenceSessionScreen(mode: SentenceQuizMode.fillBranch),
-      ));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              const SentenceSessionScreen(mode: SentenceQuizMode.fillBranch),
+        ),
+      );
       return;
     }
 
     switch (focus.mode) {
       case FocusMode.watering:
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const LearningSessionScreen(),
-        ));
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const LearningSessionScreen()),
+        );
         break;
       case FocusMode.resume:
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => LearningSessionScreen(
-            domain: focus.lastDomain,
-            subDomain: focus.lastSubDomain,
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LearningSessionScreen(
+              domain: focus.lastDomain,
+              subDomain: focus.lastSubDomain,
+            ),
           ),
-        ));
+        );
         break;
       case FocusMode.discover:
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const LearningSessionScreen(),
-        ));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LearningSessionScreen(
+              domain: focus.lastDomain,
+              subDomain: focus.lastSubDomain,
+            ),
+          ),
+        );
         break;
     }
   }
@@ -501,10 +550,20 @@ class _PillTabBar extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  color: isSelected ? SeedlingColors.seedlingGreen : Colors.transparent,
+                  color: isSelected
+                      ? SeedlingColors.seedlingGreen
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: SeedlingColors.deepRoot.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))]
+                      ? [
+                          BoxShadow(
+                            color: SeedlingColors.deepRoot.withValues(
+                              alpha: 0.2,
+                            ),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
                       : [],
                 ),
                 alignment: Alignment.center,
@@ -513,7 +572,9 @@ class _PillTabBar extends StatelessWidget {
                   style: SeedlingTypography.body.copyWith(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? SeedlingColors.background : SeedlingColors.textSecondary,
+                    color: isSelected
+                        ? SeedlingColors.background
+                        : SeedlingColors.textSecondary,
                   ),
                 ),
               ),
@@ -627,7 +688,10 @@ class _CategoryCard extends StatelessWidget {
     this.categoryId,
     this.domain,
     this.subDomain,
-  }) : assert(emojiIcon != null || iconData != null, 'Provide emojiIcon or iconData');
+  }) : assert(
+         emojiIcon != null || iconData != null,
+         'Provide emojiIcon or iconData',
+       );
 
   @override
   Widget build(BuildContext context) {
@@ -637,11 +701,13 @@ class _CategoryCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => LearningSessionScreen(
-            categoryId: categoryId,
-            domain: domain,
-            subDomain: subDomain,
-          )),
+          MaterialPageRoute(
+            builder: (_) => LearningSessionScreen(
+              categoryId: categoryId,
+              domain: domain,
+              subDomain: subDomain,
+            ),
+          ),
         );
       },
       child: Container(
@@ -684,7 +750,7 @@ class _CategoryCard extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.all(14.0),
               child: Row(
@@ -712,9 +778,9 @@ class _CategoryCard extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: emojiIcon != null 
-                      ? Text(emojiIcon!, style: const TextStyle(fontSize: 24))
-                      : Icon(iconData!, color: resolvedIconColor, size: 24),
+                    child: emojiIcon != null
+                        ? Text(emojiIcon!, style: const TextStyle(fontSize: 24))
+                        : Icon(iconData!, color: resolvedIconColor, size: 24),
                   ),
                   const SizedBox(width: 14),
                   // Content
@@ -744,7 +810,9 @@ class _CategoryCard extends StatelessWidget {
                                   Container(
                                     height: 5,
                                     decoration: BoxDecoration(
-                                      color: resolvedIconColor.withValues(alpha: 0.08),
+                                      color: resolvedIconColor.withValues(
+                                        alpha: 0.08,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
@@ -757,13 +825,17 @@ class _CategoryCard extends StatelessWidget {
                                         gradient: LinearGradient(
                                           colors: [
                                             resolvedIconColor,
-                                            resolvedIconColor.withValues(alpha: 0.7),
+                                            resolvedIconColor.withValues(
+                                              alpha: 0.7,
+                                            ),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(10),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: resolvedIconColor.withValues(alpha: 0.2),
+                                            color: resolvedIconColor.withValues(
+                                              alpha: 0.2,
+                                            ),
                                             blurRadius: 4,
                                             offset: const Offset(0, 1),
                                           ),
@@ -780,7 +852,9 @@ class _CategoryCard extends StatelessWidget {
                               style: SeedlingTypography.caption.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: SeedlingColors.textSecondary.withValues(alpha: 0.8),
+                                color: SeedlingColors.textSecondary.withValues(
+                                  alpha: 0.8,
+                                ),
                               ),
                             ),
                           ],
@@ -825,7 +899,9 @@ class _CategoryCard extends StatelessWidget {
                       child: Icon(
                         Icons.auto_stories_rounded,
                         size: 14,
-                        color: SeedlingColors.textSecondary.withValues(alpha: 0.4),
+                        color: SeedlingColors.textSecondary.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                     ),
                   ),
@@ -900,7 +976,8 @@ class _SentencesTabContent extends StatelessWidget {
             color: SeedlingColors.cardBackground,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: SeedlingColors.sunlight.withValues(alpha: 0.25)),
+              color: SeedlingColors.sunlight.withValues(alpha: 0.25),
+            ),
           ),
           child: Row(
             children: [
@@ -957,7 +1034,10 @@ class _SentenceModeCard extends StatelessWidget {
             ],
           ),
           borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 1.5),
+          border: Border.all(
+            color: accentColor.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: accentColor.withValues(alpha: 0.12),
@@ -975,10 +1055,7 @@ class _SentenceModeCard extends StatelessWidget {
               bottom: -15,
               child: Opacity(
                 opacity: 0.05,
-                child: Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 100),
-                ),
+                child: Text(emoji, style: const TextStyle(fontSize: 100)),
               ),
             ),
             Padding(
@@ -1036,7 +1113,9 @@ class _SentenceModeCard extends StatelessWidget {
                         Text(
                           subtitle,
                           style: SeedlingTypography.body.copyWith(
-                            color: SeedlingColors.textSecondary.withValues(alpha: 0.85),
+                            color: SeedlingColors.textSecondary.withValues(
+                              alpha: 0.85,
+                            ),
                             fontSize: 13,
                             height: 1.3,
                           ),

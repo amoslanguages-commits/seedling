@@ -16,10 +16,12 @@ class LiveCountdownScreen extends ConsumerStatefulWidget {
   const LiveCountdownScreen({super.key, required this.session});
 
   @override
-  ConsumerState<LiveCountdownScreen> createState() => _LiveCountdownScreenState();
+  ConsumerState<LiveCountdownScreen> createState() =>
+      _LiveCountdownScreenState();
 }
 
-class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with SingleTickerProviderStateMixin {
+class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen>
+    with SingleTickerProviderStateMixin {
   int _countdown = 3;
   late Timer _timer;
   late AnimationController _pulseController;
@@ -55,15 +57,21 @@ class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with 
   void _transitionToGame() {
     // Host informs state that playing has begun, other clients will eventually sync this over web sockets (for now it's local)
     final activeSession = ref.read(activeSessionProvider);
-    final isHost = activeSession?.participants.any((p) => p.id == AuthService().userId && p.role == PlayerRole.host) ?? false;
-    
+    final isHost =
+        activeSession?.participants.any(
+          (p) => p.id == AuthService().userId && p.role == PlayerRole.host,
+        ) ??
+        false;
+
     if (isHost) {
       ref.read(activeSessionProvider.notifier).beginPlaying();
     }
-    
+
     Navigator.pushReplacement(
       context,
-      SeedlingPageRoute(page: LiveQuizScreen(session: activeSession ?? widget.session)),
+      SeedlingPageRoute(
+        page: LiveQuizScreen(session: activeSession ?? widget.session),
+      ),
     );
   }
 
@@ -90,7 +98,7 @@ class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with 
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: SeedlingColors.water.withOpacity(0.1),
+                color: SeedlingColors.water.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -102,18 +110,21 @@ class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with 
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: SeedlingColors.sunlight.withOpacity(0.1),
+                color: SeedlingColors.sunlight.withValues(alpha: 0.1),
               ),
             ),
           ),
-          
+
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'ARENA STARTING IN',
-                  style: SeedlingTypography.heading3.copyWith(color: SeedlingColors.morningDew, letterSpacing: 4),
+                  style: SeedlingTypography.heading3.copyWith(
+                    color: SeedlingColors.morningDew,
+                    letterSpacing: 4,
+                  ),
                 ),
                 const SizedBox(height: 30),
                 ScaleTransition(
@@ -125,9 +136,9 @@ class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with 
                       color: SeedlingColors.sunlight,
                       shadows: [
                         BoxShadow(
-                          color: SeedlingColors.sunlight.withOpacity(0.5),
+                          color: SeedlingColors.sunlight.withValues(alpha: 0.5),
                           blurRadius: 30,
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -135,7 +146,7 @@ class _LiveCountdownScreenState extends ConsumerState<LiveCountdownScreen> with 
               ],
             ),
           ),
-          
+
           // Chat Overlay
           const LiveChatOverlay(),
         ],

@@ -4,26 +4,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/colors.dart';
 import '../core/typography.dart';
 import '../widgets/mascot.dart';
-import '../widgets/buttons.dart';
 import '../widgets/auth_gate.dart';
 import '../models/course.dart';
 import '../providers/course_provider.dart';
 import '../services/vocabulary_service.dart';
 import 'package:twemoji/twemoji.dart';
+import 'package:confetti/confetti.dart';
+import '../widgets/animations.dart';
+
 
 // ============================================================================
 // ONBOARDING FLOW
 // Language selection, goal setting, and feature introduction for new users
 // ============================================================================
 
-final onboardingControllerProvider = ChangeNotifierProvider<OnboardingController>((ref) => OnboardingController());
+final onboardingControllerProvider =
+    ChangeNotifierProvider<OnboardingController>(
+      (ref) => OnboardingController(),
+    );
 
 // ================ ONBOARDING CONTROLLER ================
 
 class OnboardingController extends ChangeNotifier {
   int _currentPage = 0;
   final PageController pageController = PageController();
-  
+
   // User preferences collected during onboarding
   String _nativeLanguage = 'en-US';
   String _targetLanguage = 'es-ES';
@@ -32,7 +37,7 @@ class OnboardingController extends ChangeNotifier {
   bool _enableSounds = true;
   TimeOfDay? _reminderTime;
   bool _isCompleting = false;
-  
+
   int get currentPage => _currentPage;
   String get nativeLanguage => _nativeLanguage;
   String get targetLanguage => _targetLanguage;
@@ -41,7 +46,7 @@ class OnboardingController extends ChangeNotifier {
   bool get enableSounds => _enableSounds;
   TimeOfDay? get reminderTime => _reminderTime;
   bool get isCompleting => _isCompleting;
-  
+
   final List<OnboardingStep> steps = [
     OnboardingStep.welcome,
     OnboardingStep.nativeLanguage,
@@ -51,7 +56,7 @@ class OnboardingController extends ChangeNotifier {
     OnboardingStep.features,
     OnboardingStep.getStarted,
   ];
-  
+
   void nextPage() {
     if (_currentPage < steps.length - 1) {
       _currentPage++;
@@ -63,7 +68,7 @@ class OnboardingController extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   void previousPage() {
     if (_currentPage > 0) {
       _currentPage--;
@@ -75,43 +80,48 @@ class OnboardingController extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   void setNativeLanguage(String code) {
     _nativeLanguage = code;
     notifyListeners();
   }
-  
+
   void setTargetLanguage(String code) {
     _targetLanguage = code;
     notifyListeners();
   }
-  
+
   void setDailyGoal(int goal) {
     _dailyGoal = goal;
     notifyListeners();
   }
-  
+
   void setNotifications(bool enabled) {
     _enableNotifications = enabled;
     notifyListeners();
   }
-  
+
+  void toggleNotifications() {
+    _enableNotifications = !_enableNotifications;
+    notifyListeners();
+  }
+
   void setSounds(bool enabled) {
     _enableSounds = enabled;
     notifyListeners();
   }
-  
+
   void setReminderTime(TimeOfDay time) {
     _reminderTime = time;
     notifyListeners();
   }
-  
+
   Future<void> completeOnboarding(BuildContext context, WidgetRef ref) async {
     if (_isCompleting) return;
-    
+
     _isCompleting = true;
     notifyListeners();
-    
+
     try {
       // Save preferences
       final prefs = await SharedPreferences.getInstance();
@@ -121,12 +131,12 @@ class OnboardingController extends ChangeNotifier {
       await prefs.setBool('notifications_enabled', _enableNotifications);
       await prefs.setBool('sounds_enabled', _enableSounds);
       await prefs.setBool('onboarding_completed', true);
-      
+
       if (_reminderTime != null) {
         await prefs.setInt('reminder_hour', _reminderTime!.hour);
         await prefs.setInt('reminder_minute', _reminderTime!.minute);
       }
-      
+
       // Auto-create course from onboarding languages
       final nativeLang = Language.all.firstWhere(
         (l) => l.code == _nativeLanguage,
@@ -148,20 +158,22 @@ class OnboardingController extends ChangeNotifier {
       await ref.read(courseProvider.notifier).setActive(newCourse.id);
 
       // Populate database with vocabulary mapping for this course
-      debugPrint('Seedling: Populating vocabulary for ${nativeLang.code} -> ${targetLang.code}...');
+      debugPrint(
+        'Seedling: Populating vocabulary for ${nativeLang.code} -> ${targetLang.code}...',
+      );
       await VocabularyService.populateCourse(nativeLang.code, targetLang.code);
       debugPrint('Seedling: Vocabulary population complete.');
 
       // Navigate to auth gate (which handles login or home)
       if (context.mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthGate()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthGate()));
       }
     } catch (e, stack) {
       debugPrint('Seedling Onboarding Error: $e');
       debugPrint(stack.toString());
-      
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,7 +187,7 @@ class OnboardingController extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   bool canProceed() {
     switch (steps[_currentPage]) {
       case OnboardingStep.nativeLanguage:
@@ -200,130 +212,251 @@ enum OnboardingStep {
   getStarted,
 }
 
-// ================ ONBOARDING SCREEN ================
+// ─────────────────────────────────────────────────────────────────────────────
+//  Onboarding Screen — Premium Guided Experience
+// ─────────────────────────────────────────────────────────────────────────────
 
-class OnboardingScreen extends ConsumerWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
+}
+
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  late ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController =
+        ConfettiController(duration: const Duration(seconds: 3));
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  MascotState _getMascotState() {
+    switch (_currentPage) {
+      case 0:
+        return MascotState.happy;
+      case 1:
+        return MascotState.thinking; // Native language
+      case 2:
+        return MascotState.excited; // Target language
+      case 3:
+        return MascotState.thinking; // Daily goal
+      case 4:
+        return MascotState.happy; // Reminders
+      case 5:
+        return MascotState.idle; // Features
+      case 6:
+        return MascotState.celebrating; // Get started
+      default:
+        return MascotState.idle;
+    }
+  }
+
+  void _nextPage(OnboardingController controller) {
+    if (_currentPage < 6) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+      );
+    } else {
+      controller.completeOnboarding(context, ref);
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final controller = ref.watch(onboardingControllerProvider);
-    
+
     return Scaffold(
       backgroundColor: SeedlingColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip button (except on last page)
-            if (controller.currentPage < controller.steps.length - 1)
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: TextButton(
-                    onPressed: controller.isCompleting 
-                        ? null 
-                        : () => controller.completeOnboarding(context, ref),
-                    child: Text(
-                      'Skip',
-                      style: SeedlingTypography.body.copyWith(
-                        color: SeedlingColors.textSecondary,
+      body: Stack(
+        children: [
+          // Background accents
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.05),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                // Header: Progress & Mascot
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  child: Column(
+                    children: [
+                      // Linear progress bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 400),
+                          height: 8,
+                          width: double.infinity,
+                          child: LinearProgressIndicator(
+                            value: (_currentPage + 1) / 7,
+                            backgroundColor: SeedlingColors.water.withValues(
+                              alpha: 0.1,
+                            ),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              SeedlingColors.seedlingGreen,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      // Animated Mascot
+                      SizedBox(
+                        height: 120,
+                        child: SeedlingMascot(
+                          state: _getMascotState(),
+                          size: 100,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            
-            // Progress indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: (controller.currentPage + 1) / controller.steps.length,
-                  backgroundColor: SeedlingColors.morningDew.withValues(alpha: 0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    SeedlingColors.seedlingGreen,
+
+                // Main Content
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentPage = page;
+                      });
+                      if (page == 6) {
+                        _confettiController.play();
+                      }
+                    },
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      const WelcomeStep(),
+                      const NativeLanguageStep(),
+                      const TargetLanguageStep(),
+                      DailyGoalStep(),
+                      const RemindersStep(),
+                      FeaturesStep(),
+                      const GetStartedStep(),
+                    ],
                   ),
-                  minHeight: 8,
                 ),
-              ),
+
+                // Footer Actions
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_currentPage > 0)
+                        TextButton(
+                          onPressed: _previousPage,
+                          child: Text(
+                            'Back',
+                            style: SeedlingTypography.body.copyWith(
+                              color: SeedlingColors.textSecondary,
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 60),
+
+                      // Indicators
+                      Row(
+                        children: List.generate(
+                          7,
+                          (index) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: _currentPage == index ? 24 : 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color:
+                                  _currentPage == index
+                                      ? SeedlingColors.seedlingGreen
+                                      : SeedlingColors.water.withValues(
+                                        alpha: 0.2,
+                                      ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      ElevatedButton(
+                        onPressed: controller.canProceed() ? () => _nextPage(controller) : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: SeedlingColors.seedlingGreen,
+                          foregroundColor: SeedlingColors.textPrimary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          _currentPage == 6 ? 'Start' : 'Next',
+                          style: SeedlingTypography.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            
-            // Page content
-            Expanded(
-              child: PageView(
-                controller: controller.pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  const WelcomeStep(),
-                  const NativeLanguageStep(),
-                  const TargetLanguageStep(),
-                  DailyGoalStep(),
-                  const RemindersStep(),
-                  FeaturesStep(),
-                  const GetStartedStep(),
-                ],
-              ),
+          ),
+
+          // Confetti overlay
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: const [
+                SeedlingColors.seedlingGreen,
+                SeedlingColors.freshSprout,
+                SeedlingColors.water,
+                SeedlingColors.sunlight,
+              ],
             ),
-            
-            // Navigation buttons
-            _buildNavigationBar(context, ref, controller),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildNavigationBar(BuildContext context, WidgetRef ref, OnboardingController controller) {
-    final isFirstPage = controller.currentPage == 0;
-    final isLastPage = controller.currentPage == controller.steps.length - 1;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: SeedlingColors.cardBackground,
-        boxShadow: [
-          BoxShadow(
-            color: SeedlingColors.deepRoot.withValues(alpha: 0.4),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
           ),
         ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            // Back button
-            if (!isFirstPage)
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: controller.previousPage,
-                color: SeedlingColors.textPrimary,
-              )
-            else
-              const SizedBox(width: 48),
-            
-            const Spacer(),
-            
-            // Next/Get Started button
-            OrganicButton(
-              text: isLastPage ? 'Get Started' : 'Next',
-              loading: controller.isCompleting,
-              onPressed: !controller.isCompleting && controller.canProceed()
-                  ? () {
-                      if (isLastPage) {
-                        controller.completeOnboarding(context, ref);
-                      } else {
-                        controller.nextPage();
-                      }
-                    }
-                  : null,
-              width: 150,
-              height: 56,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -336,72 +469,74 @@ class WelcomeStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 40),
-            // Animated mascot
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 800),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.5 + (value * 0.5),
-                  child: const SeedlingMascot(
-                    size: 150,
-                    state: MascotState.celebrating,
-                  ),
-                );
-              },
-            ),
-            
-            const SizedBox(height: 40),
-            
-            Text(
-              'Welcome to Seedling',
-              style: SeedlingTypography.heading1.copyWith(fontSize: 32),
-              textAlign: TextAlign.center,
-            ),
-            
-            const SizedBox(height: 20),
-            
-            Text(
-              'Grow your vocabulary naturally, one word at a time. Let\'s set up your learning journey.',
-              style: SeedlingTypography.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            
-            const SizedBox(height: 40),
-            
-            // Feature highlights
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildHighlightItem('🌱', 'Learn'),
-                const SizedBox(width: 30),
-                _buildHighlightItem('🔥', 'Streak'),
-                const SizedBox(width: 30),
-                _buildHighlightItem('🏆', 'Achieve'),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+    return FadeInStaggered(
+      index: 0,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Text(
+                'Welcome to Seedling',
+                style: SeedlingTypography.heading1.copyWith(fontSize: 32),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 20),
+
+              Text(
+                'Grow your vocabulary naturally, one word at a time. Let\'s set up your learning journey.',
+                style: SeedlingTypography.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 40),
+
+              // Feature highlights
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildHighlightItem('🌱', 'Learn'),
+                  const SizedBox(width: 30),
+                  _buildHighlightItem('🔥', 'Streak'),
+                  const SizedBox(width: 30),
+                  _buildHighlightItem('🏆', 'Achieve'),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
   }
-  
+
   Widget _buildHighlightItem(String emoji, String label) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 32)),
-        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: SeedlingColors.cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: SeedlingColors.deepRoot.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Text(emoji, style: const TextStyle(fontSize: 32)),
+        ),
+        const SizedBox(height: 12),
         Text(
           label,
-          style: SeedlingTypography.caption,
+          style: SeedlingTypography.caption.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
@@ -412,7 +547,7 @@ class WelcomeStep extends StatelessWidget {
 
 class NativeLanguageStep extends ConsumerStatefulWidget {
   const NativeLanguageStep({super.key});
-  
+
   @override
   ConsumerState<NativeLanguageStep> createState() => _NativeLanguageStepState();
 }
@@ -423,186 +558,141 @@ class _NativeLanguageStepState extends ConsumerState<NativeLanguageStep> {
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(onboardingControllerProvider);
-    
+
     final filteredLanguages = Language.all.where((lang) {
       final query = _searchQuery.toLowerCase();
       return lang.name.toLowerCase().contains(query);
     }).toList();
-    
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'What\'s your native language?',
-            style: SeedlingTypography.heading2,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'We\'ll use this to show you translations and explanations.',
-            style: SeedlingTypography.body,
-          ),
-          const SizedBox(height: 20),
 
-          // Search bar
-          TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search languages...',
-              prefixIcon: const Icon(Icons.search, color: SeedlingColors.textSecondary),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: SeedlingColors.textSecondary),
-                      onPressed: () {
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                        FocusScope.of(context).unfocus();
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: SeedlingColors.cardBackground,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: SeedlingColors.seedlingGreen, width: 2),
+    return FadeInStaggered(
+      index: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'What\'s your native language?',
+              style: SeedlingTypography.heading2,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'We\'ll use this to show you translations and explanations.',
+              style: SeedlingTypography.body,
+            ),
+            const SizedBox(height: 20),
+
+            // Search bar
+            TextField(
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search languages...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: SeedlingColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: SeedlingColors.cardBackground,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: SeedlingColors.seedlingGreen,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Selected language display
-          if (controller.nativeLanguage.isNotEmpty && _searchQuery.isEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: SeedlingColors.seedlingGreen),
-              ),
-              child: Row(
-                children: [
-                  Twemoji(
-                    emoji: Language.all
-                        .firstWhere(
-                          (l) => l.code == controller.nativeLanguage,
-                          orElse: () => Language.all.first,
-                        )
-                        .flag,
-                    height: 32,
-                    width: 32,
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Selected',
-                          style: SeedlingTypography.caption,
-                        ),
-                        Text(
-                          Language.all
-                              .firstWhere(
-                                (l) => l.code == controller.nativeLanguage,
-                                orElse: () => Language.all.first,
-                              )
-                              .name,
-                          style: SeedlingTypography.heading3,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.check_circle, color: SeedlingColors.seedlingGreen),
-                ],
-              ),
-            ),
-          
-          // Language grid
-          Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: filteredLanguages.length,
-              itemBuilder: (context, index) {
-                final lang = filteredLanguages[index];
-                final isSelected = controller.nativeLanguage == lang.code;
-                
-                return GestureDetector(
-                  onTap: () {
-                    controller.setNativeLanguage(lang.code);
-                    FocusScope.of(context).unfocus();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
-                          : SeedlingColors.cardBackground,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+            const SizedBox(height: 20),
+
+            // Language grid
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: filteredLanguages.length,
+                itemBuilder: (context, index) {
+                  final lang = filteredLanguages[index];
+                  final isSelected = controller.nativeLanguage == lang.code;
+
+                  return GestureDetector(
+                    onTap: () {
+                      controller.setNativeLanguage(lang.code);
+                      FocusScope.of(context).unfocus();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? SeedlingColors.seedlingGreen
-                            : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                        width: isSelected ? 2 : 1,
+                            ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                            : SeedlingColors.cardBackground,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? SeedlingColors.seedlingGreen
+                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                          width: isSelected ? 2 : 1,
+                        ),
+                        boxShadow: isSelected ? [
+                          BoxShadow(
+                            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ] : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Twemoji(emoji: lang.flag, height: 24, width: 24),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              lang.name,
+                              style: SeedlingTypography.body.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle,
+                              color: SeedlingColors.seedlingGreen,
+                              size: 20,
+                            ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Twemoji(
-                          emoji: lang.flag,
-                          height: 24,
-                          width: 24,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                lang.name,
-                                style: SeedlingTypography.body.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check_circle,
-                            color: SeedlingColors.seedlingGreen,
-                            size: 20,
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -612,7 +702,7 @@ class _NativeLanguageStepState extends ConsumerState<NativeLanguageStep> {
 
 class TargetLanguageStep extends ConsumerStatefulWidget {
   const TargetLanguageStep({super.key});
-  
+
   @override
   ConsumerState<TargetLanguageStep> createState() => _TargetLanguageStepState();
 }
@@ -623,172 +713,160 @@ class _TargetLanguageStepState extends ConsumerState<TargetLanguageStep> {
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(onboardingControllerProvider);
-    
+
     final filteredLanguages = Language.all.where((lang) {
       final query = _searchQuery.toLowerCase();
       return lang.name.toLowerCase().contains(query);
     }).toList();
-    
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'What do you want to learn?',
-            style: SeedlingTypography.heading2,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Choose the language you want to grow your vocabulary in.',
-            style: SeedlingTypography.body,
-          ),
-          const SizedBox(height: 20),
 
-          // Search bar
-          TextField(
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search languages...',
-              prefixIcon: const Icon(Icons.search, color: SeedlingColors.textSecondary),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: SeedlingColors.textSecondary),
-                      onPressed: () {
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                        FocusScope.of(context).unfocus();
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: SeedlingColors.cardBackground,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: SeedlingColors.seedlingGreen, width: 2),
-              ),
+    return FadeInStaggered(
+      index: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'What do you want to learn?',
+              style: SeedlingTypography.heading2,
             ),
-          ),
-          const SizedBox(height: 20),
-          
-          // Warning if same as native
-          if (controller.targetLanguage == controller.nativeLanguage &&
-              controller.targetLanguage.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: SeedlingColors.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning, color: SeedlingColors.error),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Target language should be different from your native language',
-                      style: SeedlingTypography.caption.copyWith(
-                        color: SeedlingColors.error,
-                      ),
-                    ),
+            const SizedBox(height: 10),
+            Text(
+              'Choose the language you want to grow your vocabulary in.',
+              style: SeedlingTypography.body,
+            ),
+            const SizedBox(height: 20),
+
+            // Search bar
+            TextField(
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search languages...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: SeedlingColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: SeedlingColors.cardBackground,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
                   ),
-                ],
-              ),
-            ),
-          
-          // Popular label
-          if (_searchQuery.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                'Popular',
-                style: SeedlingTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: SeedlingColors.seedlingGreen,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
-          
-          // Language list
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredLanguages.length,
-              itemBuilder: (context, index) {
-                final lang = filteredLanguages[index];
-                final isSelected = controller.targetLanguage == lang.code;
-                
-                return GestureDetector(
-                  onTap: () {
-                    controller.setTargetLanguage(lang.code);
-                    FocusScope.of(context).unfocus();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
-                          : SeedlingColors.cardBackground,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected
-                            ? SeedlingColors.seedlingGreen
-                            : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                        width: isSelected ? 2 : 1,
+            const SizedBox(height: 20),
+
+            // Warning if same as native
+            if (controller.targetLanguage == controller.nativeLanguage &&
+                controller.targetLanguage.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning, color: SeedlingColors.error),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Target language should be different from your native language',
+                        style: SeedlingTypography.caption.copyWith(
+                          color: SeedlingColors.error,
+                        ),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Twemoji(
-                          emoji: lang.flag,
-                          height: 32,
-                          width: 32,
+                  ],
+                ),
+              ),
+
+            // Language list
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredLanguages.length,
+                itemBuilder: (context, index) {
+                  final lang = filteredLanguages[index];
+                  final isSelected = controller.targetLanguage == lang.code;
+
+                  return GestureDetector(
+                    onTap: () {
+                      controller.setTargetLanguage(lang.code);
+                      FocusScope.of(context).unfocus();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                            : SeedlingColors.cardBackground,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? SeedlingColors.seedlingGreen
+                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                          width: isSelected ? 2 : 1,
                         ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    lang.name,
-                                    style: SeedlingTypography.body.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                        boxShadow: isSelected ? [
+                          BoxShadow(
+                            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ] : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Twemoji(emoji: lang.flag, height: 32, width: 32),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Text(
+                              lang.name,
+                              style: SeedlingTypography.body.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check_circle,
-                            color: SeedlingColors.seedlingGreen,
-                          ),
-                      ],
+                          if (isSelected)
+                            const Icon(
+                              Icons.check_circle,
+                              color: SeedlingColors.seedlingGreen,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -807,123 +885,137 @@ class DailyGoalStep extends ConsumerWidget {
     20: 'Intense - 20 words/day',
     30: 'Master - 30 words/day',
   };
-  
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
-    
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Set your daily goal',
-              style: SeedlingTypography.heading2,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'How many words do you want to learn each day? You can change this anytime.',
-              style: SeedlingTypography.body,
-            ),
-            const SizedBox(height: 40),
-            
-            // Goal options
-            ...goalOptions.map((goal) {
-              final isSelected = controller.dailyGoal == goal;
-              
-              return GestureDetector(
-                onTap: () => controller.setDailyGoal(goal),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
-                        : SeedlingColors.cardBackground,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+
+    return FadeInStaggered(
+      index: 3,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Set your daily goal', style: SeedlingTypography.heading2),
+              const SizedBox(height: 10),
+              Text(
+                'How many words do you want to learn each day? You can change this anytime.',
+                style: SeedlingTypography.body,
+              ),
+              const SizedBox(height: 40),
+
+              // Goal options
+              ...goalOptions.map((goal) {
+                final isSelected = controller.dailyGoal == goal;
+
+                return GestureDetector(
+                  onTap: () => controller.setDailyGoal(goal),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.only(bottom: 15),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? SeedlingColors.seedlingGreen
-                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                      width: isSelected ? 2 : 1,
+                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                          : SeedlingColors.cardBackground,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? SeedlingColors.seedlingGreen
+                            : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        )
+                      ] : null,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? SeedlingColors.seedlingGreen
-                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$goal',
-                            style: SeedlingTypography.heading2.copyWith(
-                              color: isSelected ? SeedlingColors.textPrimary : SeedlingColors.textPrimary,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? SeedlingColors.seedlingGreen
+                                : SeedlingColors.morningDew.withValues(
+                                    alpha: 0.2,
+                                  ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$goal',
+                              style: SeedlingTypography.heading2.copyWith(
+                                color: isSelected
+                                    ? SeedlingColors.textPrimary
+                                    : SeedlingColors.textSecondary,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              goalDescriptions[goal]!.split(' - ')[1],
-                              style: SeedlingTypography.body.copyWith(
-                                fontWeight: FontWeight.w600,
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                goalDescriptions[goal]!.split(' - ')[1],
+                                style: SeedlingTypography.body.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${(goal * 7)} words/week • ${(goal * 30)} words/month',
-                              style: SeedlingTypography.caption,
-                            ),
-                          ],
+                              Text(
+                                '${(goal * 7)} words/week • ${(goal * 30)} words/month',
+                                style: SeedlingTypography.caption,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      if (isSelected)
-                        const Icon(
-                          Icons.check_circle,
-                          color: SeedlingColors.seedlingGreen,
-                          size: 28,
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-            
-            const SizedBox(height: 40),
-            
-            // Info tip
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: SeedlingColors.water.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb, color: SeedlingColors.water),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Tip: Consistency matters more than quantity. Start small and build up!',
-                      style: SeedlingTypography.caption,
+                        if (isSelected)
+                          const Icon(
+                            Icons.check_circle,
+                            color: SeedlingColors.seedlingGreen,
+                            size: 28,
+                          ),
+                      ],
                     ),
                   ),
-                ],
+                );
+              }),
+
+              const SizedBox(height: 40),
+
+              // Info tip
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.water.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lightbulb, color: SeedlingColors.water),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Text(
+                        'Tip: Consistency matters more than quantity. Start small and build up!',
+                        style: SeedlingTypography.caption.copyWith(
+                          color: SeedlingColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -938,101 +1030,54 @@ class RemindersStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
-    
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Learning reminders',
-              style: SeedlingTypography.heading2,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Get notified to maintain your streak and reach your daily goal.',
-              style: SeedlingTypography.body,
-            ),
-            const SizedBox(height: 40),
-            
-            // Notification toggle
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(16),
+
+    return FadeInStaggered(
+      index: 4,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Learning reminders', style: SeedlingTypography.heading2),
+              const SizedBox(height: 10),
+              Text(
+                'Get notified to maintain your streak and reach your daily goal.',
+                style: SeedlingTypography.body,
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: controller.enableNotifications
-                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
-                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.notifications,
-                      color: controller.enableNotifications
-                          ? SeedlingColors.seedlingGreen
-                          : SeedlingColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Push Notifications',
-                          style: SeedlingTypography.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'Daily reminders and streak alerts',
-                          style: SeedlingTypography.caption,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: controller.enableNotifications,
-                    onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setNotifications(value),
-                    activeThumbColor: SeedlingColors.seedlingGreen,
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Reminder time picker (if notifications enabled)
-            if (controller.enableNotifications)
+              const SizedBox(height: 40),
+
+              // Notification toggle
               GestureDetector(
-                onTap: () async {
-                  final time = await showTimePicker(
-                    context: context,
-                    initialTime: controller.reminderTime ?? const TimeOfDay(hour: 9, minute: 0),
-                  );
-                  if (time != null) {
-                    ref.read(onboardingControllerProvider.notifier).setReminderTime(time);
-                  }
-                },
-                child: Container(
+                onTap: controller.toggleNotifications,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: SeedlingColors.cardBackground,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: controller.enableNotifications
+                          ? SeedlingColors.seedlingGreen
+                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: SeedlingColors.deepRoot.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+                          color: SeedlingColors.morningDew.withValues(
+                            alpha: 0.3,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.access_time),
@@ -1057,14 +1102,17 @@ class RemindersStep extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right, color: SeedlingColors.textSecondary),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: SeedlingColors.textSecondary,
+                      ),
                     ],
                   ),
                 ),
               ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Sound toggle
             Container(
               padding: const EdgeInsets.all(20),
@@ -1109,7 +1157,9 @@ class RemindersStep extends ConsumerWidget {
                   ),
                   Switch(
                     value: controller.enableSounds,
-                    onChanged: (value) => ref.read(onboardingControllerProvider.notifier).setSounds(value),
+                    onChanged: (value) => ref
+                        .read(onboardingControllerProvider.notifier)
+                        .setSounds(value),
                     activeThumbColor: SeedlingColors.seedlingGreen,
                   ),
                 ],
@@ -1119,6 +1169,7 @@ class RemindersStep extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -1160,7 +1211,7 @@ class FeaturesStep extends StatelessWidget {
       description: 'Learn any language from any language',
     ),
   ];
-  
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1168,23 +1219,20 @@ class FeaturesStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'What you can do',
-            style: SeedlingTypography.heading2,
-          ),
+          Text('What you can do', style: SeedlingTypography.heading2),
           const SizedBox(height: 10),
           Text(
             'Discover all the ways Seedling helps you learn.',
             style: SeedlingTypography.body,
           ),
           const SizedBox(height: 30),
-          
+
           Expanded(
             child: ListView.builder(
               itemCount: features.length,
               itemBuilder: (context, index) {
                 final feature = features[index];
-                
+
                 return Container(
                   margin: const EdgeInsets.only(bottom: 15),
                   padding: const EdgeInsets.all(16),
@@ -1234,7 +1282,7 @@ class GetStartedStep extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.watch(onboardingControllerProvider);
-    
+
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -1273,17 +1321,26 @@ class GetStartedStep extends ConsumerWidget {
                     'Native',
                     _getLanguageName(controller.nativeLanguage),
                   ),
-                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  const Divider(
+                    color: SeedlingColors.morningDew,
+                    thickness: 0.2,
+                  ),
                   _buildSummaryRow(
                     'Learning',
                     _getLanguageName(controller.targetLanguage),
                   ),
-                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  const Divider(
+                    color: SeedlingColors.morningDew,
+                    thickness: 0.2,
+                  ),
                   _buildSummaryRow(
                     'Daily Goal',
                     '${controller.dailyGoal} words',
                   ),
-                  const Divider(color: SeedlingColors.morningDew, thickness: 0.2),
+                  const Divider(
+                    color: SeedlingColors.morningDew,
+                    thickness: 0.2,
+                  ),
                   _buildSummaryRow(
                     'Reminders',
                     controller.enableNotifications ? 'Enabled' : 'Disabled',
@@ -1291,17 +1348,17 @@ class GetStartedStep extends ConsumerWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 40),
-            
+
             Text(
               'Ready to start your learning journey?',
               style: SeedlingTypography.bodyLarge,
               textAlign: TextAlign.center,
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             Text(
               'You can change these settings anytime in the app.',
               style: SeedlingTypography.caption,
@@ -1313,7 +1370,7 @@ class GetStartedStep extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildSummaryRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1337,7 +1394,7 @@ class GetStartedStep extends ConsumerWidget {
       ),
     );
   }
-  
+
   String _getLanguageName(String code) {
     try {
       return Language.all.firstWhere((l) => l.code == code).name;
@@ -1356,13 +1413,11 @@ class GetStartedStep extends ConsumerWidget {
 
 // ================ SUPPORTING CLASSES ================
 
-
-
 class FeatureItem {
   final String icon;
   final String title;
   final String description;
-  
+
   FeatureItem({
     required this.icon,
     required this.title,
@@ -1386,9 +1441,9 @@ class OnboardingGate extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        
+
         final onboardingCompleted = snapshot.data ?? false;
-        
+
         if (onboardingCompleted) {
           return const AuthGate(); // Navigates to EnhancedHomeScreen if authenticated
         } else {
@@ -1397,7 +1452,7 @@ class OnboardingGate extends StatelessWidget {
       },
     );
   }
-  
+
   Future<bool> _checkOnboardingStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('onboarding_completed') ?? false;

@@ -12,25 +12,31 @@ class CloudBackupService {
   static final CloudBackupService _instance = CloudBackupService._internal();
   factory CloudBackupService() => _instance;
   CloudBackupService._internal();
-  
+
   Future<void> createBackup() async {
     await backupDatabase();
   }
-  
+
   Future<List<BackupInfo>> listBackups() async {
     if (!AuthService().isAuthenticated) return [];
-    
+
     try {
       final userId = AuthService().userId;
       final List<FileObject> objects = await SupabaseConfig.client.storage
           .from('backups')
           .list(path: userId);
-          
-      return objects.map((obj) => BackupInfo(
-        id: obj.name,
-        createdAt: DateTime.parse(obj.createdAt ?? DateTime.now().toIso8601String()),
-        size: obj.metadata?['size'] ?? 0,
-      )).toList();
+
+      return objects
+          .map(
+            (obj) => BackupInfo(
+              id: obj.name,
+              createdAt: DateTime.parse(
+                obj.createdAt ?? DateTime.now().toIso8601String(),
+              ),
+              size: obj.metadata?['size'] ?? 0,
+            ),
+          )
+          .toList();
     } catch (e) {
       debugPrint('Error listing backups: $e');
       return [];
@@ -39,15 +45,15 @@ class CloudBackupService {
 
   Future<void> backupDatabase() async {
     if (!AuthService().isAuthenticated) return;
-    
+
     try {
       final userId = AuthService().userId;
       final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
       final file = File(dbPath);
-      
+
       if (await file.exists()) {
         final bytes = await file.readAsBytes();
-        
+
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         await SupabaseConfig.client.storage
             .from('backups')
@@ -56,7 +62,7 @@ class CloudBackupService {
               bytes,
               fileOptions: const FileOptions(upsert: true),
             );
-        
+
         debugPrint('Cloud backup successful');
       }
     } catch (e) {
@@ -64,22 +70,22 @@ class CloudBackupService {
       rethrow;
     }
   }
-  
+
   Future<void> restoreFromBackup([String? backupId]) async {
     if (!AuthService().isAuthenticated) return;
-    
+
     try {
       final userId = AuthService().userId;
       final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
-      
+
       final String fileName = backupId ?? 'seedling_backup.db';
       final bytes = await SupabaseConfig.client.storage
           .from('backups')
           .download('$userId/$fileName');
-      
+
       final file = File(dbPath);
       await file.writeAsBytes(bytes);
-      
+
       debugPrint('Restore from backup successful');
     } catch (e) {
       debugPrint('Restore error: $e');
@@ -92,10 +98,6 @@ class BackupInfo {
   final String id;
   final DateTime createdAt;
   final int size;
-  
-  BackupInfo({
-    required this.id,
-    required this.createdAt,
-    required this.size,
-  });
+
+  BackupInfo({required this.id, required this.createdAt, required this.size});
 }

@@ -3,8 +3,109 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
 import '../services/social_service.dart';
+import '../services/subscription_service.dart';
 import '../models/social.dart';
 import 'course_provider.dart';
+import 'competition_provider.dart';
+import '../models/gamification.dart';
+import '../services/settings_service.dart';
+import '../services/sync_manager.dart';
+import 'package:flutter/material.dart' show TimeOfDay;
+
+final settingsService = SettingsService();
+
+class SettingsState {
+  final bool notificationsEnabled;
+  final bool soundEffectsEnabled;
+  final bool hapticsEnabled;
+  final int dailyWordGoal;
+  final bool cloudSyncEnabled;
+  final TimeOfDay reminderTime;
+
+  SettingsState({
+    required this.notificationsEnabled,
+    required this.soundEffectsEnabled,
+    required this.hapticsEnabled,
+    required this.dailyWordGoal,
+    required this.cloudSyncEnabled,
+    required this.reminderTime,
+  });
+
+  factory SettingsState.initial() => SettingsState(
+    notificationsEnabled: settingsService.notificationsEnabled,
+    soundEffectsEnabled: settingsService.soundEffectsEnabled,
+    hapticsEnabled: settingsService.hapticsEnabled,
+    dailyWordGoal: settingsService.dailyWordGoal,
+    cloudSyncEnabled: settingsService.cloudSyncEnabled,
+    reminderTime: settingsService.reminderTime,
+  );
+
+  SettingsState copyWith({
+    bool? notificationsEnabled,
+    bool? soundEffectsEnabled,
+    bool? hapticsEnabled,
+    int? dailyWordGoal,
+    bool? cloudSyncEnabled,
+    TimeOfDay? reminderTime,
+  }) => SettingsState(
+    notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+    soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
+    hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+    dailyWordGoal: dailyWordGoal ?? this.dailyWordGoal,
+    cloudSyncEnabled: cloudSyncEnabled ?? this.cloudSyncEnabled,
+    reminderTime: reminderTime ?? this.reminderTime,
+  );
+}
+
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
+  return SettingsNotifier();
+});
+
+class SettingsNotifier extends StateNotifier<SettingsState> {
+  SettingsNotifier() : super(SettingsState.initial());
+
+  Future<void> toggleNotifications(bool value) async {
+    await settingsService.setNotificationsEnabled(value);
+    state = state.copyWith(notificationsEnabled: value);
+    _triggerSync();
+  }
+
+  Future<void> toggleSoundEffects(bool value) async {
+    await settingsService.setSoundEffectsEnabled(value);
+    state = state.copyWith(soundEffectsEnabled: value);
+    _triggerSync();
+  }
+
+  Future<void> toggleHaptics(bool value) async {
+    await settingsService.setHapticsEnabled(value);
+    state = state.copyWith(hapticsEnabled: value);
+    _triggerSync();
+  }
+
+  Future<void> setDailyWordGoal(int goal) async {
+    await settingsService.setDailyWordGoal(goal);
+    state = state.copyWith(dailyWordGoal: goal);
+    _triggerSync();
+  }
+
+  Future<void> setCloudSyncEnabled(bool value) async {
+    await settingsService.setCloudSyncEnabled(value);
+    state = state.copyWith(cloudSyncEnabled: value);
+    if (value) _triggerSync();
+  }
+
+  Future<void> setReminderTime(TimeOfDay time) async {
+    await settingsService.setReminderTime(time);
+    state = state.copyWith(reminderTime: time);
+    _triggerSync();
+  }
+
+  void _triggerSync() {
+    if (state.cloudSyncEnabled) {
+      SyncManager().syncToCloud();
+    }
+  }
+}
 
 final databaseProvider = Provider<DatabaseHelper>((ref) => DatabaseHelper());
 final socialServiceProvider = Provider<SocialService>((ref) => SocialService());
@@ -13,7 +114,9 @@ final authStateProvider = StreamProvider<AuthState>((ref) async* {
   // Emit initial state immediately
   final session = Supabase.instance.client.auth.currentSession;
   yield AuthState(
-    session == null ? AuthChangeEvent.signedOut : AuthChangeEvent.initialSession,
+    session == null
+        ? AuthChangeEvent.signedOut
+        : AuthChangeEvent.initialSession,
     session,
   );
   // Then yield all subsequent events
@@ -29,53 +132,54 @@ final nativeLanguageProvider = Provider<String>((ref) {
   final active = ref.watch(courseProvider).activeCourse;
   return active?.nativeLanguage.code ?? 'en';
 });
-final isPremiumProvider = StateProvider<bool>((ref) => false);
+final isPremiumProvider = StreamProvider<bool>((ref) {
+  return SubscriptionService().subscriptionStatus.map((status) => status == SubscriptionStatus.premium);
+});
 final showPronunciationProvider = StateProvider<bool>((ref) => false);
-
 
 final wordsForStudyProvider = FutureProvider<List<Word>>((ref) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
-  
-  return await db.getWordsForLanguage(
-    nativeLang,
-    targetLang,
-    limit: 20,
-  );
+
+  return await db.getWordsForLanguage(nativeLang, targetLang, limit: 20);
 });
 
 final userStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
-  
+
   final totalLearned = await db.getTotalWordsLearned(targetLang);
   final dailyProgress = await db.getWordsReviewedToday(nativeLang, targetLang);
   final stats = await db.getUserStats();
-  
+
   return {
     'totalLearned': totalLearned,
     'currentStreak': stats['currentStreak'] ?? 0,
     'totalMinutes': stats['totalStudyMinutes'] ?? 0,
     'dailyGoal': 10,
-    'dailyProgress': dailyProgress, 
+    'dailyProgress': dailyProgress,
   };
 });
 
-final categoryStatsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final categoryStatsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
-  
+
   return await db.getCategoryStats(nativeLang, targetLang);
 });
 
-final posStatsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final posStatsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
-  
+
   return await db.getPOSStats(nativeLang, targetLang);
 });
 
@@ -83,7 +187,7 @@ final recentActivityProvider = FutureProvider<List<Word>>((ref) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
-  
+
   return await db.getRecentActivity(nativeLang, targetLang);
 });
 
@@ -91,6 +195,10 @@ final friendsProvider = FutureProvider<List<Friend>>((ref) async {
   final auth = ref.watch(authStateProvider);
   if (auth.value?.session == null) return [];
   return await ref.watch(socialServiceProvider).getFriends();
+});
+
+final globalRankingsProvider = FutureProvider<List<Friend>>((ref) async {
+  return await ref.watch(socialServiceProvider).getGlobalRankings();
 });
 
 final pendingRequestsProvider = FutureProvider<List<Friend>>((ref) async {
@@ -103,6 +211,29 @@ final competitionsProvider = FutureProvider<List<Competition>>((ref) async {
   final auth = ref.watch(authStateProvider);
   if (auth.value?.session == null) return [];
   return await ref.watch(socialServiceProvider).getCompetitions();
+});
+
+/// Real user compete stats pulled from Supabase, used in the CompeteHomeScreen header.
+final userCompeteStatsProvider = FutureProvider<CompetitionStats>((ref) async {
+  final auth = ref.watch(authStateProvider);
+  if (auth.value?.session == null) return CompetitionStats.empty();
+
+  final social = ref.watch(socialServiceProvider);
+  final stats = await social.getUserCompeteStats();
+  final rankPos = await social.getGlobalRankPosition();
+
+  if (stats == null) return CompetitionStats.empty();
+
+  final totalXP = (stats['total_xp'] as int?) ?? 0;
+  final streak = (stats['current_streak'] as int?) ?? 0;
+
+  return CompetitionStats(
+    rank: CompetitionStats.rankFromXP(totalXP),
+    winRate: '$streak🔥',   // streak used as engagement proxy until win tracking is added
+    medals: (totalXP ~/ 100).clamp(0, 999),
+    totalXP: totalXP,
+    globalPosition: rankPos,
+  );
 });
 
 /// The three modes the Smart Focus Hub can display.
@@ -141,8 +272,12 @@ final smartFocusProvider = FutureProvider<FocusState>((ref) async {
   if (lastSubTheme != null && lastSubTheme['subDomain'] != null) {
     final rawSub = lastSubTheme['subDomain']!;
     // Convert snake_case id back to a readable name
-    final displayName = rawSub.replaceAll('_', ' ').split(' ')
-        .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+    final displayName = rawSub
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map(
+          (w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '',
+        )
         .join(' ');
     return FocusState(
       mode: FocusMode.resume,
@@ -152,6 +287,17 @@ final smartFocusProvider = FutureProvider<FocusState>((ref) async {
     );
   }
 
-  // Priority 3: Discover (no history yet)
-  return const FocusState(mode: FocusMode.discover, displayName: 'People & Identity');
+  return const FocusState(
+    mode: FocusMode.discover,
+    lastDomain: 'people',
+    lastSubDomain: 'identity',
+    displayName: 'People & Identity',
+  );
+});
+
+final dailyChallengesProvider = FutureProvider<List<DailyChallenge>>((ref) async {
+  final stats = ref.watch(userStatsProvider).value;
+  if (stats == null) return [];
+  
+  return await DailyChallengeManager.getDailyChallenges();
 });

@@ -34,10 +34,12 @@ class ExampleSentenceDisplay extends ConsumerWidget {
       shouldShow = ref.watch(showPronunciationProvider);
     }
 
-    final baseStyle = style ?? SeedlingTypography.body.copyWith(
-      color: SeedlingColors.textPrimary,
-      fontSize: 16,
-    );
+    final baseStyle =
+        style ??
+        SeedlingTypography.body.copyWith(
+          color: SeedlingColors.textPrimary,
+          fontSize: 16,
+        );
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -54,15 +56,13 @@ class ExampleSentenceDisplay extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  word.exampleSentence!,
-                  style: baseStyle,
-                ),
-              ),
+              Expanded(child: Text(word.exampleSentence!, style: baseStyle)),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => TtsService.instance.speak(word.exampleSentence!, word.targetLanguageCode),
+                onTap: () => TtsService.instance.speak(
+                  word.exampleSentence!,
+                  word.targetLanguageCode,
+                ),
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
@@ -78,7 +78,9 @@ class ExampleSentenceDisplay extends ConsumerWidget {
               ),
             ],
           ),
-          if (shouldShow && word.exampleSentencePronunciation != null && word.exampleSentencePronunciation!.isNotEmpty) ...[
+          if (shouldShow &&
+              word.exampleSentencePronunciation != null &&
+              word.exampleSentencePronunciation!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               '/${word.exampleSentencePronunciation}/',
@@ -90,7 +92,8 @@ class ExampleSentenceDisplay extends ConsumerWidget {
               ),
             ),
           ],
-          if (word.exampleSentenceTranslation != null && word.exampleSentenceTranslation!.isNotEmpty) ...[
+          if (word.exampleSentenceTranslation != null &&
+              word.exampleSentenceTranslation!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               word.exampleSentenceTranslation!,

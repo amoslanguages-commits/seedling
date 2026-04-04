@@ -9,7 +9,10 @@ import '../providers/app_providers.dart';
 import '../widgets/quizzes.dart';
 import '../widgets/seed_planting.dart';
 import '../models/word.dart';
+import '../services/auth_service.dart';
+import '../services/sync_manager.dart';
 import '../services/audio_service.dart';
+import '../services/intelligence_service.dart';
 
 // ================================================================
 // SESSION FLOW (the correct SRS-based loop):
@@ -28,26 +31,31 @@ import '../services/audio_service.dart';
 
 enum _SessionPhase {
   loading,
-  noWordsYet,    // fresh user: plant 3 seeds before any quiz
-  quiz,          // SRS review of due words
-  done,          // session complete
+  goalSelection, // New: choose commitment (5/10/15/Endless)
+  noWordsYet, // fresh user: plant 3 seeds before any quiz
+  quiz, // SRS review of due words
+  done, // session complete
 }
 
 class LearningSessionScreen extends ConsumerStatefulWidget {
   /// Optional category filter (e.g., 'food', 'travel').
   final String? categoryId;
+
   /// Optional domain filter (Theme)
   final String? domain;
+
   /// Optional sub-domain filter (Sub-theme)
   final String? subDomain;
+
   /// Optional POS filter
   final String? partOfSpeech;
+
   /// Optional micro-category filter (Burst Mode deep dive)
   final String? microCategory;
 
   const LearningSessionScreen({
-    super.key, 
-    this.categoryId, 
+    super.key,
+    this.categoryId,
     this.domain,
     this.subDomain,
     this.partOfSpeech,
@@ -59,8 +67,7 @@ class LearningSessionScreen extends ConsumerStatefulWidget {
       _LearningSessionScreenState();
 }
 
-class _LearningSessionScreenState
-    extends ConsumerState<LearningSessionScreen> {
+class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   _SessionPhase _phase = _SessionPhase.loading;
   List<Word> _dueWords = [];
   Word? _newWordToPlant;
@@ -68,9 +75,20 @@ class _LearningSessionScreenState
   int _totalQuestions = 0;
   int _cumulativeCorrect = 0;
   int _cumulativeTotal = 0;
-  bool _isFirstSession = false;  // plant 3 words if garden is empty
+  bool _isFirstSession = false;
   List<Word> _initialPlantedWords = [];
   int _batchIndex = 0;
+  bool _isReplenishing = false;
+
+  // Intelligence & Settings
+  List<Map<String, dynamic>> _coverageGaps = []; // domain heatmap
+  String? _activeSubDomain; // contextual word grouping
+  DateTime? _sessionStartTime; // session length budget
+  int _sessionBudgetMins = 10; // default 10 min goal
+  bool _budgetReached = false;
+
+  // Use a key to talk to the QuizManager for dynamic refills
+  final GlobalKey<QuizManagerState> _quizKey = GlobalKey<QuizManagerState>();
 
   @override
   void initState() {
@@ -83,12 +101,118 @@ class _LearningSessionScreenState
     final targetLang = ref.read(currentLanguageProvider);
     final nativeLang = ref.read(nativeLanguageProvider);
 
-    // Check if user has learned any words yet (global progress for this language)
+    // ── Mastery Decay on Silence (runs silently on every session start) ──────
+    final decayed = await IntelligenceService.instance
+        .detectAndApplyMasteryDecay(db, nativeLang, targetLang);
+    if (decayed > 0) {
+      debugPrint(
+        '[LearningSession] Mastery decay applied to $decayed fragile words',
+      );
+    }
+
+    // ── Domain Coverage Heatmap (loaded once per session) ───────────────
+    _coverageGaps = await db.getDomainCoverageGaps(nativeLang, targetLang);
+
+    // Check if user has learned any words yet
     final totalLearned = await db.getTotalWordsLearned(targetLang);
     final isBrandNew = totalLearned == 0;
 
-    // Load one new word from the SELECTED context (category/domain/subDomain/POS)
-    final newWord = await db.getNewWordToPlant(
+    final int wordsToFetch = isBrandNew ? 3 : 1;
+    final List<Word> newWords = [];
+
+    for (int i = 0; i < wordsToFetch; i++) {
+      final w = await db.getNewWordToPlant(
+        nativeLang,
+        targetLang,
+        categoryId: widget.categoryId,
+        domain: widget.domain,
+        subDomain: widget.subDomain,
+        partOfSpeech: widget.partOfSpeech,
+        microCategory: widget.microCategory,
+      );
+      if (w != null && !newWords.any((existing) => existing.id == w.id)) {
+        newWords.add(w);
+      } else {
+        break;
+      }
+    }
+
+    // ── Forgotten Curve Detection: load critically overdue words first ──────
+    final forgottenWords = await db.getForgottenWords(
+      nativeLang,
+      targetLang,
+      limit: 3,
+    );
+
+    final due = await db.getSRSDueWords(
+      nativeLang,
+      targetLang,
+      limit: 15,
+      categoryId: null,
+      partOfSpeech: widget.partOfSpeech,
+      microCategory: widget.microCategory,
+    );
+
+    // Merge forgotten words at the front (they are highest priority)
+    final mergedDue = <Word>[
+      ...forgottenWords,
+      ...due.where((w) => !forgottenWords.any((f) => f.id == w.id)),
+    ];
+
+    // Derive active sub-domain from the loaded words for contextual grouping
+    _activeSubDomain = IntelligenceService.instance.getDominantSubDomain(
+      mergedDue,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _dueWords = mergedDue;
+      _newWordToPlant = isBrandNew
+          ? null
+          : (newWords.isNotEmpty ? newWords.first : null);
+      _initialPlantedWords = isBrandNew ? newWords : [];
+      _isFirstSession = isBrandNew;
+
+      if (isBrandNew && _initialPlantedWords.isNotEmpty) {
+        _phase = _SessionPhase.noWordsYet;
+      } else if (mergedDue.isEmpty && _newWordToPlant == null) {
+        _forceEndSession();
+      } else {
+        // First, choose the goal/budget for this session
+        _phase = _SessionPhase.goalSelection;
+        AudioService.instance.startAmbient();
+      }
+    });
+  }
+
+  /// Called by QuizManager when it runs out of cards.
+  /// Fetches more content smartly (context + coverage bias) and injects.
+  Future<void> _handleQueueDepleted() async {
+    if (_isReplenishing || _budgetReached) return;
+
+    // Check if budget is reached (If budget is -1, it's infinite)
+    if (_sessionBudgetMins > 0 && _sessionStartTime != null) {
+      final elapsed = DateTime.now().difference(_sessionStartTime!).inMinutes;
+      if (elapsed >= _sessionBudgetMins) {
+        debugPrint(
+          '[LearningSession] Session goal reached ($elapsed / $_sessionBudgetMins mins). Stopping replenishment.',
+        );
+        setState(() => _budgetReached = true);
+        return;
+      }
+    }
+
+    _isReplenishing = true;
+
+    debugPrint('[LearningSessionScreen] Replenishing session...');
+
+    final db = ref.read(databaseProvider);
+    final targetLang = ref.read(currentLanguageProvider);
+    final nativeLang = ref.read(nativeLanguageProvider);
+
+    // 1. Smart new word: biased by active sub-domain + coverage gaps
+    final nextNewWord = await db.getSmartNewWord(
       nativeLang,
       targetLang,
       categoryId: widget.categoryId,
@@ -96,44 +220,40 @@ class _LearningSessionScreenState
       subDomain: widget.subDomain,
       partOfSpeech: widget.partOfSpeech,
       microCategory: widget.microCategory,
+      activeSubDomain: _activeSubDomain,
+      coverageGaps: _coverageGaps,
     );
 
-    // Load SRS-due words (mastery > 0, review overdue)
-    // 🪴 CHANGE: We now pull reviews from ANY category ('alongside'),
-    // even if we are currently in a specific category for the 'new' word.
-    final due = await db.getSRSDueWords(
+    // 2. More due reviews
+    final moreDue = await db.getSRSDueWords(
       nativeLang,
       targetLang,
-      limit: 15,
-      // Pass null category here to pull reviews globally as requested
-      categoryId: null, 
+      limit: 10,
+      categoryId: null,
       partOfSpeech: widget.partOfSpeech,
       microCategory: widget.microCategory,
     );
 
-    if (!mounted) return;
+    if (nextNewWord == null && moreDue.isEmpty) {
+      _isReplenishing = false;
+      _forceEndSession();
+      return;
+    }
+
+    // Update contextual sub-domain for next replenishment
+    if (nextNewWord?.subDomain != null) {
+      _activeSubDomain = nextNewWord!.subDomain;
+    }
+
+    // 3. Inject into the existing quiz state
+    _quizKey.currentState?.replenish(
+      moreReviews: moreDue,
+      nextNewWord: nextNewWord,
+    );
 
     setState(() {
-      _dueWords = due;
-      _newWordToPlant = newWord;
-      _isFirstSession = isBrandNew;
-
-      if (isBrandNew) {
-        // Brand-new user with 0 words globally: go to planting phase (will plant 3)
-        _phase = _SessionPhase.noWordsYet;
-      } else if (due.isEmpty && newWord == null) {
-        // Nothing at all to learn/review in this context
-        if (_batchIndex == 0) {
-          _forceEndSession();
-        } else {
-          _forceEndSession();
-        }
-      } else {
-        // Ready to quiz existing user
-        _phase = _SessionPhase.quiz;
-        // 🌿 Start ambient garden soundscape
-        AudioService.instance.startAmbient();
-      }
+      _batchIndex++;
+      _isReplenishing = false;
     });
   }
 
@@ -148,9 +268,40 @@ class _LearningSessionScreenState
   }
 
   // Called when the user clicks the exit/close button or session ends naturally
-  void _forceEndSession() {
+  Future<void> _forceEndSession() async {
     // 🌿 Fade out ambient when session ends
     AudioService.instance.stopAmbient();
+
+    final db = ref.read(databaseProvider);
+    final targetLang = ref.read(currentLanguageProvider);
+    final userId = AuthService().userId ?? 'guest';
+
+    // Calculate session duration
+    int durationMins = 0;
+    if (_sessionStartTime != null) {
+      durationMins = DateTime.now().difference(_sessionStartTime!).inMinutes;
+    }
+
+    final totalCorrect = _cumulativeCorrect + _correctAnswers;
+    final totalQs = _cumulativeTotal + _totalQuestions;
+    final xpGained = totalCorrect * 10;
+
+    // Save session locally
+    if (totalQs > 0) {
+      await db.saveStudySession({
+        'user_id': userId,
+        'language_code': targetLang,
+        'session_date': DateTime.now().toIso8601String(),
+        'words_studied': totalQs,
+        'correct_answers': totalCorrect,
+        'duration_minutes': durationMins,
+        'xp_gained': xpGained,
+      });
+
+      // Trigger background sync to Supabase for "real data" in social/competitions
+      SyncManager().syncToCloud().ignore();
+    }
+
     setState(() {
       _phase = _SessionPhase.done;
     });
@@ -211,12 +362,21 @@ class _LearningSessionScreenState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
+              const CircularProgressIndicator(
+                color: SeedlingColors.seedlingGreen,
+              ),
               const SizedBox(height: 16),
-              Text('Preparing your garden...', style: SeedlingTypography.caption),
+              Text(
+                'Preparing your garden...',
+                style: SeedlingTypography.caption,
+              ),
             ],
           ),
         );
+
+      // ── New: Goal Selection ────────────────────────────────────
+      case _SessionPhase.goalSelection:
+        return _buildGoalSelection();
 
       // ── First session: plant 3 seeds before quizzing ──────────
       case _SessionPhase.noWordsYet:
@@ -236,58 +396,200 @@ class _LearningSessionScreenState
     }
   }
 
-  // ── First-session: plant 3 words (no quiz yet) ─────────────────────────
-
-  Widget _buildFirstSessionPlanting() {
-    return FutureBuilder<List<Word>>(
-      future: _fetchInitialWords(),
-      builder: (ctx, snap) {
-        if (!snap.hasData) {
-          return const Center(child: CircularProgressIndicator(
-            color: SeedlingColors.seedlingGreen,
-          ));
-        }
-        final words = snap.data!;
-        if (words.isEmpty) {
-          if (_batchIndex > 0) {
-            // Reached end of indefinite play? (Should have been caught in handleBatchComplete)
-            WidgetsBinding.instance.addPostFrameCallback((_) => _forceEndSession());
-            return const SizedBox.shrink();
-          }
-          return _buildEmptyGarden();
-        }
-        _initialPlantedWords = words;
-        return SeedPlantingScreen(
-          words: words,
-          initialBatchSize: 3,
-          onWordPlanted: _markPlanted,
-          onPlantingComplete: _onInitialPlantingComplete,
-        );
-      },
+  Widget _buildGoalSelection() {
+    // Note: 'FadeInUp' or similar animations can be added if available,
+    // or just use standard Flutter animations.
+    return Center(
+      child: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 480),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.timer_outlined,
+                size: 60,
+                color: SeedlingColors.seedlingGreen,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Nurture Your Intent',
+                style: SeedlingTypography.heading1.copyWith(
+                  color: SeedlingColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'How deeply do you want to grow today?',
+                textAlign: TextAlign.center,
+                style: SeedlingTypography.body.copyWith(
+                  color: SeedlingColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 40),
+              _buildGoalItem(
+                title: '5 Min Micro-Nurture',
+                subtitle: 'A quick burst for focus',
+                mins: 5,
+                icon: Icons.bolt,
+              ),
+              const SizedBox(height: 16),
+              _buildGoalItem(
+                title: '10 Min Daily Habit',
+                subtitle: 'The golden ratio for growth',
+                mins: 10,
+                icon: Icons.spa,
+                isRecommended: true,
+              ),
+              const SizedBox(height: 16),
+              _buildGoalItem(
+                title: '15 Min Deep Roots',
+                subtitle: 'Maximum impact session',
+                mins: 15,
+                icon: Icons.park,
+              ),
+              const SizedBox(height: 16),
+              _buildGoalItem(
+                title: 'Endless Garden',
+                subtitle: 'Learn until you are satisfied',
+                mins: -1,
+                icon: Icons.all_inclusive,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Future<List<Word>> _fetchInitialWords() async {
-    final db = ref.read(databaseProvider);
-    final targetLang = ref.read(currentLanguageProvider);
-    final nativeLang = ref.read(nativeLanguageProvider);
-    
-    // Pull words for the selected context
-    final candidateWords = await db.getWordsForLanguage(
-      nativeLang, 
-      targetLang,
-      categoryId: widget.categoryId,
-      partOfSpeech: widget.partOfSpeech,
-      limit: 20,
+  Widget _buildGoalItem({
+    required String title,
+    required String subtitle,
+    required int mins,
+    required IconData icon,
+    bool isRecommended = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _sessionBudgetMins = mins;
+            _sessionStartTime = DateTime.now();
+            _phase = _SessionPhase.quiz;
+          });
+          AudioService.haptic(HapticType.tap);
+          AudioService.instance.play(SFX.buttonTap);
+        },
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isRecommended
+                ? SeedlingColors.seedlingGreen
+                : SeedlingColors.cardBackground,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isRecommended
+                  ? Colors.transparent
+                  : SeedlingColors.cardBackground.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+            boxShadow: isRecommended
+                ? [
+                    BoxShadow(
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.25,
+                      ),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isRecommended
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : SeedlingColors.background,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: isRecommended
+                      ? Colors.white
+                      : SeedlingColors.seedlingGreen,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: SeedlingTypography.heading3.copyWith(
+                        color: isRecommended
+                            ? Colors.white
+                            : SeedlingColors.textPrimary,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: SeedlingTypography.caption.copyWith(
+                        color: isRecommended
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : SeedlingColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isRecommended)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'GOLDEN',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.seedlingGreen,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
-    
-    // Filter for unlearned words and take up to 3
-    final List<Word> wordsToPlant = candidateWords
-        .where((w) => w.masteryLevel == 0)
-        .take(3)
-        .toList();
-        
-    return wordsToPlant;
+  }
+
+  // ── First-session: plant 3 words (no quiz yet) ─────────────────────────
+
+  Widget _buildFirstSessionPlanting() {
+    if (_initialPlantedWords.isEmpty) {
+      return _buildEmptyGarden();
+    }
+
+    return SeedPlantingScreen(
+      words: _initialPlantedWords,
+      initialBatchSize: _initialPlantedWords.length,
+      onWordPlanted: _markPlanted,
+      onPlantingComplete: _onInitialPlantingComplete,
+    );
   }
 
   Widget _buildEmptyGarden() {
@@ -299,13 +601,17 @@ class _LearningSessionScreenState
           children: [
             const SeedlingMascot(size: 100, state: MascotState.idle),
             const SizedBox(height: 24),
-            Text('Your garden is empty!',
-                style: SeedlingTypography.heading2, textAlign: TextAlign.center),
+            Text(
+              'Your garden is empty!',
+              style: SeedlingTypography.heading2,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(
               'Add a language course to start planting words.',
-              style: SeedlingTypography.body
-                  .copyWith(color: SeedlingColors.textSecondary),
+              style: SeedlingTypography.body.copyWith(
+                color: SeedlingColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -329,39 +635,71 @@ class _LearningSessionScreenState
 
   Widget _buildQuizPhase() {
     final totalWords = _dueWords.length + (_newWordToPlant != null ? 1 : 0);
-    final progress = _totalQuestions > 0 ? (_correctAnswers / _totalQuestions).clamp(0.0, 1.0) : 0.0;
-    
+    final progress = _totalQuestions > 0
+        ? (_correctAnswers / _totalQuestions).clamp(0.0, 1.0)
+        : 0.0;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isSmall = constraints.maxWidth < 360 || constraints.maxHeight < 620;
+        final isSmall =
+            constraints.maxWidth < 360 || constraints.maxHeight < 620;
         final isVerySmall = constraints.maxWidth < 330;
-        
+
         return Column(
           children: [
-            _buildSessionHeader('Daily Review', totalWords, isSmall, isVerySmall, progress),
+            _buildSessionHeader(
+              'Daily Review',
+              totalWords,
+              isSmall,
+              isVerySmall,
+              progress,
+            ),
             Expanded(
               child: QuizManager(
-                key: ValueKey(_batchIndex), // Force full reset of Quiz queue on new batch
+                key: _quizKey,
                 words: _dueWords,
-                initialNewWords: _batchIndex == 1 ? _initialPlantedWords : const [],
+                initialNewWords: _batchIndex == 0
+                    ? _initialPlantedWords
+                    : const [],
                 newWordToPlant: _newWordToPlant,
                 onWordPlanted: _markPlanted,
                 onWordAnswered: _handleWordAnswered,
                 onProgressUpdate: _onProgressUpdate,
                 onSessionComplete: _handleBatchComplete,
+                onQueueDepleted: _handleQueueDepleted,
+                db: ref.read(databaseProvider),
               ),
             ),
           ],
         );
-      }
+      },
     );
   }
 
-  Widget _buildSessionHeader(String title, int wordCount, bool isSmall, bool isVerySmall, double progress) {
+  Widget _buildSessionHeader(
+    String title,
+    int wordCount,
+    bool isSmall,
+    bool isVerySmall,
+    double progress,
+  ) {
     final horizontalPadding = isVerySmall ? 6.0 : (isSmall ? 10.0 : 16.0);
     final mascotSize = isVerySmall ? 32.0 : (isSmall ? 40.0 : 52.0);
     final showPronunciation = ref.watch(showPronunciationProvider);
-    
+
+    // Calculate remaining time for the goal display
+    String goalText = '';
+    if (_sessionBudgetMins > 0 && _sessionStartTime != null) {
+      final elapsed = DateTime.now().difference(_sessionStartTime!).inMinutes;
+      final remaining = (_sessionBudgetMins - elapsed).clamp(
+        0,
+        _sessionBudgetMins,
+      );
+      goalText = _budgetReached ? 'Goal reached! ✨' : '$remaining mins left';
+    } else if (_sessionBudgetMins < 0) {
+      goalText = 'Endless Mode ♾️';
+    }
+
     return Padding(
       padding: EdgeInsets.fromLTRB(horizontalPadding, 16, horizontalPadding, 0),
       child: Row(
@@ -385,16 +723,29 @@ class _LearningSessionScreenState
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  title, 
+                  title,
                   style: SeedlingTypography.caption.copyWith(
                     color: SeedlingColors.textSecondary,
                     fontSize: isSmall ? 10 : 12,
-                  )
+                  ),
                 ),
+                if (goalText.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      goalText,
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.seedlingGreen,
+                        fontWeight: FontWeight.w700,
+                        fontSize: isSmall ? 9 : 11,
+                      ),
+                    ),
+                  ),
                 StemProgressBar(
-                  progress: progress, 
+                  progress: progress,
                   height: isSmall ? 5 : 7,
-                  showLeaves: !isSmall, // Hide leaves on progress bar if very small to save space
+                  showLeaves:
+                      !isSmall, // Hide leaves on progress bar if very small to save space
                 ),
               ],
             ),
@@ -402,8 +753,8 @@ class _LearningSessionScreenState
           SizedBox(width: isVerySmall ? 4 : 8),
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isVerySmall ? 6 : (isSmall ? 8 : 12), 
-              vertical: isVerySmall ? 3 : (isSmall ? 4 : 6)
+              horizontal: isVerySmall ? 6 : (isSmall ? 8 : 12),
+              vertical: isVerySmall ? 3 : (isSmall ? 4 : 6),
             ),
             decoration: BoxDecoration(
               color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
@@ -425,13 +776,17 @@ class _LearningSessionScreenState
           // Pronunciation Toggle
           IconButton(
             onPressed: () {
-              ref.read(showPronunciationProvider.notifier).update((state) => !state);
+              ref
+                  .read(showPronunciationProvider.notifier)
+                  .update((state) => !state);
               AudioService.haptic(HapticType.tap).ignore();
             },
             icon: Icon(
-              showPronunciation ? Icons.record_voice_over : Icons.voice_over_off,
-              color: showPronunciation 
-                  ? SeedlingColors.seedlingGreen 
+              showPronunciation
+                  ? Icons.record_voice_over
+                  : Icons.voice_over_off,
+              color: showPronunciation
+                  ? SeedlingColors.seedlingGreen
                   : SeedlingColors.textSecondary.withValues(alpha: 0.6),
               size: isSmall ? 20 : 24,
             ),
@@ -445,7 +800,6 @@ class _LearningSessionScreenState
       ),
     );
   }
-
 }
 
 // ================================================================
@@ -460,6 +814,7 @@ class _LearningSessionScreenState
 class SessionSummaryScreen extends StatelessWidget {
   final int correctAnswers;
   final int totalQuestions;
+
   /// When embedded inside LearningSessionScreen, we pop instead of pushReplacement.
   final bool isEmbedded;
 
@@ -472,8 +827,9 @@ class SessionSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accuracy =
-        totalQuestions > 0 ? (correctAnswers / totalQuestions * 100).toInt() : 100;
+    final accuracy = totalQuestions > 0
+        ? (correctAnswers / totalQuestions * 100).toInt()
+        : 100;
     final xp = correctAnswers * 10;
 
     return Scaffold(
@@ -490,16 +846,17 @@ class SessionSummaryScreen extends StatelessWidget {
                 accuracy >= 80
                     ? 'Excellent Growth! 🌻'
                     : accuracy >= 50
-                        ? 'Good Progress! 🌱'
-                        : 'Keep Nurturing! 🌿',
+                    ? 'Good Progress! 🌱'
+                    : 'Keep Nurturing! 🌿',
                 style: SeedlingTypography.heading1.copyWith(fontSize: 26),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'Your roots are getting stronger.',
-                style: SeedlingTypography.body
-                    .copyWith(color: SeedlingColors.textSecondary),
+                style: SeedlingTypography.body.copyWith(
+                  color: SeedlingColors.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 36),
@@ -512,7 +869,9 @@ class SessionSummaryScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.1,
+                      ),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -521,7 +880,11 @@ class SessionSummaryScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _stat('Accuracy', '$accuracy%', SeedlingColors.seedlingGreen),
+                    _stat(
+                      'Accuracy',
+                      '$accuracy%',
+                      SeedlingColors.seedlingGreen,
+                    ),
                     _stat('Correct', '$correctAnswers', SeedlingColors.success),
                     _stat('XP', '+$xp', SeedlingColors.sunlight),
                   ],
@@ -532,8 +895,10 @@ class SessionSummaryScreen extends StatelessWidget {
 
               // SRS reminder
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: SeedlingColors.morningDew.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
@@ -548,8 +913,9 @@ class SessionSummaryScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'These words will return at the perfect interval to lock them into long-term memory.',
-                        style: SeedlingTypography.caption
-                            .copyWith(color: SeedlingColors.textSecondary),
+                        style: SeedlingTypography.caption.copyWith(
+                          color: SeedlingColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -571,9 +937,7 @@ class SessionSummaryScreen extends StatelessWidget {
   Widget _stat(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value,
-            style:
-                SeedlingTypography.heading2.copyWith(color: color)),
+        Text(value, style: SeedlingTypography.heading2.copyWith(color: color)),
         const SizedBox(height: 4),
         Text(label, style: SeedlingTypography.caption),
       ],

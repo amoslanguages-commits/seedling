@@ -16,12 +16,12 @@ void main() {
     canvas.drawCircle(const Offset(size / 2, size / 2), size / 2, bgPaint);
 
     // Use the public export function
-    const mascotWidth  = size * 0.72;
+    const mascotWidth = size * 0.72;
     const mascotHeight = mascotWidth * 1.45;
 
     canvas.save();
     canvas.translate(
-      (size - mascotWidth)  / 2,
+      (size - mascotWidth) / 2,
       (size - mascotHeight) / 2 + size * 0.04,
     );
 
@@ -44,6 +44,8 @@ void main() {
     }
     file.writeAsBytesSync(bytes);
 
-    debugPrint('Successfully exported app_icon.png to assets/icons/app_icon.png');
+    debugPrint(
+      'Successfully exported app_icon.png to assets/icons/app_icon.png',
+    );
   });
 }

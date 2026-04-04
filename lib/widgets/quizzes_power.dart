@@ -17,19 +17,21 @@ import '../services/tts_service.dart';
 
 class LeafLetterQuiz extends StatefulWidget {
   final Word word;
-  final Function(bool correct, int masteryGained) onAnswer;
+  final Function(
+    bool correct,
+    int masteryGained, [
+    String? chosenWrongTranslation,
+  ])
+  onAnswer;
 
-  const LeafLetterQuiz({
-    super.key,
-    required this.word,
-    required this.onAnswer,
-  });
+  const LeafLetterQuiz({super.key, required this.word, required this.onAnswer});
 
   @override
   State<LeafLetterQuiz> createState() => _LeafLetterQuizState();
 }
 
-class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStateMixin {
+class _LeafLetterQuizState extends State<LeafLetterQuiz>
+    with TickerProviderStateMixin {
   late List<String> _targetLetters;
   late List<String> _bankLetters;
   late List<String?> _slottedLetters;
@@ -44,10 +46,19 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    TtsService.instance.speak(widget.word.translation, widget.word.languageCode);
+    TtsService.instance.speak(
+      widget.word.translation,
+      widget.word.languageCode,
+    );
 
-    _shakeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _bloomController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _bloomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     final cleanWord = widget.word.word.trim();
     _targetLetters = cleanWord.split('');
@@ -113,7 +124,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
       _bloomController.forward();
       AudioService.instance.playCorrect(streak: 0);
       AudioService.haptic(HapticType.correct).ignore();
-      
+
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) {
           widget.onAnswer(true, _mistakes == 0 ? 1 : 0);
@@ -124,7 +135,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
       _shakeController.forward(from: 0);
       AudioService.instance.play(SFX.wrongAnswer);
       AudioService.haptic(HapticType.wrong).ignore();
-      
+
       // Auto return all letters after a delay
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted && !_hasAnswered) {
@@ -154,7 +165,9 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
           decoration: BoxDecoration(
             color: SeedlingColors.cardBackground,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: SeedlingColors.morningDew.withValues(alpha: 0.4)),
+            border: Border.all(
+              color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+            ),
             boxShadow: [
               BoxShadow(
                 color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
@@ -165,7 +178,12 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
           ),
           child: Column(
             children: [
-              Text('Spell the translation:', style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary)),
+              Text(
+                'Spell the translation:',
+                style: SeedlingTypography.caption.copyWith(
+                  color: SeedlingColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: 8),
               Text(
                 widget.word.translation,
@@ -182,11 +200,8 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
         AnimatedBuilder(
           animation: _shakeController,
           builder: (context, child) {
-             final dx = math.sin(_shakeController.value * math.pi * 4) * 8;
-             return Transform.translate(
-               offset: Offset(dx, 0),
-               child: child,
-             );
+            final dx = math.sin(_shakeController.value * math.pi * 4) * 8;
+            return Transform.translate(offset: Offset(dx, 0), child: child);
           },
           child: Wrap(
             alignment: WrapAlignment.center,
@@ -200,15 +215,27 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
                   width: 44,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: letter != null ? SeedlingColors.seedlingGreen : SeedlingColors.soil.withValues(alpha: 0.05),
+                    color: letter != null
+                        ? SeedlingColors.seedlingGreen
+                        : SeedlingColors.soil.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: letter != null ? SeedlingColors.freshSprout : SeedlingColors.soil.withValues(alpha: 0.2),
+                      color: letter != null
+                          ? SeedlingColors.freshSprout
+                          : SeedlingColors.soil.withValues(alpha: 0.2),
                       width: 2,
                     ),
-                    boxShadow: letter != null ? [
-                      BoxShadow(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))
-                    ] : null,
+                    boxShadow: letter != null
+                        ? [
+                            BoxShadow(
+                              color: SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.3,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -247,7 +274,10 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
             children: List.generate(_bankLetters.length, (index) {
               final letter = _bankLetters[index];
               if (letter.isEmpty) {
-                return const SizedBox(width: 48, height: 56); // empty placeholder
+                return const SizedBox(
+                  width: 48,
+                  height: 56,
+                ); // empty placeholder
               }
               return GestureDetector(
                 onTap: () => _tapBankLetter(index),
@@ -288,7 +318,12 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz> with TickerProviderStat
 class ForestClozeQuiz extends StatefulWidget {
   final Word word;
   final List<String> options;
-  final Function(bool correct, int masteryGained) onAnswer;
+  final Function(
+    bool correct,
+    int masteryGained, [
+    String? chosenWrongTranslation,
+  ])
+  onAnswer;
 
   const ForestClozeQuiz({
     super.key,
@@ -301,27 +336,37 @@ class ForestClozeQuiz extends StatefulWidget {
   State<ForestClozeQuiz> createState() => _ForestClozeQuizState();
 }
 
-class _ForestClozeQuizState extends State<ForestClozeQuiz> with TickerProviderStateMixin {
+class _ForestClozeQuizState extends State<ForestClozeQuiz>
+    with TickerProviderStateMixin {
   late AnimationController _shakeController;
   late AnimationController _bloomController;
   bool _hasAnswered = false;
   int? _selectedIndex;
-  
+
   late String _clozedSentence;
   late String _clozedTranslation;
 
   @override
   void initState() {
     super.initState();
-    _shakeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _bloomController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _bloomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     final sentence = widget.word.exampleSentence ?? '';
     final translation = widget.word.exampleSentenceTranslation ?? '';
     final target = widget.word.word;
 
     // Try to replace the target word with blanks (case insensitive)
-    _clozedSentence = sentence.replaceAll(RegExp(target, caseSensitive: false), '________');
+    _clozedSentence = sentence.replaceAll(
+      RegExp(target, caseSensitive: false),
+      '________',
+    );
     _clozedTranslation = translation;
 
     TtsService.instance.speak(sentence, widget.word.targetLanguageCode);
@@ -371,7 +416,9 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz> with TickerProviderSt
           decoration: BoxDecoration(
             color: SeedlingColors.cardBackground,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: SeedlingColors.morningDew.withValues(alpha: 0.4)),
+            border: Border.all(
+              color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+            ),
             boxShadow: [
               BoxShadow(
                 color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1),
@@ -382,17 +429,27 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz> with TickerProviderSt
           ),
           child: Column(
             children: [
-              Text('Fill in the blank:', style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary)),
+              Text(
+                'Fill in the blank:',
+                style: SeedlingTypography.caption.copyWith(
+                  color: SeedlingColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: 16),
               AnimatedBuilder(
                 animation: _shakeController,
                 builder: (context, child) {
-                   final dx = math.sin(_shakeController.value * math.pi * 4) * 8;
-                   return Transform.translate(offset: Offset(dx, 0), child: child);
+                  final dx = math.sin(_shakeController.value * math.pi * 4) * 8;
+                  return Transform.translate(
+                    offset: Offset(dx, 0),
+                    child: child,
+                  );
                 },
                 child: Text(
-                  _hasAnswered && _selectedIndex != null && widget.options[_selectedIndex!] == widget.word.word 
-                      ? widget.word.exampleSentence ?? '' 
+                  _hasAnswered &&
+                          _selectedIndex != null &&
+                          widget.options[_selectedIndex!] == widget.word.word
+                      ? widget.word.exampleSentence ?? ''
                       : _clozedSentence,
                   style: SeedlingTypography.heading3.copyWith(height: 1.4),
                   textAlign: TextAlign.center,
@@ -421,7 +478,7 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz> with TickerProviderSt
             children: List.generate(widget.options.length, (index) {
               final isSelected = _selectedIndex == index;
               final isCorrectOption = widget.options[index] == widget.word.word;
-              
+
               Color bgColor = SeedlingColors.cardBackground;
               Color borderColor = SeedlingColors.morningDew;
               Color textColor = SeedlingColors.textPrimary;
@@ -446,25 +503,36 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz> with TickerProviderSt
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 18,
+                      horizontal: 24,
+                    ),
                     decoration: BoxDecoration(
                       color: bgColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor, width: isSelected || (_hasAnswered && isCorrectOption) ? 2 : 1),
+                      border: Border.all(
+                        color: borderColor,
+                        width: isSelected || (_hasAnswered && isCorrectOption)
+                            ? 2
+                            : 1,
+                      ),
                       boxShadow: [
                         if (!isSelected && !_hasAnswered)
                           BoxShadow(
                             color: SeedlingColors.soil.withValues(alpha: 0.05),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
-                          )
+                          ),
                       ],
                     ),
                     child: Text(
                       widget.options[index],
                       style: SeedlingTypography.body.copyWith(
                         color: textColor,
-                        fontWeight: isSelected || (_hasAnswered && isCorrectOption) ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight:
+                            isSelected || (_hasAnswered && isCorrectOption)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
                     ),

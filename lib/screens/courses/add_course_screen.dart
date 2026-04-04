@@ -47,10 +47,10 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
       nativeLanguage: _native!,
       targetLanguage: _target!,
     );
-    
+
     // Populate the database with vocabulary for this new course pair
     await VocabularyService.populateCourse(_native!.code, _target!.code);
-    
+
     await ref.read(courseProvider.notifier).addCourse(course);
     await ref.read(courseProvider.notifier).setActive(course.id);
     if (mounted) Navigator.pop(context);
@@ -64,7 +64,10 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: SeedlingColors.textPrimary),
+          icon: const Icon(
+            Icons.close_rounded,
+            color: SeedlingColors.textPrimary,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('New Course', style: SeedlingTypography.heading3),
@@ -113,9 +116,11 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                     backgroundColor: SeedlingColors.seedlingGreen,
                     foregroundColor: SeedlingColors.textPrimary,
                     disabledBackgroundColor: SeedlingColors.cardBackground,
-                    disabledForegroundColor: SeedlingColors.textSecondary.withValues(alpha: 0.5),
+                    disabledForegroundColor: SeedlingColors.textSecondary
+                        .withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24)),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                     elevation: 0,
                   ),
                   child: _saving
@@ -127,9 +132,13 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                             color: SeedlingColors.textPrimary,
                           ),
                         )
-                      : const Text('Start Learning',
+                      : const Text(
+                          'Start Learning',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -170,20 +179,12 @@ class _CoursePreviewCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Twemoji(
-                emoji: target.flag,
-                height: 36,
-                width: 36,
-              ),
+              Twemoji(emoji: target.flag, height: 36, width: 36),
               if (native != null)
                 Positioned(
                   bottom: -4,
                   right: -12,
-                  child: Twemoji(
-                    emoji: native!.flag,
-                    height: 22,
-                    width: 22,
-                  ),
+                  child: Twemoji(emoji: native!.flag, height: 22, width: 22),
                 ),
             ],
           ),
@@ -191,14 +192,15 @@ class _CoursePreviewCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(target.name,
-                  style: SeedlingTypography.heading2.copyWith(
-                    fontSize: 20,
-                    color: SeedlingColors.seedlingGreen,
-                  )),
+              Text(
+                target.name,
+                style: SeedlingTypography.heading2.copyWith(
+                  fontSize: 20,
+                  color: SeedlingColors.seedlingGreen,
+                ),
+              ),
               if (native != null)
-                Text('from ${native!.name}',
-                    style: SeedlingTypography.caption),
+                Text('from ${native!.name}', style: SeedlingTypography.caption),
             ],
           ),
         ],
@@ -224,9 +226,7 @@ class _LanguagePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final available = Language.all
-        .where((l) => l.code != exclude)
-        .toList();
+    final available = Language.all.where((l) => l.code != exclude).toList();
 
     return GestureDetector(
       onTap: () => _showPicker(context, available),
@@ -235,30 +235,34 @@ class _LanguagePicker extends StatelessWidget {
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15)),
+          border: Border.all(
+            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+          ),
         ),
         child: Row(
           children: [
             if (selected != null) ...[
-              Twemoji(
-                emoji: selected!.flag,
-                height: 24,
-                width: 24,
-              ),
+              Twemoji(emoji: selected!.flag, height: 24, width: 24),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(selected!.name,
-                    style: SeedlingTypography.heading3
-                        .copyWith(fontSize: 16)),
+                child: Text(
+                  selected!.name,
+                  style: SeedlingTypography.heading3.copyWith(fontSize: 16),
+                ),
               ),
             ] else
               Expanded(
-                child: Text(hint,
-                    style: SeedlingTypography.body
-                      .copyWith(color: SeedlingColors.textSecondary)),
+                child: Text(
+                  hint,
+                  style: SeedlingTypography.body.copyWith(
+                    color: SeedlingColors.textSecondary,
+                  ),
+                ),
               ),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                color: SeedlingColors.textSecondary),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: SeedlingColors.textSecondary,
+            ),
           ],
         ),
       ),
@@ -332,7 +336,10 @@ class _LanguagePickerSheetState extends State<_LanguagePickerSheet> {
               decoration: InputDecoration(
                 hintText: 'Search language…',
                 hintStyle: const TextStyle(color: SeedlingColors.textSecondary),
-                prefixIcon: const Icon(Icons.search_rounded, color: SeedlingColors.textSecondary),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: SeedlingColors.textSecondary,
+                ),
                 filled: true,
                 fillColor: SeedlingColors.cardBackground,
                 border: OutlineInputBorder(
@@ -349,17 +356,18 @@ class _LanguagePickerSheetState extends State<_LanguagePickerSheet> {
                 final lang = filtered[i];
                 final isSelected = lang.code == widget.selected?.code;
                 return ListTile(
-                  leading: Twemoji(
-                    emoji: lang.flag,
-                    height: 26,
-                    width: 26,
+                  leading: Twemoji(emoji: lang.flag, height: 26, width: 26),
+                  title: Text(
+                    lang.name,
+                    style: SeedlingTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  title: Text(lang.name,
-                      style: SeedlingTypography.body
-                          .copyWith(fontWeight: FontWeight.w600)),
                   trailing: isSelected
-                      ? const Icon(Icons.check_rounded,
-                          color: SeedlingColors.seedlingGreen)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: SeedlingColors.seedlingGreen,
+                        )
                       : null,
                   onTap: () => widget.onSelected(lang),
                 );

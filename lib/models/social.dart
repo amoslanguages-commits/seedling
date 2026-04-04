@@ -1,6 +1,6 @@
 // ================ SOCIAL MODELS ================
 
-enum FriendshipStatus { pending, accepted, blocked }
+enum FriendshipStatus { pending, accepted, blocked, none }
 
 class Friend {
   final String userId;
@@ -11,7 +11,7 @@ class Friend {
   final bool isOnline;
   final DateTime? lastActive;
   final FriendshipStatus status;
-  
+
   Friend({
     required this.userId,
     required this.displayName,
@@ -23,15 +23,23 @@ class Friend {
     this.status = FriendshipStatus.accepted,
   });
 
-  factory Friend.fromMap(Map<String, dynamic> map, {FriendshipStatus? statusOverride}) {
+  factory Friend.fromMap(
+    Map<String, dynamic> map, {
+    FriendshipStatus? statusOverride,
+  }) {
     return Friend(
       userId: map['id'] ?? map['user_id'] ?? '',
       displayName: map['display_name'] ?? 'Anonymous',
       avatarUrl: map['avatar_url'],
-      currentStreak: map['user_stats']?[0]?['current_streak'] ?? map['current_streak'] ?? 0,
+      currentStreak:
+          map['user_stats']?[0]?['current_streak'] ??
+          map['current_streak'] ??
+          0,
       totalXP: map['user_stats']?[0]?['total_xp'] ?? map['total_xp'] ?? 0,
       isOnline: map['is_online'] ?? false,
-      lastActive: map['updated_at'] != null ? DateTime.parse(map['updated_at']) : null,
+      lastActive: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'])
+          : null,
       status: statusOverride ?? FriendshipStatus.accepted,
     );
   }
@@ -40,10 +48,10 @@ class Friend {
 // ================ COMPETITION MODELS ================
 
 enum CompetitionType {
-  mostWords,      // Most words learned
-  longestStreak,  // Longest streak maintained
+  mostWords, // Most words learned
+  longestStreak, // Longest streak maintained
   perfectAccuracy, // Highest accuracy percentage
-  mostTime,       // Most time spent learning
+  mostTime, // Most time spent learning
 }
 
 enum CompetitionStatus { upcoming, active, completed }
@@ -54,7 +62,7 @@ class CompetitionParticipant {
   final int score;
   final int rank;
   final bool isCurrentUser;
-  
+
   CompetitionParticipant({
     required this.userId,
     required this.displayName,
@@ -63,7 +71,10 @@ class CompetitionParticipant {
     this.isCurrentUser = false,
   });
 
-  factory CompetitionParticipant.fromMap(Map<String, dynamic> map, String currentUserId) {
+  factory CompetitionParticipant.fromMap(
+    Map<String, dynamic> map,
+    String currentUserId,
+  ) {
     return CompetitionParticipant(
       userId: map['user_id'],
       displayName: map['profiles']?['display_name'] ?? 'Anonymous',
@@ -85,7 +96,7 @@ class Competition {
   final int prizeXP;
   final List<CompetitionParticipant> participants;
   final CompetitionStatus status;
-  
+
   Competition({
     required this.id,
     required this.title,
@@ -118,26 +129,34 @@ class Competition {
 
   static CompetitionType _parseType(String type) {
     switch (type) {
-      case 'most_words': return CompetitionType.mostWords;
-      case 'longest_streak': return CompetitionType.longestStreak;
-      case 'perfect_accuracy': return CompetitionType.perfectAccuracy;
-      case 'most_time': return CompetitionType.mostTime;
-      default: return CompetitionType.mostWords;
+      case 'most_words':
+        return CompetitionType.mostWords;
+      case 'longest_streak':
+        return CompetitionType.longestStreak;
+      case 'perfect_accuracy':
+        return CompetitionType.perfectAccuracy;
+      case 'most_time':
+        return CompetitionType.mostTime;
+      default:
+        return CompetitionType.mostWords;
     }
   }
 
   static CompetitionStatus _parseStatus(String status) {
     switch (status) {
-      case 'upcoming': return CompetitionStatus.upcoming;
-      case 'active': return CompetitionStatus.active;
-      case 'completed': return CompetitionStatus.completed;
-      default: return CompetitionStatus.upcoming;
+      case 'upcoming':
+        return CompetitionStatus.upcoming;
+      case 'active':
+        return CompetitionStatus.active;
+      case 'completed':
+        return CompetitionStatus.completed;
+      default:
+        return CompetitionStatus.upcoming;
     }
   }
-  
-  bool get isActive => 
-      DateTime.now().isAfter(startDate) && 
-      DateTime.now().isBefore(endDate);
-  
+
+  bool get isActive =>
+      DateTime.now().isAfter(startDate) && DateTime.now().isBefore(endDate);
+
   int get daysRemaining => endDate.difference(DateTime.now()).inDays;
 }

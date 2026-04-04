@@ -26,70 +26,124 @@ enum PartOfSpeech {
 extension PartOfSpeechExtension on PartOfSpeech {
   String get displayName {
     switch (this) {
-      case PartOfSpeech.noun: return 'Noun';
-      case PartOfSpeech.verb: return 'Verb';
-      case PartOfSpeech.adjective: return 'Adjective';
-      case PartOfSpeech.adverb: return 'Adverb';
-      case PartOfSpeech.pronoun: return 'Pronoun';
-      case PartOfSpeech.determiner: return 'Determiner';
-      case PartOfSpeech.preposition: return 'Preposition';
-      case PartOfSpeech.conjunction: return 'Conjunction';
-      case PartOfSpeech.interjection: return 'Interjection';
-      case PartOfSpeech.numeral: return 'Numeral';
-      case PartOfSpeech.classifier: return 'Classifier';
-      case PartOfSpeech.particle: return 'Particle';
-      case PartOfSpeech.auxiliaryVerb: return 'Aux. Verb';
-      case PartOfSpeech.copula: return 'Copula';
-      case PartOfSpeech.postposition: return 'Postposition';
-      case PartOfSpeech.suffix: return 'Suffix';
-      case PartOfSpeech.article: return 'Article';
-      case PartOfSpeech.incorporatedNoun: return 'Incorp. Noun';
+      case PartOfSpeech.noun:
+        return 'Noun';
+      case PartOfSpeech.verb:
+        return 'Verb';
+      case PartOfSpeech.adjective:
+        return 'Adjective';
+      case PartOfSpeech.adverb:
+        return 'Adverb';
+      case PartOfSpeech.pronoun:
+        return 'Pronoun';
+      case PartOfSpeech.determiner:
+        return 'Determiner';
+      case PartOfSpeech.preposition:
+        return 'Preposition';
+      case PartOfSpeech.conjunction:
+        return 'Conjunction';
+      case PartOfSpeech.interjection:
+        return 'Interjection';
+      case PartOfSpeech.numeral:
+        return 'Numeral';
+      case PartOfSpeech.classifier:
+        return 'Classifier';
+      case PartOfSpeech.particle:
+        return 'Particle';
+      case PartOfSpeech.auxiliaryVerb:
+        return 'Aux. Verb';
+      case PartOfSpeech.copula:
+        return 'Copula';
+      case PartOfSpeech.postposition:
+        return 'Postposition';
+      case PartOfSpeech.suffix:
+        return 'Suffix';
+      case PartOfSpeech.article:
+        return 'Article';
+      case PartOfSpeech.incorporatedNoun:
+        return 'Incorp. Noun';
     }
   }
 
   String get icon {
     switch (this) {
-      case PartOfSpeech.noun: return '📦';
-      case PartOfSpeech.verb: return '⚡';
-      case PartOfSpeech.adjective: return '🎨';
-      case PartOfSpeech.adverb: return '💨';
-      case PartOfSpeech.pronoun: return '👤';
-      case PartOfSpeech.determiner: return '👆';
-      case PartOfSpeech.preposition: return '🔗';
-      case PartOfSpeech.conjunction: return '➕';
-      case PartOfSpeech.interjection: return '💥';
-      case PartOfSpeech.numeral: return '🔢';
-      case PartOfSpeech.classifier: return '📏';
-      case PartOfSpeech.particle: return '✨';
-      case PartOfSpeech.auxiliaryVerb: return '🤝';
-      case PartOfSpeech.copula: return '⬌';
-      case PartOfSpeech.postposition: return '⬅️';
-      case PartOfSpeech.suffix: return '➡️';
-      case PartOfSpeech.article: return '📰';
-      case PartOfSpeech.incorporatedNoun: return '🔄';
+      case PartOfSpeech.noun:
+        return '📦';
+      case PartOfSpeech.verb:
+        return '⚡';
+      case PartOfSpeech.adjective:
+        return '🎨';
+      case PartOfSpeech.adverb:
+        return '💨';
+      case PartOfSpeech.pronoun:
+        return '👤';
+      case PartOfSpeech.determiner:
+        return '👆';
+      case PartOfSpeech.preposition:
+        return '🔗';
+      case PartOfSpeech.conjunction:
+        return '➕';
+      case PartOfSpeech.interjection:
+        return '💥';
+      case PartOfSpeech.numeral:
+        return '🔢';
+      case PartOfSpeech.classifier:
+        return '📏';
+      case PartOfSpeech.particle:
+        return '✨';
+      case PartOfSpeech.auxiliaryVerb:
+        return '🤝';
+      case PartOfSpeech.copula:
+        return '⬌';
+      case PartOfSpeech.postposition:
+        return '⬅️';
+      case PartOfSpeech.suffix:
+        return '➡️';
+      case PartOfSpeech.article:
+        return '📰';
+      case PartOfSpeech.incorporatedNoun:
+        return '🔄';
     }
   }
 
   Color get color {
     switch (this) {
-      case PartOfSpeech.noun: return const Color(0xFF5C6BC0);
-      case PartOfSpeech.verb: return const Color(0xFFE57373);
-      case PartOfSpeech.adjective: return const Color(0xFFF06292);
-      case PartOfSpeech.adverb: return const Color(0xFF4DB6AC);
-      case PartOfSpeech.pronoun: return const Color(0xFF9575CD);
-      case PartOfSpeech.determiner: return const Color(0xFF7986CB);
-      case PartOfSpeech.preposition: return const Color(0xFF4FC3F7);
-      case PartOfSpeech.conjunction: return const Color(0xFF81C784);
-      case PartOfSpeech.interjection: return const Color(0xFFFFB74D);
-      case PartOfSpeech.numeral: return const Color(0xFF4DD0E1);
-      case PartOfSpeech.classifier: return const Color(0xFFA1887F);
-      case PartOfSpeech.particle: return const Color(0xFFFFD54F);
-      case PartOfSpeech.auxiliaryVerb: return const Color(0xFFFF8A65);
-      case PartOfSpeech.copula: return const Color(0xFF90A4AE);
-      case PartOfSpeech.postposition: return const Color(0xFFCE93D8);
-      case PartOfSpeech.suffix: return const Color(0xFFB0BEC5);
-      case PartOfSpeech.article: return const Color(0xFF80CBC4);
-      case PartOfSpeech.incorporatedNoun: return const Color(0xFFA5D6A7);
+      case PartOfSpeech.noun:
+        return const Color(0xFF5C6BC0);
+      case PartOfSpeech.verb:
+        return const Color(0xFFE57373);
+      case PartOfSpeech.adjective:
+        return const Color(0xFFF06292);
+      case PartOfSpeech.adverb:
+        return const Color(0xFF4DB6AC);
+      case PartOfSpeech.pronoun:
+        return const Color(0xFF9575CD);
+      case PartOfSpeech.determiner:
+        return const Color(0xFF7986CB);
+      case PartOfSpeech.preposition:
+        return const Color(0xFF4FC3F7);
+      case PartOfSpeech.conjunction:
+        return const Color(0xFF81C784);
+      case PartOfSpeech.interjection:
+        return const Color(0xFFFFB74D);
+      case PartOfSpeech.numeral:
+        return const Color(0xFF4DD0E1);
+      case PartOfSpeech.classifier:
+        return const Color(0xFFA1887F);
+      case PartOfSpeech.particle:
+        return const Color(0xFFFFD54F);
+      case PartOfSpeech.auxiliaryVerb:
+        return const Color(0xFFFF8A65);
+      case PartOfSpeech.copula:
+        return const Color(0xFF90A4AE);
+      case PartOfSpeech.postposition:
+        return const Color(0xFFCE93D8);
+      case PartOfSpeech.suffix:
+        return const Color(0xFFB0BEC5);
+      case PartOfSpeech.article:
+        return const Color(0xFF80CBC4);
+      case PartOfSpeech.incorporatedNoun:
+        return const Color(0xFFA5D6A7);
     }
   }
 
@@ -179,7 +233,14 @@ class CategoryTaxonomy {
       name: 'People',
       icon: '👥',
       color: const Color(0xFF64B5F6),
-      childIds: ['identity', 'relationships', 'roles', 'traits', 'emotions', 'health'],
+      childIds: [
+        'identity',
+        'relationships',
+        'roles',
+        'traits',
+        'emotions',
+        'health',
+      ],
     ),
     'daily_life': SemanticCategory(
       id: 'daily_life',
@@ -256,7 +317,14 @@ class CategoryTaxonomy {
       name: 'Universal Verbs',
       icon: '⚡',
       color: const Color(0xFFE57373),
-      childIds: ['movement', 'creation', 'thinking', 'change', 'possession', 'existence'],
+      childIds: [
+        'movement',
+        'creation',
+        'thinking',
+        'change',
+        'possession',
+        'existence',
+      ],
       commonPOS: ['verb'],
     ),
     'descriptions': SemanticCategory(
@@ -280,7 +348,15 @@ class CategoryTaxonomy {
       name: 'Grammar Functions',
       icon: '🔧',
       color: const Color(0xFFB0BEC5),
-      childIds: ['pronouns', 'determiners_articles', 'prepositions', 'adverbs', 'conjunctions', 'auxiliary_modal_verbs', 'particles_markers'],
+      childIds: [
+        'pronouns',
+        'determiners_articles',
+        'prepositions',
+        'adverbs',
+        'conjunctions',
+        'auxiliary_modal_verbs',
+        'particles_markers',
+      ],
       commonPOS: ['pronoun', 'preposition', 'conjunction'],
     ),
 
@@ -288,504 +364,504 @@ class CategoryTaxonomy {
     'identity': SemanticCategory(
       id: 'identity',
       name: 'Identity',
-      icon: '👤', 
+      icon: '👤',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'relationships': SemanticCategory(
       id: 'relationships',
       name: 'Relationships',
-      icon: '🤝', 
+      icon: '🤝',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'roles': SemanticCategory(
       id: 'roles',
       name: 'Roles',
-      icon: '🎓', 
+      icon: '🎓',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'traits': SemanticCategory(
       id: 'traits',
       name: 'Traits',
-      icon: '🎭', 
+      icon: '🎭',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'emotions': SemanticCategory(
       id: 'emotions',
       name: 'Emotions',
-      icon: '❤️', 
+      icon: '❤️',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'health': SemanticCategory(
       id: 'health',
       name: 'Health',
-      icon: '🍎', 
+      icon: '🍎',
       color: const Color(0xFF64B5F6),
       parentIds: ['people'],
     ),
     'activities': SemanticCategory(
       id: 'activities',
       name: 'Activities',
-      icon: '🏃', 
+      icon: '🏃',
       color: const Color(0xFFF06292),
       parentIds: ['daily_life'],
     ),
     'household': SemanticCategory(
       id: 'household',
       name: 'Household',
-      icon: '🏠', 
+      icon: '🏠',
       color: const Color(0xFFF06292),
       parentIds: ['daily_life'],
     ),
     'shopping': SemanticCategory(
       id: 'shopping',
       name: 'Shopping',
-      icon: '🛒', 
+      icon: '🛒',
       color: const Color(0xFFF06292),
       parentIds: ['daily_life'],
     ),
     'communication': SemanticCategory(
       id: 'communication',
       name: 'Communication',
-      icon: '🗣️', 
+      icon: '🗣️',
       color: const Color(0xFFF06292),
       parentIds: ['daily_life'],
     ),
     'fruits': SemanticCategory(
       id: 'fruits',
       name: 'Fruits',
-      icon: '🍓', 
+      icon: '🍓',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'vegetables': SemanticCategory(
       id: 'vegetables',
       name: 'Vegetables',
-      icon: '🥦', 
+      icon: '🥦',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'meals': SemanticCategory(
       id: 'meals',
       name: 'Meals',
-      icon: '🍲', 
+      icon: '🍲',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'drinks': SemanticCategory(
       id: 'drinks',
       name: 'Drinks',
-      icon: '🥤', 
+      icon: '🥤',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'cooking': SemanticCategory(
       id: 'cooking',
       name: 'Cooking',
-      icon: '🍳', 
+      icon: '🍳',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'taste': SemanticCategory(
       id: 'taste',
       name: 'Taste',
-      icon: '😋', 
+      icon: '😋',
       color: const Color(0xFFFFB74D),
       parentIds: ['food_drink'],
     ),
     'house': SemanticCategory(
       id: 'house',
       name: 'House',
-      icon: '🏡', 
+      icon: '🏡',
       color: const Color(0xFF81C784),
       parentIds: ['home_environment'],
     ),
     'furniture': SemanticCategory(
       id: 'furniture',
       name: 'Furniture',
-      icon: '🛋️', 
+      icon: '🛋️',
       color: const Color(0xFF81C784),
       parentIds: ['home_environment'],
     ),
     'objects': SemanticCategory(
       id: 'objects',
       name: 'Objects',
-      icon: '📦', 
+      icon: '📦',
       color: const Color(0xFF81C784),
       parentIds: ['home_environment'],
     ),
     'nature': SemanticCategory(
       id: 'nature',
       name: 'Nature',
-      icon: '🌲', 
+      icon: '🌲',
       color: const Color(0xFF81C784),
       parentIds: ['home_environment'],
     ),
     'weather': SemanticCategory(
       id: 'weather',
       name: 'Weather',
-      icon: '☀️', 
+      icon: '☀️',
       color: const Color(0xFF81C784),
       parentIds: ['home_environment'],
     ),
     'institutions': SemanticCategory(
       id: 'institutions',
       name: 'Institutions',
-      icon: '🏫', 
+      icon: '🏫',
       color: const Color(0xFF4FC3F7),
       parentIds: ['education'],
     ),
     'subjects': SemanticCategory(
       id: 'subjects',
       name: 'Subjects',
-      icon: '🔬', 
+      icon: '🔬',
       color: const Color(0xFF4FC3F7),
       parentIds: ['education'],
     ),
     'learning_actions': SemanticCategory(
       id: 'learning_actions',
       name: 'Learning Actions',
-      icon: '✍️', 
+      icon: '✍️',
       color: const Color(0xFF4FC3F7),
       parentIds: ['education'],
     ),
     'evaluation': SemanticCategory(
       id: 'evaluation',
       name: 'Evaluation',
-      icon: '💯', 
+      icon: '💯',
       color: const Color(0xFF4FC3F7),
       parentIds: ['education'],
     ),
     'jobs': SemanticCategory(
       id: 'jobs',
       name: 'Jobs',
-      icon: '👷', 
+      icon: '👷',
       color: const Color(0xFF9575CD),
       parentIds: ['work_business'],
     ),
     'workplace': SemanticCategory(
       id: 'workplace',
       name: 'Workplace',
-      icon: '🏭', 
+      icon: '🏭',
       color: const Color(0xFF9575CD),
       parentIds: ['work_business'],
     ),
     'business': SemanticCategory(
       id: 'business',
       name: 'Business',
-      icon: '📈', 
+      icon: '📈',
       color: const Color(0xFF9575CD),
       parentIds: ['work_business'],
     ),
     'finance': SemanticCategory(
       id: 'finance',
       name: 'Finance',
-      icon: '💰', 
+      icon: '💰',
       color: const Color(0xFF9575CD),
       parentIds: ['work_business'],
     ),
     'transport': SemanticCategory(
       id: 'transport',
       name: 'Transport',
-      icon: '🚌', 
+      icon: '🚌',
       color: const Color(0xFF4DD0E1),
       parentIds: ['travel_transport'],
     ),
     'places': SemanticCategory(
       id: 'places',
       name: 'Places',
-      icon: '🗺️', 
+      icon: '🗺️',
       color: const Color(0xFF4DD0E1),
       parentIds: ['travel_transport'],
     ),
     'accommodation': SemanticCategory(
       id: 'accommodation',
       name: 'Accommodation',
-      icon: '🛌', 
+      icon: '🛌',
       color: const Color(0xFF4DD0E1),
       parentIds: ['travel_transport'],
     ),
     'travel_actions': SemanticCategory(
       id: 'travel_actions',
       name: 'Travel Actions',
-      icon: '🎒', 
+      icon: '🎒',
       color: const Color(0xFF4DD0E1),
       parentIds: ['travel_transport'],
     ),
     'government': SemanticCategory(
       id: 'government',
       name: 'Government',
-      icon: '📜', 
+      icon: '📜',
       color: const Color(0xFF7986CB),
       parentIds: ['society_government'],
     ),
     'politics': SemanticCategory(
       id: 'politics',
       name: 'Politics',
-      icon: '🗳️', 
+      icon: '🗳️',
       color: const Color(0xFF7986CB),
       parentIds: ['society_government'],
     ),
     'law': SemanticCategory(
       id: 'law',
       name: 'Law',
-      icon: '⚖️', 
+      icon: '⚖️',
       color: const Color(0xFF7986CB),
       parentIds: ['society_government'],
     ),
     'community': SemanticCategory(
       id: 'community',
       name: 'Community',
-      icon: '🫂', 
+      icon: '🫂',
       color: const Color(0xFF7986CB),
       parentIds: ['society_government'],
     ),
     'devices': SemanticCategory(
       id: 'devices',
       name: 'Devices',
-      icon: '📱', 
+      icon: '📱',
       color: const Color(0xFF90A4AE),
       parentIds: ['technology'],
     ),
     'internet': SemanticCategory(
       id: 'internet',
       name: 'Internet',
-      icon: '🌐', 
+      icon: '🌐',
       color: const Color(0xFF90A4AE),
       parentIds: ['technology'],
     ),
     'actions': SemanticCategory(
       id: 'actions',
       name: 'Actions',
-      icon: '⚙️', 
+      icon: '⚙️',
       color: const Color(0xFF90A4AE),
       parentIds: ['technology'],
     ),
     'digital_life': SemanticCategory(
       id: 'digital_life',
       name: 'Digital Life',
-      icon: '🎮', 
+      icon: '🎮',
       color: const Color(0xFF90A4AE),
       parentIds: ['technology'],
     ),
     'time': SemanticCategory(
       id: 'time',
       name: 'Time',
-      icon: '⌛', 
+      icon: '⌛',
       color: const Color(0xFFFF8A65),
       parentIds: ['time_space'],
     ),
     'frequency': SemanticCategory(
       id: 'frequency',
       name: 'Frequency',
-      icon: '🔄', 
+      icon: '🔄',
       color: const Color(0xFFFF8A65),
       parentIds: ['time_space'],
     ),
     'sequence': SemanticCategory(
       id: 'sequence',
       name: 'Sequence',
-      icon: '🔢', 
+      icon: '🔢',
       color: const Color(0xFFFF8A65),
       parentIds: ['time_space'],
     ),
     'space': SemanticCategory(
       id: 'space',
       name: 'Space',
-      icon: '🌌', 
+      icon: '🌌',
       color: const Color(0xFFFF8A65),
       parentIds: ['time_space'],
     ),
     'numbers': SemanticCategory(
       id: 'numbers',
       name: 'Numbers',
-      icon: '🔢', 
+      icon: '🔢',
       color: const Color(0xFF4DB6AC),
       parentIds: ['numbers_measurement'],
     ),
     'quantity': SemanticCategory(
       id: 'quantity',
       name: 'Quantity',
-      icon: '⚖️', 
+      icon: '⚖️',
       color: const Color(0xFF4DB6AC),
       parentIds: ['numbers_measurement'],
     ),
     'measurement': SemanticCategory(
       id: 'measurement',
       name: 'Measurement',
-      icon: '📏', 
+      icon: '📏',
       color: const Color(0xFF4DB6AC),
       parentIds: ['numbers_measurement'],
     ),
     'comparison': SemanticCategory(
       id: 'comparison',
       name: 'Comparison',
-      icon: '🆚', 
+      icon: '🆚',
       color: const Color(0xFF4DB6AC),
       parentIds: ['numbers_measurement'],
     ),
     'movement': SemanticCategory(
       id: 'movement',
       name: 'Movement',
-      icon: '⏩', 
+      icon: '⏩',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'creation': SemanticCategory(
       id: 'creation',
       name: 'Creation',
-      icon: '✨', 
+      icon: '✨',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'thinking': SemanticCategory(
       id: 'thinking',
       name: 'Thinking',
-      icon: '🧠', 
+      icon: '🧠',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'change': SemanticCategory(
       id: 'change',
       name: 'Change',
-      icon: '🦋', 
+      icon: '🦋',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'possession': SemanticCategory(
       id: 'possession',
       name: 'Possession',
-      icon: '🎁', 
+      icon: '🎁',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'existence': SemanticCategory(
       id: 'existence',
       name: 'Existence',
-      icon: '🌀', 
+      icon: '🌀',
       color: const Color(0xFFE57373),
       parentIds: ['universal_verbs'],
     ),
     'size': SemanticCategory(
       id: 'size',
       name: 'Size',
-      icon: '🐘', 
+      icon: '🐘',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'color': SemanticCategory(
       id: 'color',
       name: 'Color',
-      icon: '🎨', 
+      icon: '🎨',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'shape': SemanticCategory(
       id: 'shape',
       name: 'Shape',
-      icon: '📐', 
+      icon: '📐',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'speed': SemanticCategory(
       id: 'speed',
       name: 'Speed',
-      icon: '🏎️', 
+      icon: '🏎️',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'intensity': SemanticCategory(
       id: 'intensity',
       name: 'Intensity',
-      icon: '🔥', 
+      icon: '🔥',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'quality': SemanticCategory(
       id: 'quality',
       name: 'Quality',
-      icon: '⭐', 
+      icon: '⭐',
       color: const Color(0xFFCE93D8),
       parentIds: ['descriptions'],
     ),
     'ideas': SemanticCategory(
       id: 'ideas',
       name: 'Ideas',
-      icon: '💡', 
+      icon: '💡',
       color: const Color(0xFFBA68C8),
       parentIds: ['abstract_concepts'],
     ),
     'states': SemanticCategory(
       id: 'states',
       name: 'States',
-      icon: '🌡️', 
+      icon: '🌡️',
       color: const Color(0xFFBA68C8),
       parentIds: ['abstract_concepts'],
     ),
     'systems': SemanticCategory(
       id: 'systems',
       name: 'Systems',
-      icon: '⚙️', 
+      icon: '⚙️',
       color: const Color(0xFFBA68C8),
       parentIds: ['abstract_concepts'],
     ),
     'pronouns': SemanticCategory(
       id: 'pronouns',
       name: 'Pronouns',
-      icon: '👥', 
+      icon: '👥',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'determiners_articles': SemanticCategory(
       id: 'determiners_articles',
       name: 'Determiners & Articles',
-      icon: '👆', 
+      icon: '👆',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'prepositions': SemanticCategory(
       id: 'prepositions',
       name: 'Prepositions',
-      icon: '🔗', 
+      icon: '🔗',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'adverbs': SemanticCategory(
       id: 'adverbs',
       name: 'Adverbs',
-      icon: '💨', 
+      icon: '💨',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'conjunctions': SemanticCategory(
       id: 'conjunctions',
       name: 'Conjunctions',
-      icon: '➕', 
+      icon: '➕',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'auxiliary_modal_verbs': SemanticCategory(
       id: 'auxiliary_modal_verbs',
       name: 'Auxiliary & Modal Verbs',
-      icon: '🤝', 
+      icon: '🤝',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
     'particles_markers': SemanticCategory(
       id: 'particles_markers',
       name: 'Particles & Markers',
-      icon: '✨', 
+      icon: '✨',
       color: const Color(0xFFB0BEC5),
       parentIds: ['grammar_functions'],
     ),
   };
 
   static SemanticCategory? getCategory(String id) => _categories[id];
-  
+
   static SemanticCategory? getTheme(String domainName) {
     return _categories.values.firstWhere(
       (c) => c.isRoot && c.name.toLowerCase() == domainName.toLowerCase(),

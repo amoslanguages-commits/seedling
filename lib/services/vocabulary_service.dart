@@ -8,66 +8,14 @@ import '../database/database_helper.dart';
 class VocabularyService {
   static const String csvFilePath = 'assets/database/vocabulary.csv';
 
-  /// Parses the huge CSV file and returns a map of conceptId -> rowData
-  /// for a specific language code.
-  static Future<Map<int, List<dynamic>>> _loadLanguageData(String langCode) async {
-    final csvString = await rootBundle.loadString(csvFilePath);
-    
-    final lines = csvString.split('\n');
-    if (lines.isEmpty) return {};
-    
-    final map = <int, List<dynamic>>{};
-    
-    // Use fast manual CSV parser to prevent RegExp backtracking freeze
-    List<String> fastParseCsvRow(String line) {
-      final List<String> row = [];
-      final StringBuffer current = StringBuffer();
-      bool inQuotes = false;
-      for (int i = 0; i < line.length; i++) {
-        final char = line[i];
-        if (char == '"') {
-          inQuotes = !inQuotes;
-        } else if (char == ',' && !inQuotes) {
-          row.add(current.toString().trim());
-          current.clear();
-        } else {
-          current.write(char);
-        }
-      }
-      row.add(current.toString().trim());
-      return row;
-    }
-    
-    // Skip header (row 0)
-    for (int i = 0; i < lines.length; i++) {
-        final line = lines[i].trim();
-        if (line.isEmpty) continue;
-        
-        final row = fastParseCsvRow(line);
-
-        if (row.length < 10) continue;
-        
-        final String rowLangCode = row[2].toString().trim().toLowerCase();
-        final String normalizedTarget = langCode.toLowerCase();
-        final String baseTarget = normalizedTarget.split('-')[0];
-        
-        if (rowLangCode == normalizedTarget || rowLangCode == baseTarget) {
-            final int conceptId = int.tryParse(row[1].toString()) ?? -1;
-            if (conceptId != -1) {
-              map[conceptId] = row;
-            }
-        }
-    }
-    
-    return map;
-  }
-
   /// Looks up a Theme ID by its display name.
   static String? _findThemeIdByName(String name) {
     if (name.isEmpty) return null;
     try {
       final theme = CategoryTaxonomy.getRootCategories().firstWhere(
-        (c) => c.name.toLowerCase() == name.toLowerCase() || c.id.toLowerCase() == name.toLowerCase().replaceAll(' ', '_'),
+        (c) =>
+            c.name.toLowerCase() == name.toLowerCase() ||
+            c.id.toLowerCase() == name.toLowerCase().replaceAll(' ', '_'),
       );
       return theme.id;
     } catch (_) {
@@ -79,17 +27,21 @@ class VocabularyService {
   static String? _findSubThemeIdByName(String subThemeName, String? parentId) {
     if (subThemeName.isEmpty) return null;
     if (parentId == null || parentId.isEmpty) return null;
-    
+
     try {
       final subThemes = CategoryTaxonomy.getSubCategories(parentId);
       final theme = subThemes.firstWhere(
-        (c) => c.name.toLowerCase() == subThemeName.toLowerCase() || c.id.toLowerCase() == subThemeName.toLowerCase().replaceAll(' ', '_'),
+        (c) =>
+            c.name.toLowerCase() == subThemeName.toLowerCase() ||
+            c.id.toLowerCase() ==
+                subThemeName.toLowerCase().replaceAll(' ', '_'),
       );
       return theme.id;
     } catch (_) {
       // Fallback to global search if parent not specified or not found
       for (final cat in CategoryTaxonomy.getAllCategories()) {
-        if (!cat.isRoot && cat.name.toLowerCase() == subThemeName.toLowerCase()) {
+        if (!cat.isRoot &&
+            cat.name.toLowerCase() == subThemeName.toLowerCase()) {
           return cat.id;
         }
       }
@@ -100,16 +52,32 @@ class VocabularyService {
   /// New ingestion engine for the 8-column format:
   /// Theme, Sub-theme, Micro-category, Native Word, Translation, Definition, Example, Pronunciation
   static Future<void> importFromNewCsv(
-    String csvData, 
-    String nativeLangCode, 
-    String targetLangCode
+    String csvData,
+    String nativeLangCode,
+    String targetLangCode,
   ) async {
-    final lines = csvData.split('\n');
-    if (lines.isEmpty) return;
+    final batchWords = await compute(_parseNewCsvVocabulary, {
+      'csvData': csvData,
+      'nativeLangCode': nativeLangCode,
+      'targetLangCode': targetLangCode,
+    });
 
-    final dbHelper = DatabaseHelper();
+    if (batchWords.isNotEmpty) {
+      final dbHelper = DatabaseHelper();
+      await dbHelper.insertWordsBatch(batchWords);
+    }
+  }
+
+  static List<Word> _parseNewCsvVocabulary(Map<String, dynamic> args) {
+    final csvData = args['csvData'] as String;
+    final nativeLangCode = args['nativeLangCode'] as String;
+    final targetLangCode = args['targetLangCode'] as String;
+
+    final lines = csvData.split('\n');
+    if (lines.isEmpty) return [];
+
     final List<Word> batchWords = [];
-    
+
     // Use fast manual CSV parser to prevent RegExp backtracking freeze
     List<String> fastParseCsvRow(String line) {
       final List<String> row = [];
@@ -151,7 +119,7 @@ class VocabularyService {
       final String article = row[4];
       final String gender = row[5];
       final String pronunciation = row[6];
-      final String partOfSpeech = row[7];
+      // Optional part of speech could be mapped here if needed.
       final String definition = row[12];
       final String frequency = row[13];
       final String imageId = row[14];
@@ -160,22 +128,18 @@ class VocabularyService {
 
       final String? themeId = _findThemeIdByName(themeName);
       final String? subThemeId = _findSubThemeIdByName(subThemeName, themeName);
-      
+
       final List<String> categoryIds = [];
       if (themeId != null) categoryIds.add(themeId);
       if (subThemeId != null) categoryIds.add(subThemeId);
       if (categoryIds.isEmpty) categoryIds.add('general');
 
-      // For 17-column clean CSV: 0:id, 1:conceptId, 3:word, 12:definition
-      // The user wants 'Meaning' to be the word in the native language if possible.
-      // In a single-row CSV, we use word as translation if there's no pairing,
-      // but usually this is used for offline single-language imports.
-      
       final word = Word(
         id: int.tryParse(row[0].toString()), // vocabulary_id
         conceptId: row[1],
         word: wordText,
-        translation: wordText, // Default to word itself for single-row, pairing happens in populateCourse
+        translation:
+            wordText, // Default to word itself for single-row, pairing happens in populateCourse
         languageCode: nativeLangCode,
         targetLanguageCode: targetLangCode,
         domain: themeName.toLowerCase(),
@@ -186,7 +150,9 @@ class VocabularyService {
         definition: definition,
         pronunciation: pronunciation.isNotEmpty ? pronunciation : null,
         exampleSentence: example.isNotEmpty ? example : null,
-        exampleSentencePronunciation: examplePronunciation.isNotEmpty ? examplePronunciation : null,
+        exampleSentencePronunciation: examplePronunciation.isNotEmpty
+            ? examplePronunciation
+            : null,
         difficulty: _mapFrequencyToDifficulty(frequency),
         frequency: frequency,
         imageId: imageId.isNotEmpty ? imageId : null,
@@ -196,35 +162,96 @@ class VocabularyService {
       batchWords.add(word);
     }
 
+    return batchWords;
+  }
+
+  /// Populates the SQLite database with words for a specific learning pair.
+  /// Uses compute() to avoid blocking the main UI thread (fixes infinite loading).
+  static Future<void> populateCourse(
+    String nativeLangCode,
+    String targetLangCode,
+  ) async {
+    final csvString = await rootBundle.loadString(csvFilePath);
+
+    final batchWords = await compute(_parseAndMatchVocabulary, {
+      'csvString': csvString,
+      'nativeLangCode': nativeLangCode,
+      'targetLangCode': targetLangCode,
+    });
+
     if (batchWords.isNotEmpty) {
+      final dbHelper = DatabaseHelper();
       await dbHelper.insertWordsBatch(batchWords);
     }
   }
 
-  /// Populates the SQLite database with words for a specific learning pair.
-  /// For instance, if user's native lang is 'en' and learning lang is 'es'.
-  static Future<void> populateCourse(String nativeLangCode, String targetLangCode) async {
-    // 1. Load data for both languages from the 17-column CSV
-    final nativeData = await _loadLanguageData(nativeLangCode);
-    final targetData = await _loadLanguageData(targetLangCode);
-    
-    final dbHelper = DatabaseHelper();
+  static List<Word> _parseAndMatchVocabulary(Map<String, dynamic> args) {
+    final csvString = args['csvString'] as String;
+    final nativeLangCode = args['nativeLangCode'] as String;
+    final targetLangCode = args['targetLangCode'] as String;
+
+    final lines = csvString.split('\n');
+    if (lines.isEmpty) return [];
+
+    final nativeData = <int, List<dynamic>>{};
+    final targetData = <int, List<dynamic>>{};
+
+    List<String> fastParseCsvRow(String line) {
+      final List<String> row = [];
+      final StringBuffer current = StringBuffer();
+      bool inQuotes = false;
+      for (int i = 0; i < line.length; i++) {
+        final char = line[i];
+        if (char == '"') {
+          inQuotes = !inQuotes;
+        } else if (char == ',' && !inQuotes) {
+          row.add(current.toString().trim());
+          current.clear();
+        } else {
+          current.write(char);
+        }
+      }
+      row.add(current.toString().trim());
+      return row;
+    }
+
+    final String normalizedTarget = targetLangCode.toLowerCase();
+    final String baseTarget = normalizedTarget.split('-')[0];
+    final String normalizedNative = nativeLangCode.toLowerCase();
+    final String baseNative = normalizedNative.split('-')[0];
+
+    for (int i = 1; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      final row = fastParseCsvRow(line);
+      if (row.length < 10) continue;
+
+      final String rowLangCode = row[2].toString().trim().toLowerCase();
+
+      if (rowLangCode == normalizedTarget || rowLangCode == baseTarget) {
+        final int conceptId = int.tryParse(row[1].toString()) ?? -1;
+        if (conceptId != -1) {
+          targetData[conceptId] = row;
+        }
+      }
+      if (rowLangCode == normalizedNative || rowLangCode == baseNative) {
+        final int conceptId = int.tryParse(row[1].toString()) ?? -1;
+        if (conceptId != -1) {
+          nativeData[conceptId] = row;
+        }
+      }
+    }
+
     final List<Word> batchWords = [];
-    
-    // 2. Find matches on concept_id
+
     for (final conceptId in targetData.keys) {
       if (nativeData.containsKey(conceptId)) {
         final targetRow = targetData[conceptId]!;
         final nativeRow = nativeData[conceptId]!;
-        
-        // CSV columns mapping:
-        // 0: rowID, 1: conceptId, 2: langCode, 3: word, 4: article, 5: gender, 
-        // 6: pronunciation, 7: pos, 8: conceptType, 9: domain, 10: subDomain,
-        // 11: microCategory, 12: definition, 13: frequency, 14: imageId,
-        // 15: exampleSentence, 16: exampleSentencePronunciation
-        
+
         if (targetRow.length < 15 || nativeRow.length < 15) continue;
-        
+
         final String targetWord = targetRow[3].toString().trim();
         final String nativeWord = nativeRow[3].toString().trim();
         final String targetArticle = targetRow[4].toString().trim();
@@ -235,30 +262,33 @@ class VocabularyService {
         final String rawDomain = targetRow[9].toString().trim();
         final String rawSubDomain = targetRow[10].toString().trim();
         final String microCategory = targetRow[11].toString().trim();
-        
-        // Determine Category IDs (Standardized IDs for filtering)
-        final String domainId = _findThemeIdByName(rawDomain) ?? rawDomain.toLowerCase().replaceAll(' ', '_');
-        final String subDomainId = _findSubThemeIdByName(rawSubDomain, domainId) ?? rawSubDomain.toLowerCase().replaceAll(' ', '_');
-        
-        // Use definition from native language row so learner understands the meaning
+
+        final String domainId =
+            _findThemeIdByName(rawDomain) ??
+            rawDomain.toLowerCase().replaceAll(' ', '_');
+        final String subDomainId =
+            _findSubThemeIdByName(rawSubDomain, domainId) ??
+            rawSubDomain.toLowerCase().replaceAll(' ', '_');
+
         final String definition = nativeRow[12].toString().trim();
         final String frequency = targetRow[13].toString().trim();
         final String rawImageId = targetRow[14].toString().trim();
         final String exampleSentence = targetRow[15].toString().trim();
-        final String exampleSentenceTranslation = nativeRow[15].toString().trim();
-        final String exampleSentencePronunciation = targetRow.length > 16 ? targetRow[16].toString().trim() : '';
+        final String exampleSentenceTranslation = nativeRow[15]
+            .toString()
+            .trim();
+        final String exampleSentencePronunciation = targetRow.length > 16
+            ? targetRow[16].toString().trim()
+            : '';
 
-        // Determine Category IDs for the legacy column
         final List<String> categoryIds = [];
         categoryIds.add(domainId);
         categoryIds.add(subDomainId);
         if (categoryIds.isEmpty) categoryIds.add('general');
-        
-        // Parse POS and Difficulty
+
         final pos = _mapPartOfSpeech(posStr);
         final difficulty = _mapFrequencyToDifficulty(frequency);
-        
-        // Create the Word model
+
         final word = Word(
           word: targetWord,
           translation: nativeWord,
@@ -266,7 +296,7 @@ class VocabularyService {
           targetLanguageCode: targetLangCode,
           conceptId: conceptId.toString(),
           conceptType: conceptType,
-          domain: domainId,  // Store ID for filtering
+          domain: domainId, // Store ID for filtering
           subDomain: subDomainId, // Store ID for filtering
           microCategory: microCategory,
           partsOfSpeech: [pos],
@@ -276,27 +306,34 @@ class VocabularyService {
           definition: definition.isNotEmpty ? definition : null,
           pronunciation: pronunciation.isNotEmpty ? pronunciation : null,
           exampleSentence: exampleSentence.isNotEmpty ? exampleSentence : null,
-          exampleSentenceTranslation: exampleSentenceTranslation.isNotEmpty ? exampleSentenceTranslation : null,
-          exampleSentencePronunciation: exampleSentencePronunciation.isNotEmpty ? exampleSentencePronunciation : null,
+          exampleSentenceTranslation: exampleSentenceTranslation.isNotEmpty
+              ? exampleSentenceTranslation
+              : null,
+          exampleSentencePronunciation: exampleSentencePronunciation.isNotEmpty
+              ? exampleSentencePronunciation
+              : null,
           difficulty: difficulty,
           frequency: frequency,
           imageId: rawImageId.isNotEmpty ? rawImageId : null,
-          languageSpecific: targetArticle.isNotEmpty ? {'article': targetArticle} : {},
+          languageSpecific: targetArticle.isNotEmpty
+              ? {'article': targetArticle}
+              : {},
         );
-        
+
         batchWords.add(word);
       }
     }
-    
-    // 3. Insert into the database
-    if (batchWords.isNotEmpty) {
-      await dbHelper.insertWordsBatch(batchWords);
-    }
+
+    return batchWords;
   }
 
   /// Fetches a paired word from Supabase for online games.
   /// Resolves the same Concept ID into Target and Native words.
-  static Future<Word?> fetchOnlineWord(String conceptId, String targetLang, String nativeLang) async {
+  static Future<Word?> fetchOnlineWord(
+    String conceptId,
+    String targetLang,
+    String nativeLang,
+  ) async {
     try {
       final response = await SupabaseConfig.client
           .from('vocabulary')
@@ -307,8 +344,14 @@ class VocabularyService {
       final List rows = response as List;
       if (rows.isEmpty) return null;
 
-      final targetRow = rows.firstWhere((r) => r['lang_code'] == targetLang, orElse: () => null);
-      final nativeRow = rows.firstWhere((r) => r['lang_code'] == nativeLang, orElse: () => rows.first);
+      final targetRow = rows.firstWhere(
+        (r) => r['lang_code'] == targetLang,
+        orElse: () => null,
+      );
+      final nativeRow = rows.firstWhere(
+        (r) => r['lang_code'] == nativeLang,
+        orElse: () => rows.first,
+      );
 
       if (targetRow == null) return null;
 
@@ -319,42 +362,57 @@ class VocabularyService {
 
       List<dynamic> distractorsData = [];
 
-      Future<List<dynamic>> fetchDistractors({String? eqSubDomain, String? eqDomain, String? likePos}) async {
+      Future<List<dynamic>> fetchDistractors({
+        String? eqSubDomain,
+        String? eqDomain,
+        String? likePos,
+      }) async {
         var query = SupabaseConfig.client
             .from('vocabulary')
             .select('word')
             .eq('lang_code', nativeLang)
             .neq('concept_id', conceptId);
-            
-        if (likePos != null && likePos.isNotEmpty) query = query.ilike('part_of_speech', '%$likePos%');
-        if (eqSubDomain != null && eqSubDomain.isNotEmpty) query = query.eq('sub_domain', eqSubDomain);
-        if (eqDomain != null && eqDomain.isNotEmpty) query = query.eq('domain', eqDomain);
-        
+
+        if (likePos != null && likePos.isNotEmpty)
+          query = query.ilike('part_of_speech', '%$likePos%');
+        if (eqSubDomain != null && eqSubDomain.isNotEmpty)
+          query = query.eq('sub_domain', eqSubDomain);
+        if (eqDomain != null && eqDomain.isNotEmpty)
+          query = query.eq('domain', eqDomain);
+
         return await query.limit(10);
       }
 
       // 1. Try Sub-Domain + POS
-      distractorsData = await fetchDistractors(eqSubDomain: subDomain, likePos: pos);
-      
+      distractorsData = await fetchDistractors(
+        eqSubDomain: subDomain,
+        likePos: pos,
+      );
+
       // 2. Fallback to Domain + POS
       if (distractorsData.length < 3) {
-        distractorsData = await fetchDistractors(eqDomain: domain, likePos: pos);
+        distractorsData = await fetchDistractors(
+          eqDomain: domain,
+          likePos: pos,
+        );
       }
-      
+
       // 3. Fallback to POS only
       if (distractorsData.length < 3) {
         distractorsData = await fetchDistractors(likePos: pos);
       }
-      
+
       // 4. Ultimate Fallback
       if (distractorsData.length < 3) {
         distractorsData = await fetchDistractors();
       }
-      
-      distractorsData.shuffle();
-      final distractors = distractorsData.take(3).map((r) => r['word'].toString()).toList();
 
-      final word = Word.fromMap(targetRow);
+      distractorsData.shuffle();
+      final distractors = distractorsData
+          .take(3)
+          .map((r) => r['word'].toString())
+          .toList();
+
       // Pair the native word as translation
       final updatedWord = Word(
         word: targetRow['word'],
@@ -370,14 +428,15 @@ class VocabularyService {
         definition: nativeRow['definition'], // Keep definition for extra info
         pronunciation: targetRow['pronunciation'],
         exampleSentence: targetRow['example_sentence'],
-        exampleSentenceTranslation: nativeRow['example_sentence'], // Translation of the sentence
+        exampleSentenceTranslation:
+            nativeRow['example_sentence'], // Translation of the sentence
         difficulty: _mapFrequencyToDifficulty(targetRow['frequency'] ?? ''),
         imageId: targetRow['imageId'] ?? targetRow['image_id'],
         partOfSpeechRaw: targetRow['part_of_speech'],
       );
 
       updatedWord.setOptions([nativeRow['word'], ...distractors]..shuffle());
-      
+
       return updatedWord;
     } catch (e) {
       debugPrint('Error fetching online word: $e');
@@ -388,24 +447,19 @@ class VocabularyService {
   /// Maps frequency labels to difficulty levels (1-5).
   static int _mapFrequencyToDifficulty(String frequency) {
     switch (frequency.toLowerCase()) {
-      case 'very high': return 1;
-      case 'high': return 2;
-      case 'medium': return 3;
-      case 'low': return 4;
-      case 'very low': return 5;
-      default: return 1;
+      case 'very high':
+        return 1;
+      case 'high':
+        return 2;
+      case 'medium':
+        return 3;
+      case 'low':
+        return 4;
+      case 'very low':
+        return 5;
+      default:
+        return 1;
     }
-  }
-
-
-  static String? _findCategoryIdByName(String name) {
-    if (name.isEmpty) return null;
-    for (final cat in CategoryTaxonomy.getAllCategories()) {
-      if (cat.name.toLowerCase() == name.toLowerCase()) {
-        return cat.id;
-      }
-    }
-    return null;
   }
 
   /// Maps a part of speech string to the Enum.
@@ -422,32 +476,34 @@ class VocabularyService {
     return PartOfSpeech.noun;
   }
 
-  /// One-time normalization to convert display names to IDs in the database.
   static Future<void> normalizeDatabaseCategories() async {
     final dbHelper = DatabaseHelper();
-    final allWords = await dbHelper.getWordsForLanguage('en', 'es'); // Or any pair
+    // One-time normalization to convert display names to IDs in the database.
     // We actually need all words regardless of lang to be safe, or just run for active ones.
     // Better to use a raw query to get everything.
-    
+
     final db = await dbHelper.database;
     final List<Map<String, dynamic>> rows = await db.query('words');
-    
+
     for (final row in rows) {
       final String rawDomain = (row['domain'] as String?) ?? '';
       final String rawSubDomain = (row['sub_domain'] as String?) ?? '';
-      
+
       if (rawDomain.isEmpty) continue;
-      
+
       final domainId = _findThemeIdByName(rawDomain);
       if (domainId != null && domainId != rawDomain) {
         final subDomainId = _findSubThemeIdByName(rawSubDomain, domainId);
-        
+
         await db.update(
           'words',
           {
             'domain': domainId,
             'sub_domain': subDomainId ?? rawSubDomain,
-            'category_ids': [domainId, if (subDomainId != null) subDomainId].join(','),
+            'category_ids': [
+              domainId,
+              if (subDomainId != null) subDomainId,
+            ].join(','),
           },
           where: 'id = ?',
           whereArgs: [row['id']],

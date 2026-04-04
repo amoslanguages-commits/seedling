@@ -65,10 +65,10 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
   _PlantPhase _phase = _PlantPhase.seedAppear;
 
   // ── animation controllers ──────────────────────────────────────
-  late AnimationController _dropController;   // seed enters from top
-  late AnimationController _crackController;  // crack open
+  late AnimationController _dropController; // seed enters from top
+  late AnimationController _crackController; // crack open
   late AnimationController _revealController; // word/translation fade-in
-  late AnimationController _plantController;  // falling into soil
+  late AnimationController _plantController; // falling into soil
   late AnimationController _particleController; // burst particles
   late AnimationController _gardenController; // planted seeds row
 
@@ -113,12 +113,30 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
       duration: const Duration(milliseconds: 500),
     );
 
-    _dropAnim = CurvedAnimation(parent: _dropController, curve: Curves.bounceOut);
-    _crackAnim = CurvedAnimation(parent: _crackController, curve: Curves.easeInOut);
-    _revealAnim = CurvedAnimation(parent: _revealController, curve: Curves.easeOut);
-    _plantAnim = CurvedAnimation(parent: _plantController, curve: Curves.easeIn);
-    _particleAnim = CurvedAnimation(parent: _particleController, curve: Curves.easeOut);
-    _gardenAnim = CurvedAnimation(parent: _gardenController, curve: Curves.elasticOut);
+    _dropAnim = CurvedAnimation(
+      parent: _dropController,
+      curve: Curves.bounceOut,
+    );
+    _crackAnim = CurvedAnimation(
+      parent: _crackController,
+      curve: Curves.easeInOut,
+    );
+    _revealAnim = CurvedAnimation(
+      parent: _revealController,
+      curve: Curves.easeOut,
+    );
+    _plantAnim = CurvedAnimation(
+      parent: _plantController,
+      curve: Curves.easeIn,
+    );
+    _particleAnim = CurvedAnimation(
+      parent: _particleController,
+      curve: Curves.easeOut,
+    );
+    _gardenAnim = CurvedAnimation(
+      parent: _gardenController,
+      curve: Curves.elasticOut,
+    );
   }
 
   // ── phase transitions ──────────────────────────────────────────
@@ -126,7 +144,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
   void _startSeedAppear() async {
     if (!mounted) return;
     setState(() => _phase = _PlantPhase.seedAppear);
-    
+
     // Reset all controllers for a clean sequence start
     _dropController.value = 0;
     _crackController.value = 0;
@@ -231,9 +249,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
 
     return Scaffold(
       backgroundColor: SeedlingColors.background,
-      body: SafeArea(
-        child: body,
-      ),
+      body: SafeArea(child: body),
     );
   }
 
@@ -267,8 +283,8 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
             state: _phase == _PlantPhase.reading
                 ? MascotState.happy
                 : _phase == _PlantPhase.planting
-                    ? MascotState.growing
-                    : MascotState.idle,
+                ? MascotState.growing
+                : MascotState.idle,
           ),
         ],
       ),
@@ -279,8 +295,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
     return Row(
       children: List.generate(widget.initialBatchSize, (i) {
         final planted = i < _plantedWords.length;
-        final current = i == _plantedWords.length &&
-            _phase != _PlantPhase.done;
+        final current = i == _plantedWords.length && _phase != _PlantPhase.done;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 400),
           margin: const EdgeInsets.only(right: 6),
@@ -290,8 +305,8 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
             color: planted
                 ? SeedlingColors.deepRoot
                 : current
-                    ? SeedlingColors.seedlingGreen
-                    : SeedlingColors.morningDew.withValues(alpha: 0.4),
+                ? SeedlingColors.seedlingGreen
+                : SeedlingColors.morningDew.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(6),
           ),
         );
@@ -305,34 +320,38 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
     return Stack(
       children: [
         // Soil layer at bottom
-        Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: _buildSoilLayer(),
-        ),
+        Positioned(bottom: 0, left: 0, right: 0, child: _buildSoilLayer()),
 
         // Planted seeds garden (grows as we plant)
-        Positioned(
-          bottom: 60, left: 0, right: 0,
-          child: _buildPlantedGarden(),
-        ),
+        Positioned(bottom: 60, left: 0, right: 0, child: _buildPlantedGarden()),
 
-        // Main content — centered
+        // Main content — scrollable to prevent overflow on small screens with long sentences
         Positioned.fill(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 20),
 
-              // The animated seed + word reveal
-              _buildSeedReveal(word),
+                      // The animated seed + word reveal
+                      _buildSeedReveal(word),
 
-              const SizedBox(height: 48),
+                      const SizedBox(height: 48),
 
-              // CTA button — only visible in reading phase
-              _buildPlantButton(),
+                      // CTA button — only visible in reading phase
+                      _buildPlantButton(),
 
-              const SizedBox(height: 80),
-            ],
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
 
@@ -357,7 +376,10 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
   Widget _buildSeedReveal(Word word) {
     return AnimatedBuilder(
       animation: Listenable.merge([
-        _dropAnim, _crackAnim, _revealAnim, _plantAnim,
+        _dropAnim,
+        _crackAnim,
+        _revealAnim,
+        _plantAnim,
       ]),
       builder: (ctx, _) {
         // Seed falls from above
@@ -424,7 +446,10 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
           children: [
             if (word.partsOfSpeech.isNotEmpty) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: SeedlingColors.morningDew.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
@@ -456,17 +481,19 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
                 ),
                 const SizedBox(width: 4),
                 IconButton(
-                  icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen),
-                  onPressed: () => TtsService.instance.speak(word.ttsWord, word.targetLanguageCode),
+                  icon: const Icon(
+                    Icons.volume_up_rounded,
+                    color: SeedlingColors.seedlingGreen,
+                  ),
+                  onPressed: () => TtsService.instance.speak(
+                    word.ttsWord,
+                    word.targetLanguageCode,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            Container(
-              height: 1.5,
-              width: 60,
-              color: SeedlingColors.morningDew,
-            ),
+            Container(height: 1.5, width: 60, color: SeedlingColors.morningDew),
             const SizedBox(height: 8),
             Text(
               word.translation,
@@ -478,7 +505,9 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
               textAlign: TextAlign.center,
             ),
 
-            if (word.definition != null && word.definition!.isNotEmpty && word.definition != word.translation) ...[
+            if (word.definition != null &&
+                word.definition!.isNotEmpty &&
+                word.definition != word.translation) ...[
               const SizedBox(height: 12),
               Text(
                 word.definition!,
@@ -490,7 +519,8 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
                 textAlign: TextAlign.center,
               ),
             ],
-            if (word.exampleSentence != null && word.exampleSentence!.isNotEmpty) ...[
+            if (word.exampleSentence != null &&
+                word.exampleSentence!.isNotEmpty) ...[
               const SizedBox(height: 16),
               ExampleSentenceDisplay(
                 word: word,
@@ -540,10 +570,7 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
       duration: const Duration(milliseconds: 400),
       curve: Curves.elasticOut,
       builder: (context, value, child) {
-        return Transform.scale(
-          scale: value,
-          child: child,
-        );
+        return Transform.scale(scale: value, child: child);
       },
       child: GestureDetector(
         onTap: _plantSeed,
@@ -567,8 +594,11 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.arrow_downward_rounded,
-                  color: SeedlingColors.textPrimary, size: 22),
+              const Icon(
+                Icons.arrow_downward_rounded,
+                color: SeedlingColors.textPrimary,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Text(
                 'Plant It',
@@ -596,12 +626,11 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(_plantedWords.length, (i) {
             final delay = i / _plantedWords.length;
-            final t = (((_gardenAnim.value - delay) / (1 - delay))
-                .clamp(0.0, 1.0));
-            return Transform.scale(
-              scale: t,
-              child: const _PlantedSeedling(),
-            );
+            final t = (((_gardenAnim.value - delay) / (1 - delay)).clamp(
+              0.0,
+              1.0,
+            ));
+            return Transform.scale(scale: t, child: const _PlantedSeedling());
           }),
         );
       },
@@ -650,9 +679,9 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
 // ================================================================
 
 class SeedRevealPainter extends CustomPainter {
-  final double crackProgress;  // 0→1: cracks appear
+  final double crackProgress; // 0→1: cracks appear
   final double revealProgress; // 0→1: inner light glows
-  final double plantProgress;  // 0→1: seed fades to soil
+  final double plantProgress; // 0→1: seed fades to soil
 
   SeedRevealPainter({
     required this.crackProgress,
@@ -668,13 +697,16 @@ class SeedRevealPainter extends CustomPainter {
 
     // ── Drop shadow ──
     final shadowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          SeedlingColors.deepRoot.withValues(alpha: 0.15 * baseAlpha),
-          SeedlingColors.deepRoot.withValues(alpha: 0.0),
-        ],
-        stops: const [0.4, 1.0],
-      ).createShader(Rect.fromCenter(center: Offset(cx, cy + 8), width: 110, height: 80));
+      ..shader =
+          RadialGradient(
+            colors: [
+              SeedlingColors.deepRoot.withValues(alpha: 0.15 * baseAlpha),
+              SeedlingColors.deepRoot.withValues(alpha: 0.0),
+            ],
+            stops: const [0.4, 1.0],
+          ).createShader(
+            Rect.fromCenter(center: Offset(cx, cy + 8), width: 110, height: 80),
+          );
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx, cy + 8), width: 110, height: 80),
       shadowPaint,
@@ -711,16 +743,20 @@ class SeedRevealPainter extends CustomPainter {
     if (revealProgress > 0) {
       final glowRadius = 30.0 + revealProgress * 20.0;
       final glowPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            SeedlingColors.freshSprout.withValues(alpha: revealProgress * 0.9 * baseAlpha),
-            SeedlingColors.seedlingGreen.withValues(alpha: revealProgress * 0.4 * baseAlpha),
-            Colors.transparent,
-          ],
-        ).createShader(Rect.fromCircle(
-          center: Offset(cx, cy),
-          radius: glowRadius,
-        ));
+        ..shader =
+            RadialGradient(
+              colors: [
+                SeedlingColors.freshSprout.withValues(
+                  alpha: revealProgress * 0.9 * baseAlpha,
+                ),
+                SeedlingColors.seedlingGreen.withValues(
+                  alpha: revealProgress * 0.4 * baseAlpha,
+                ),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+            );
       canvas.save();
       canvas.clipPath(seedPath);
       canvas.drawCircle(Offset(cx, cy), glowRadius, glowPaint);
@@ -732,9 +768,7 @@ class SeedRevealPainter extends CustomPainter {
 
     // ── Seed outline ──
     final outlinePaint = Paint()
-      ..color = SeedlingColors.deepRoot.withValues(
-        alpha: 0.6 * baseAlpha,
-      )
+      ..color = SeedlingColors.deepRoot.withValues(alpha: 0.6 * baseAlpha)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
     canvas.drawPath(seedPath, outlinePaint);
@@ -743,15 +777,36 @@ class SeedRevealPainter extends CustomPainter {
   Path _buildSeedPath(double cx, double cy, double rw, double rh) {
     return Path()
       ..moveTo(cx, cy - rh)
-      ..cubicTo(cx + rw, cy - rh * 0.6, cx + rw * 0.8, cy + rh * 0.4, cx, cy + rh)
-      ..cubicTo(cx - rw * 0.8, cy + rh * 0.4, cx - rw, cy - rh * 0.6, cx, cy - rh)
+      ..cubicTo(
+        cx + rw,
+        cy - rh * 0.6,
+        cx + rw * 0.8,
+        cy + rh * 0.4,
+        cx,
+        cy + rh,
+      )
+      ..cubicTo(
+        cx - rw * 0.8,
+        cy + rh * 0.4,
+        cx - rw,
+        cy - rh * 0.6,
+        cx,
+        cy - rh,
+      )
       ..close();
   }
 
-  void _drawCracks(Canvas canvas, double cx, double cy,
-      double progress, double alpha) {
+  void _drawCracks(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double progress,
+    double alpha,
+  ) {
     final crackPaint = Paint()
-      ..color = SeedlingColors.deepRoot.withValues(alpha: 0.5 * progress * alpha)
+      ..color = SeedlingColors.deepRoot.withValues(
+        alpha: 0.5 * progress * alpha,
+      )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
@@ -774,8 +829,13 @@ class SeedRevealPainter extends CustomPainter {
     }
   }
 
-  void _drawEmergingSprout(Canvas canvas, double x, double y,
-      double progress, double alpha) {
+  void _drawEmergingSprout(
+    Canvas canvas,
+    double x,
+    double y,
+    double progress,
+    double alpha,
+  ) {
     // Tiny sprout emerging upward as seed reveals
     final stemPaint = Paint()
       ..color = SeedlingColors.freshSprout.withValues(alpha: progress * alpha)
@@ -784,11 +844,7 @@ class SeedRevealPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final stemHeight = 28.0 * progress;
-    canvas.drawLine(
-      Offset(x, y),
-      Offset(x, y - stemHeight),
-      stemPaint,
-    );
+    canvas.drawLine(Offset(x, y), Offset(x, y - stemHeight), stemPaint);
 
     // Tiny leaf pair at top of sprout
     if (progress > 0.5) {
@@ -799,13 +855,33 @@ class SeedRevealPainter extends CustomPainter {
         )
         ..style = PaintingStyle.fill;
 
-      _drawTinyLeaf(canvas, x, y - stemHeight, -0.4, 10 * leafProgress, leafPaint);
-      _drawTinyLeaf(canvas, x, y - stemHeight, 0.4, 9 * leafProgress, leafPaint);
+      _drawTinyLeaf(
+        canvas,
+        x,
+        y - stemHeight,
+        -0.4,
+        10 * leafProgress,
+        leafPaint,
+      );
+      _drawTinyLeaf(
+        canvas,
+        x,
+        y - stemHeight,
+        0.4,
+        9 * leafProgress,
+        leafPaint,
+      );
     }
   }
 
-  void _drawTinyLeaf(Canvas canvas, double x, double y,
-      double angle, double size, Paint paint) {
+  void _drawTinyLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double size,
+    Paint paint,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(angle);
@@ -847,8 +923,8 @@ class SeedParticlePainter extends CustomPainter {
 
       final px = cx + math.cos(angle) * speed * progress;
       // gravity
-      final py = cy + math.sin(angle) * speed * progress +
-          80 * progress * progress;
+      final py =
+          cy + math.sin(angle) * speed * progress + 80 * progress * progress;
 
       final color = i % 2 == 0
           ? SeedlingColors.soil
@@ -913,11 +989,7 @@ class _PlantedSeedlingPainter extends CustomPainter {
       ..strokeWidth = 4
       ..strokeCap = StrokeCap.round;
 
-    canvas.drawLine(
-      Offset(cx, groundY),
-      Offset(cx, groundY - 30),
-      stemPaint,
-    );
+    canvas.drawLine(Offset(cx, groundY), Offset(cx, groundY - 30), stemPaint);
 
     // Leaves
     final leafPaint = Paint()
@@ -928,8 +1000,14 @@ class _PlantedSeedlingPainter extends CustomPainter {
     _drawLeaf(canvas, cx, groundY - 24, 0.5, 11, leafPaint);
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y,
-      double angle, double size, Paint paint) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double size,
+    Paint paint,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(angle);

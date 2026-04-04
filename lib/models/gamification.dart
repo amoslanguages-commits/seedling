@@ -5,17 +5,17 @@ class Achievement {
   final String title;
   final String description;
   final String icon;
+  final bool isUnlocked;
   final DateTime? unlockedAt;
-  
+
   Achievement({
     required this.id,
     required this.title,
     required this.description,
     required this.icon,
+    required this.isUnlocked,
     this.unlockedAt,
   });
-  
-  bool get isUnlocked => unlockedAt != null;
 }
 
 class DailyChallenge {
@@ -24,7 +24,7 @@ class DailyChallenge {
   final double progress;
   final double goal;
   final int xpReward;
-  
+
   DailyChallenge({
     required this.id,
     required this.title,
@@ -32,31 +32,37 @@ class DailyChallenge {
     required this.goal,
     required this.xpReward,
   });
-  
+
   bool get isCompleted => progress >= goal;
 }
 
 class DailyChallengeManager {
-  static List<DailyChallenge> generateDailyChallenges() {
+  static Future<List<DailyChallenge>> getDailyChallenges() async {
+    final stats = await DatabaseHelper().getUserStats();
+    final wordsToday = stats['wordsReviewedToday'] as int? ?? 0;
+    final studyMinutes = stats['totalStudyMinutes'] as int? ?? 0;
+    // For "perfect accuracy", we'll use a heuristic or just a high-level stat for now
+    // as we don't track per-quiz perfection in the aggregate yet.
+    
     return [
       DailyChallenge(
         id: 'challenge_1',
         title: 'Learn 5 new words',
-        progress: 3,
+        progress: wordsToday.toDouble(),
         goal: 5,
         xpReward: 50,
       ),
       DailyChallenge(
         id: 'challenge_2',
-        title: 'Perfect accuracy in 2 quizzes',
-        progress: 1,
-        goal: 2,
+        title: 'Study session completion',
+        progress: (stats['totalSessions'] ?? 0) > 0 ? 1 : 0,
+        goal: 1,
         xpReward: 100,
       ),
       DailyChallenge(
         id: 'challenge_3',
-        title: 'Study for 15 minutes',
-        progress: 10,
+        title: 'Active Learning',
+        progress: studyMinutes.toDouble(),
         goal: 15,
         xpReward: 75,
       ),
@@ -73,48 +79,54 @@ class StreakManager {
 
 class XPManager {
   static Future<(int, int, int)> getLevelProgress() async {
-    // 10 XP per total word learned + 5 XP per study minute
     final stats = await DatabaseHelper().getUserStats();
-    final int wordsL = stats['totalWordsLearned'] as int? ?? 0;
-    final int minutes = stats['totalStudyMinutes'] as int? ?? 0;
-    
-    final int totalXP = (wordsL * 10) + (minutes * 5);
+    final int points = stats['totalXP'] as int? ?? 0;
     const int xpPerLevel = 1000;
-    
-    int level = (totalXP / xpPerLevel).floor() + 1;
-    int currentXP = totalXP % xpPerLevel;
-    
+
+    int level = (points / xpPerLevel).floor() + 1;
+    int currentXP = points % xpPerLevel;
+
     return (level, currentXP, xpPerLevel);
   }
 }
 
 class AchievementManager {
-  static List<Achievement> get achievements => [
-    Achievement(
-      id: 'first_steps',
-      title: 'First Steps',
-      description: 'Learn your first 10 words',
-      icon: '🌱',
-      unlockedAt: DateTime.now().subtract(const Duration(days: 5)),
-    ),
-    Achievement(
-      id: 'streak_7',
-      title: 'Week Warrior',
-      description: 'Maintain a 7-day streak',
-      icon: '🔥',
-      unlockedAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    Achievement(
-      id: 'polyglot',
-      title: 'Polyglot',
-      description: 'Start learning a second language',
-      icon: '🌍',
-    ),
-    Achievement(
-      id: 'top_learner',
-      title: 'Top Learner',
-      description: 'Reach Level 10',
-      icon: '🏆',
-    ),
-  ];
+  static Future<List<Achievement>> getAchievements() async {
+    final stats = await DatabaseHelper().getUserStats();
+    final totalWords = stats['totalWordsLearned'] as int? ?? 0;
+    final streak = stats['currentStreak'] as int? ?? 0;
+    final totalXP = stats['totalXP'] as int? ?? 0;
+    final level = (totalXP / 1000).floor() + 1;
+
+    return [
+      Achievement(
+        id: 'first_steps',
+        title: 'First Steps',
+        description: 'Learn your first 10 words',
+        icon: '🌱',
+        isUnlocked: totalWords >= 10,
+      ),
+      Achievement(
+        id: 'streak_7',
+        title: 'Week Warrior',
+        description: 'Maintain a 7-day streak',
+        icon: '🔥',
+        isUnlocked: streak >= 7,
+      ),
+      Achievement(
+        id: 'polyglot',
+        title: 'Polyglot',
+        description: 'Earn 5000 total XP',
+        icon: '🌍',
+        isUnlocked: totalXP >= 5000,
+      ),
+      Achievement(
+        id: 'top_learner',
+        title: 'Top Learner',
+        description: 'Reach Level 10',
+        icon: '🏆',
+        isUnlocked: level >= 10,
+      ),
+    ];
+  }
 }

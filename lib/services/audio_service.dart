@@ -5,26 +5,23 @@ import 'package:flutter/services.dart';
 /// Catalogue of every SFX in the app.
 enum SFX {
   // ── Quiz events ─────────────────────────────────────────────
-  correctAnswer,      // Used for streaks 0-2
-  wrongAnswer,        // Dissonant low thud
-  streakBonus,        // Every 3rd correct in a row
-  engraveSuccess,     // EngraveRoot typing mastery passed
-
+  correctAnswer, // Used for streaks 0-2
+  wrongAnswer, // Dissonant low thud
+  streakBonus, // Every 3rd correct in a row
+  engraveSuccess, // EngraveRoot typing mastery passed
   // ── Session events ─────────────────────────────────────────
-  quizStart,          // Session begins
-  sessionComplete,    // Full session completed
-  levelUp,            // Mastery level gained
-
+  quizStart, // Session begins
+  sessionComplete, // Full session completed
+  levelUp, // Mastery level gained
   // ── Word & planting events ─────────────────────────────────
-  wordPlanted,        // Word planted in garden
-  wordReveal,         // Word shown during planting
-  sparklePing,        // First correct on a brand-new word
-  plantGrow,          // Plant growing animation
-
+  wordPlanted, // Word planted in garden
+  wordReveal, // Word shown during planting
+  sparklePing, // First correct on a brand-new word
+  plantGrow, // Plant growing animation
   // ── Navigation & UI events ─────────────────────────────────
-  buttonTap,          // Generic button press
-  navTap,             // Tab/navigation switch
-  splashReveal,       // Logo/splash reveal
+  buttonTap, // Generic button press
+  navTap, // Tab/navigation switch
+  splashReveal, // Logo/splash reveal
   onboardingComplete, // Onboarding finished
 }
 
@@ -53,8 +50,7 @@ class AudioService {
 
   // ── Pools ────────────────────────────────────────────────────
   final Map<SFX, AudioPlayer> _pool = {};
-  final List<AudioPlayer> _correctPool =
-      List.generate(4, (_) => AudioPlayer());
+  final List<AudioPlayer> _correctPool = List.generate(4, (_) => AudioPlayer());
   late final AudioPlayer _ambientPlayer;
   late final AudioPlayer _flowPlayer;
 
@@ -65,25 +61,25 @@ class AudioService {
 
   bool _ambientRunning = false;
   bool _ambientEnabled = true; // user can toggle from Settings
-  
+
   int _globalStreak = 0;
   bool _flowRunning = false;
 
   static const _assetMap = {
-    SFX.correctAnswer:      'sfx/correct_2.wav', // default (overridden by streak)
-    SFX.wrongAnswer:        'sfx/wrong.wav',
-    SFX.streakBonus:        'sfx/streak_bonus.wav',
-    SFX.engraveSuccess:     'sfx/engrave_success.wav',
-    SFX.quizStart:          'sfx/quiz_start.wav',
-    SFX.sessionComplete:    'sfx/session_complete.wav',
-    SFX.levelUp:            'sfx/level_up.wav',
-    SFX.wordPlanted:        'sfx/word_planted.wav',
-    SFX.wordReveal:         'sfx/word_reveal.wav',
-    SFX.sparklePing:        'sfx/sparkle_ping.wav',
-    SFX.plantGrow:          'sfx/plant_grow.wav',
-    SFX.buttonTap:          'sfx/button_tap.wav',
-    SFX.navTap:             'sfx/nav_tap.wav',
-    SFX.splashReveal:       'sfx/splash_reveal.wav',
+    SFX.correctAnswer: 'sfx/correct_2.wav', // default (overridden by streak)
+    SFX.wrongAnswer: 'sfx/wrong.wav',
+    SFX.streakBonus: 'sfx/streak_bonus.wav',
+    SFX.engraveSuccess: 'sfx/engrave_success.wav',
+    SFX.quizStart: 'sfx/quiz_start.wav',
+    SFX.sessionComplete: 'sfx/session_complete.wav',
+    SFX.levelUp: 'sfx/level_up.wav',
+    SFX.wordPlanted: 'sfx/word_planted.wav',
+    SFX.wordReveal: 'sfx/word_reveal.wav',
+    SFX.sparklePing: 'sfx/sparkle_ping.wav',
+    SFX.plantGrow: 'sfx/plant_grow.wav',
+    SFX.buttonTap: 'sfx/button_tap.wav',
+    SFX.navTap: 'sfx/nav_tap.wav',
+    SFX.splashReveal: 'sfx/splash_reveal.wav',
     SFX.onboardingComplete: 'sfx/onboarding_complete.wav',
   };
 
@@ -119,14 +115,18 @@ class AudioService {
     _ambientPlayer = AudioPlayer();
     await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
     await _ambientPlayer.setVolume(0); // starts silent
-    
+
     // Set up flow state player
     _flowPlayer = AudioPlayer();
     await _flowPlayer.setReleaseMode(ReleaseMode.loop);
     await _flowPlayer.setVolume(0);
-    await _flowPlayer.setPlaybackRate(1.25); // Faster, more intense upbeat tempo
+    await _flowPlayer.setPlaybackRate(
+      1.25,
+    ); // Faster, more intense upbeat tempo
 
-    debugPrint('[AudioService] initialized ${_pool.length} SFX channels + ambient + flow.');
+    debugPrint(
+      '[AudioService] initialized ${_pool.length} SFX channels + ambient + flow.',
+    );
   }
 
   // ── Ambient garden layer ─────────────────────────────────────
@@ -177,16 +177,16 @@ class AudioService {
       await Future.delayed(Duration(milliseconds: stepMs));
     }
   }
-  
+
   // ── Dynamic Flow State Audio ──────────────────────────────────
-  
+
   Future<void> _startFlowState() async {
     if (_muted || _flowRunning || !_ambientEnabled) return;
     _flowRunning = true;
-    
+
     // Play the flow track (reusing ambient but faster/louder)
     await _flowPlayer.play(AssetSource('sfx/ambient_garden.mp3'));
-    
+
     // Duck ambient to zero, ramp flow volume up
     _ambientFadeTo(0, const Duration(seconds: 1));
     _flowFadeTo(_flowVolume, const Duration(seconds: 1));
@@ -195,11 +195,11 @@ class AudioService {
   Future<void> _stopFlowState() async {
     if (!_flowRunning) return;
     _flowRunning = false;
-    
+
     // Abrupt stop (record scratch effect)
     await _flowPlayer.stop();
     await _flowPlayer.setVolume(0);
-    
+
     // Restore ambient gently
     if (_ambientRunning && !_muted && _ambientEnabled) {
       _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
@@ -207,8 +207,8 @@ class AudioService {
   }
 
   void resetFlowState() {
-     _globalStreak = 0;
-     _stopFlowState();
+    _globalStreak = 0;
+    _stopFlowState();
   }
 
   /// Duck ambient while a short SFX plays, then restore.
@@ -247,12 +247,12 @@ class AudioService {
     if (_muted) {
       return;
     }
-    
+
     if (sfx == SFX.wrongAnswer) {
       _globalStreak = 0;
       _stopFlowState();
     }
-    
+
     final player = _pool[sfx];
     if (player == null) {
       return;
@@ -273,15 +273,21 @@ class AudioService {
     if (_muted) {
       return;
     }
-    
+
     _globalStreak++;
     if (_globalStreak >= 5 && !_flowRunning) {
       _startFlowState();
     }
-    
+
     // Determine which tier to use based on internal streak to guarantee escalating audio
     final effectiveStreak = _globalStreak;
-    final tier = effectiveStreak < 3 ? 0 : effectiveStreak < 6 ? 1 : effectiveStreak < 9 ? 2 : 3;
+    final tier = effectiveStreak < 3
+        ? 0
+        : effectiveStreak < 6
+        ? 1
+        : effectiveStreak < 9
+        ? 2
+        : 3;
     final player = _correctPool[tier];
     // Pitch escalation: +12% per tier simulates half-octave shift
     final pitchRate = 1.0 + (tier * 0.12);
@@ -369,11 +375,4 @@ class AudioService {
 }
 
 /// Semantic haptic types matching app interactions.
-enum HapticType {
-  correct,
-  wrong,
-  tap,
-  plant,
-  levelUp,
-  sessionComplete,
-}
+enum HapticType { correct, wrong, tap, plant, levelUp, sessionComplete }

@@ -1,48 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/colors.dart';
 import '../core/typography.dart';
 import '../models/sentence_item.dart';
-import '../data/placeholder_sentences.dart';
+import '../core/supabase_config.dart';
 import '../widgets/sentence_quizzes.dart';
+import '../database/database_helper.dart';
+import '../providers/app_providers.dart';
+import '../services/auth_service.dart';
+import '../services/sync_manager.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  QUIZ MODES
 // ══════════════════════════════════════════════════════════════════════════════
 
-enum SentenceQuizMode {
-  fillBranch,
-  translateSprint,
-}
+enum SentenceQuizMode { fillBranch, translateSprint }
 
 extension SentenceQuizModeX on SentenceQuizMode {
   String get label => switch (this) {
-        SentenceQuizMode.fillBranch => 'Fill The Branch',
-        SentenceQuizMode.translateSprint => 'Translation Sprint',
-      };
+    SentenceQuizMode.fillBranch => 'Fill The Branch',
+    SentenceQuizMode.translateSprint => 'Translation Sprint',
+  };
 
   String get emoji => switch (this) {
-        SentenceQuizMode.fillBranch => '🌿',
-        SentenceQuizMode.translateSprint => '🌳',
-      };
+    SentenceQuizMode.fillBranch => '🌿',
+    SentenceQuizMode.translateSprint => '🌳',
+  };
 
   String get description => switch (this) {
-        SentenceQuizMode.fillBranch =>
-          'Complete the missing word in a sentence',
-        SentenceQuizMode.translateSprint =>
-          'Identify what the highlighted word means',
-      };
+    SentenceQuizMode.fillBranch => 'Complete the missing word in a sentence',
+    SentenceQuizMode.translateSprint =>
+      'Identify what the highlighted word means',
+  };
 
   Color get color => switch (this) {
-        SentenceQuizMode.fillBranch => SeedlingColors.seedlingGreen,
-        SentenceQuizMode.translateSprint => SeedlingColors.water,
-      };
+    SentenceQuizMode.fillBranch => SeedlingColors.seedlingGreen,
+    SentenceQuizMode.translateSprint => SeedlingColors.water,
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  SESSION SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-class SentenceSessionScreen extends StatefulWidget {
+class SentenceSessionScreen extends ConsumerStatefulWidget {
   final SentenceQuizMode mode;
 
   /// Language pair — reserved for when real DB queries replace placeholder data.
@@ -57,22 +59,49 @@ class SentenceSessionScreen extends StatefulWidget {
   });
 
   @override
-  State<SentenceSessionScreen> createState() => _SentenceSessionScreenState();
+  ConsumerState<SentenceSessionScreen> createState() => _SentenceSessionScreenState();
 }
 
-class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
-  late final List<SentenceItem> _items;
+class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
+  List<SentenceItem> _items = [];
+  bool _isLoading = true;
+  String _error = '';
   int _currentIndex = 0;
   int _correct = 0;
   bool _sessionComplete = false;
+  bool _saveSessionCalled = false;
 
   @override
   void initState() {
     super.initState();
-    // Load placeholder data; later swapped with DB query.
-    _items = PlaceholderSentences.getForLanguagePair(
-            widget.nativeLangCode, widget.targetLangCode)
-        ..shuffle();
+    _fetchSentences();
+  }
+
+  Future<void> _fetchSentences() async {
+    try {
+      final response = await SupabaseConfig.client
+          .from('sentences')
+          .select()
+          .eq('native_lang_code', widget.nativeLangCode)
+          .eq('target_lang_code', widget.targetLangCode);
+      
+      final items = (response as List).map((e) => SentenceItem.fromJson(e)).toList();
+      items.shuffle();
+      
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   // ── Option generation ──────────────────────────────────────────────────────
@@ -103,14 +132,71 @@ class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
         _currentIndex++;
       } else {
         _sessionComplete = true;
+        _saveProgress();
       }
     });
+  }
+
+  Future<void> _saveProgress() async {
+    if (_saveSessionCalled) return;
+    _saveSessionCalled = true;
+
+    final userId = AuthService().userId ?? 'guest';
+    final db = DatabaseHelper();
+    
+    await db.saveStudySession({
+      'user_id': userId,
+      'language_code': widget.targetLangCode,
+      'session_date': DateTime.now().toIso8601String(),
+      'words_studied': _items.length,
+      'correct_answers': _correct,
+      'duration_minutes': 5, // Estimated
+      'xp_gained': 100, // Balanced XP for sentence sessions
+    });
+
+    // Refresh stats provider
+    ref.invalidate(userStatsProvider);
+    // Sync to cloud
+    SyncManager().syncToCloud();
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: SeedlingColors.background,
+        appBar: _buildAppBar(0),
+        body: const Center(
+          child: CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
+        ),
+      );
+    }
+
+    if (_error.isNotEmpty) {
+      return Scaffold(
+        backgroundColor: SeedlingColors.background,
+        appBar: _buildAppBar(0),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text('Failed to load sentences: $_error', style: SeedlingTypography.body),
+          ),
+        ),
+      );
+    }
+    
+    if (_items.isEmpty) {
+      return Scaffold(
+        backgroundColor: SeedlingColors.background,
+        appBar: _buildAppBar(0),
+        body: Center(
+          child: Text('No sentences available.', style: SeedlingTypography.body),
+        ),
+      );
+    }
+
     if (_sessionComplete) {
       return _SessionCompleteScreen(
         mode: widget.mode,
@@ -136,17 +222,17 @@ class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
       body: SafeArea(
         child: switch (widget.mode) {
           SentenceQuizMode.fillBranch => FillTheBranchQuiz(
-              key: ValueKey(_currentIndex),
-              item: item,
-              options: options,
-              onAnswer: _onAnswer,
-            ),
+            key: ValueKey(_currentIndex),
+            item: item,
+            options: options,
+            onAnswer: _onAnswer,
+          ),
           SentenceQuizMode.translateSprint => TranslationSprintQuiz(
-              key: ValueKey(_currentIndex),
-              item: item,
-              options: options,
-              onAnswer: _onAnswer,
-            ),
+            key: ValueKey(_currentIndex),
+            item: item,
+            options: options,
+            onAnswer: _onAnswer,
+          ),
         },
       ),
     );
@@ -158,8 +244,11 @@ class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.close_rounded,
-            color: SeedlingColors.textSecondary, size: 22),
+        icon: const Icon(
+          Icons.close_rounded,
+          color: SeedlingColors.textSecondary,
+          size: 22,
+        ),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: Column(
@@ -176,8 +265,7 @@ class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor:
-                  SeedlingColors.cardBackground,
+              backgroundColor: SeedlingColors.cardBackground,
               valueColor: AlwaysStoppedAnimation<Color>(widget.mode.color),
               minHeight: 5,
             ),
@@ -192,8 +280,9 @@ class _SentenceSessionScreenState extends State<SentenceSessionScreen> {
           child: Center(
             child: Text(
               '${_currentIndex + 1}/${_items.length}',
-              style: SeedlingTypography.caption
-                  .copyWith(color: SeedlingColors.textSecondary),
+              style: SeedlingTypography.caption.copyWith(
+                color: SeedlingColors.textSecondary,
+              ),
             ),
           ),
         ),
@@ -246,8 +335,7 @@ class _SessionCompleteScreen extends StatelessWidget {
             children: [
               const Spacer(),
               // Icon
-              Text(icon,
-                  style: const TextStyle(fontSize: 72)),
+              Text(icon, style: const TextStyle(fontSize: 72)),
               const SizedBox(height: 24),
               Text(
                 mode.label,
@@ -265,18 +353,23 @@ class _SessionCompleteScreen extends StatelessWidget {
               const SizedBox(height: 32),
               // Score ring
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 32,
+                ),
                 decoration: BoxDecoration(
                   color: SeedlingColors.cardBackground,
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                      color: mode.color.withValues(alpha: 0.35)),
+                  border: Border.all(color: mode.color.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.local_florist_rounded,
-                        color: mode.color, size: 28),
+                    Icon(
+                      Icons.local_florist_rounded,
+                      color: mode.color,
+                      size: 28,
+                    ),
                     const SizedBox(width: 14),
                     RichText(
                       text: TextSpan(
@@ -304,7 +397,8 @@ class _SessionCompleteScreen extends StatelessWidget {
               Text(
                 '${(ratio * 100).round()}% correct',
                 style: SeedlingTypography.body.copyWith(
-                    color: SeedlingColors.textSecondary),
+                  color: SeedlingColors.textSecondary,
+                ),
               ),
               const Spacer(),
               // Buttons
@@ -314,10 +408,7 @@ class _SessionCompleteScreen extends StatelessWidget {
                 onTap: onRestart,
               ),
               const SizedBox(height: 12),
-              _GhostButton(
-                label: '← Back to Garden',
-                onTap: onExit,
-              ),
+              _GhostButton(label: '← Back to Garden', onTap: onExit),
               const SizedBox(height: 8),
             ],
           ),
@@ -356,16 +447,20 @@ class _PrimaryButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: color.withValues(alpha: 0.35),
-                blurRadius: 14,
-                offset: const Offset(0, 6)),
+              color: color.withValues(alpha: 0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         alignment: Alignment.center,
-        child: Text(label,
-            style: SeedlingTypography.body.copyWith(
-                fontWeight: FontWeight.w700,
-                color: SeedlingColors.background)),
+        child: Text(
+          label,
+          style: SeedlingTypography.body.copyWith(
+            fontWeight: FontWeight.w700,
+            color: SeedlingColors.background,
+          ),
+        ),
       ),
     );
   }
@@ -388,14 +483,16 @@ class _GhostButton extends StatelessWidget {
           color: SeedlingColors.cardBackground,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: SeedlingColors.morningDew.withValues(alpha: 0.3)),
+            color: SeedlingColors.morningDew.withValues(alpha: 0.3),
+          ),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: SeedlingTypography.body.copyWith(
-              color: SeedlingColors.textSecondary,
-              fontWeight: FontWeight.w600),
+            color: SeedlingColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

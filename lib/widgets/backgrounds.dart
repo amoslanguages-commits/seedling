@@ -7,10 +7,7 @@ import '../core/colors.dart';
 class FloatingLeavesBackground extends StatefulWidget {
   final Widget child;
 
-  const FloatingLeavesBackground({
-    super.key,
-    required this.child,
-  });
+  const FloatingLeavesBackground({super.key, required this.child});
 
   @override
   State<FloatingLeavesBackground> createState() =>
@@ -75,13 +72,16 @@ class FloatingLeavesPainter extends CustomPainter {
   // Pre-seeded leaf configs per layer
   static final _rng = math.Random(7);
   static final List<_LeafConfig> _backLeaves = List.generate(
-    10, (i) => _LeafConfig.random(_rng, depth: 0),
+    10,
+    (i) => _LeafConfig.random(_rng, depth: 0),
   );
   static final List<_LeafConfig> _midLeaves = List.generate(
-    7, (i) => _LeafConfig.random(_rng, depth: 1),
+    7,
+    (i) => _LeafConfig.random(_rng, depth: 1),
   );
   static final List<_LeafConfig> _frontLeaves = List.generate(
-    5, (i) => _LeafConfig.random(_rng, depth: 2),
+    5,
+    (i) => _LeafConfig.random(_rng, depth: 2),
   );
 
   FloatingLeavesPainter({
@@ -98,23 +98,33 @@ class FloatingLeavesPainter extends CustomPainter {
   }
 
   void _paintLayer(
-      Canvas canvas, Size size, List<_LeafConfig> leaves, double t) {
+    Canvas canvas,
+    Size size,
+    List<_LeafConfig> leaves,
+    double t,
+  ) {
     for (final leaf in leaves) {
       // Position: drift right→left slowly, sine-wave vertical drift
       final tOffset = (t * leaf.speed + leaf.phase) % 1.0;
       final x = size.width * (1.0 - tOffset) + leaf.xBias * size.width * 0.2;
-      final y = size.height * leaf.baseY +
+      final y =
+          size.height * leaf.baseY +
           math.sin(tOffset * math.pi * 2 + leaf.sinPhase) * 28.0;
 
       // Alpha pulse (breathe)
-      final alphaPulse = 0.7 + math.sin(tOffset * math.pi * 3 + leaf.phase * 6) * 0.3;
+      final alphaPulse =
+          0.7 + math.sin(tOffset * math.pi * 3 + leaf.phase * 6) * 0.3;
       final alpha = leaf.baseAlpha * alphaPulse;
 
       canvas.save();
       canvas.translate(x, y);
       canvas.rotate(tOffset * leaf.spinRate);
 
-      _drawLeafShape(canvas, leaf.size, leaf.color.withValues(alpha: alpha.clamp(0, 1)));
+      _drawLeafShape(
+        canvas,
+        leaf.size,
+        leaf.color.withValues(alpha: alpha.clamp(0, 1)),
+      );
 
       canvas.restore();
     }
@@ -123,11 +133,10 @@ class FloatingLeavesPainter extends CustomPainter {
   void _drawLeafShape(Canvas canvas, double s, Color color) {
     // Gradient fill
     final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset.zero,
-        Offset(0, -s),
-        [color, color.withValues(alpha: color.a * 0.45)],
-      )
+      ..shader = ui.Gradient.linear(Offset.zero, Offset(0, -s), [
+        color,
+        color.withValues(alpha: color.a * 0.45),
+      ])
       ..style = PaintingStyle.fill;
 
     final path = Path()
@@ -151,13 +160,27 @@ class FloatingLeavesPainter extends CustomPainter {
 }
 
 class _LeafConfig {
-  final double baseX, baseY, xBias, size, speed, phase, sinPhase, spinRate, baseAlpha;
+  final double baseX,
+      baseY,
+      xBias,
+      size,
+      speed,
+      phase,
+      sinPhase,
+      spinRate,
+      baseAlpha;
   final Color color;
 
   const _LeafConfig({
-    required this.baseX, required this.baseY, required this.xBias,
-    required this.size, required this.speed, required this.phase,
-    required this.sinPhase, required this.spinRate, required this.baseAlpha,
+    required this.baseX,
+    required this.baseY,
+    required this.xBias,
+    required this.size,
+    required this.speed,
+    required this.phase,
+    required this.sinPhase,
+    required this.spinRate,
+    required this.baseAlpha,
     required this.color,
   });
 
@@ -275,14 +298,10 @@ class RootNetworkPainter extends CustomPainter {
       final jY = (rng.nextDouble() - 0.5) * 30;
 
       final rootPaint = Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(cx, cy),
-          Offset(endX, endY),
-          [
-            SeedlingColors.seedlingGreen.withValues(alpha: 0.6),
-            SeedlingColors.morningDew.withValues(alpha: 0.25),
-          ],
-        )
+        ..shader = ui.Gradient.linear(Offset(cx, cy), Offset(endX, endY), [
+          SeedlingColors.seedlingGreen.withValues(alpha: 0.6),
+          SeedlingColors.morningDew.withValues(alpha: 0.25),
+        ])
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.2
         ..strokeCap = StrokeCap.round;
@@ -343,11 +362,10 @@ class RootNetworkPainter extends CustomPainter {
 
       // Node gradient fill
       final nodePaint = Paint()
-        ..shader = ui.Gradient.radial(
-          Offset(endX - 5, endY - 5),
-          20,
-          [SeedlingColors.freshSprout, SeedlingColors.seedlingGreen],
-        )
+        ..shader = ui.Gradient.radial(Offset(endX - 5, endY - 5), 20, [
+          SeedlingColors.freshSprout,
+          SeedlingColors.seedlingGreen,
+        ])
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(endX, endY), 20.0, nodePaint);
 
@@ -383,8 +401,9 @@ class RootNetworkPainter extends CustomPainter {
           Offset(cx, cy),
           pulseRadius + 8.0,
           [
-            SeedlingColors.seedlingGreen
-                .withValues(alpha: 0.12 * (1 - pulseValue)),
+            SeedlingColors.seedlingGreen.withValues(
+              alpha: 0.12 * (1 - pulseValue),
+            ),
             SeedlingColors.seedlingGreen.withValues(alpha: 0.0),
           ],
           [0.6, 1.0],
@@ -393,11 +412,10 @@ class RootNetworkPainter extends CustomPainter {
 
     // Main node
     final centerPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        Offset(cx - 8, cy - 8),
-        30,
-        [SeedlingColors.freshSprout, SeedlingColors.deepRoot],
-      )
+      ..shader = ui.Gradient.radial(Offset(cx - 8, cy - 8), 30, [
+        SeedlingColors.freshSprout,
+        SeedlingColors.deepRoot,
+      ])
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(cx, cy), 30.0, centerPaint);
 

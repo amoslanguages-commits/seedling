@@ -23,19 +23,24 @@ import '../widgets/target_word_display.dart';
 /// Returns null if the language does not use gendered articles.
 List<String>? _articlesForLanguage(String langCode) {
   return switch (langCode.toLowerCase()) {
-    'de' => ['der', 'die', 'das'],        // German
-    'nl' => ['de', 'het'],               // Dutch
-    'fr' => ['le', 'la', 'les'],         // French
-    'es' => ['el', 'la', 'los', 'las'],  // Spanish
+    'de' => ['der', 'die', 'das'], // German
+    'nl' => ['de', 'het'], // Dutch
+    'fr' => ['le', 'la', 'les'], // French
+    'es' => ['el', 'la', 'los', 'las'], // Spanish
     'it' => ['il', 'la', 'lo', 'i', 'le', 'gli'], // Italian (simplified)
-    'pt' => ['o', 'a', 'os', 'as'],      // Portuguese
+    'pt' => ['o', 'a', 'os', 'as'], // Portuguese
     _ => null,
   };
 }
 
 class ArticleChoiceQuiz extends StatefulWidget {
   final Word word;
-  final Function(bool correct, int masteryGained) onAnswer;
+  final Function(
+    bool correct,
+    int masteryGained, [
+    String? chosenWrongTranslation,
+  ])
+  onAnswer;
 
   const ArticleChoiceQuiz({
     super.key,
@@ -62,12 +67,17 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
     super.initState();
 
     _bloomController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
     _shakeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
     _entryController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500))
-      ..forward();
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
 
     // Determine correct article from word model
     _correctArticle = widget.word.targetArticle.isNotEmpty
@@ -75,7 +85,8 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
         : null;
 
     // Build the button set from the language's full article set
-    final allArticles = _articlesForLanguage(widget.word.targetLanguageCode) ?? [];
+    final allArticles =
+        _articlesForLanguage(widget.word.targetLanguageCode) ?? [];
 
     if (_correctArticle != null && allArticles.isNotEmpty) {
       // Italian has many articles — limit to 3 most common + the correct one
@@ -93,7 +104,10 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
     }
 
     // Auto-play TTS so learner hears the word
-    TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+    TtsService.instance.speak(
+      widget.word.ttsWord,
+      widget.word.targetLanguageCode,
+    );
   }
 
   @override
@@ -156,13 +170,16 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.15,
+                      ),
                       blurRadius: 22,
                       offset: const Offset(0, 10),
                     ),
                   ],
                   border: Border.all(
-                      color: SeedlingColors.morningDew.withValues(alpha: 0.4)),
+                    color: SeedlingColors.morningDew.withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -181,52 +198,57 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                       children: [
                         // Article result slot
                         AnimatedBuilder(
-                          animation: Listenable.merge(
-                              [_bloomController, _shakeController]),
+                          animation: Listenable.merge([
+                            _bloomController,
+                            _shakeController,
+                          ]),
                           builder: (_, __) {
                             final shake =
                                 math.sin(_shakeController.value * math.pi * 8) *
-                                    8 *
-                                    (1 - _shakeController.value);
+                                8 *
+                                (1 - _shakeController.value);
                             return Transform.translate(
                               offset: Offset(shake, 0),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
                                   color: _hasAnswered
                                       ? (_selectedArticle == _correctArticle
-                                          ? SeedlingColors.success
-                                              .withValues(alpha: 0.2)
-                                          : SeedlingColors.error
-                                              .withValues(alpha: 0.2))
-                                      : SeedlingColors.morningDew
-                                          .withValues(alpha: 0.15),
+                                            ? SeedlingColors.success.withValues(
+                                                alpha: 0.2,
+                                              )
+                                            : SeedlingColors.error.withValues(
+                                                alpha: 0.2,
+                                              ))
+                                      : SeedlingColors.morningDew.withValues(
+                                          alpha: 0.15,
+                                        ),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
                                     color: _hasAnswered
                                         ? (_selectedArticle == _correctArticle
-                                            ? SeedlingColors.success
-                                            : SeedlingColors.error)
+                                              ? SeedlingColors.success
+                                              : SeedlingColors.error)
                                         : SeedlingColors.textSecondary
-                                            .withValues(alpha: 0.3),
+                                              .withValues(alpha: 0.3),
                                     width: _hasAnswered ? 2 : 1,
                                   ),
                                 ),
                                 child: Text(
-                                  _hasAnswered
-                                      ? _correctArticle!
-                                      : '___',
+                                  _hasAnswered ? _correctArticle! : '___',
                                   style: SeedlingTypography.heading2.copyWith(
                                     fontSize: isSmall ? 24 : 30,
                                     color: _hasAnswered
                                         ? (_selectedArticle == _correctArticle
-                                            ? SeedlingColors.success
-                                            : SeedlingColors.error)
+                                              ? SeedlingColors.success
+                                              : SeedlingColors.error)
                                         : SeedlingColors.textSecondary
-                                            .withValues(alpha: 0.5),
+                                              .withValues(alpha: 0.5),
                                     fontStyle: _hasAnswered
                                         ? FontStyle.normal
                                         : FontStyle.italic,
@@ -250,8 +272,9 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                             size: isSmall ? 20 : 24,
                           ),
                           onPressed: () => TtsService.instance.speak(
-                              widget.word.ttsWord,
-                              widget.word.targetLanguageCode),
+                            widget.word.ttsWord,
+                            widget.word.targetLanguageCode,
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -271,8 +294,7 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
 
               // ── Article buttons ─────────────────────────────────────
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                    24, 0, 24, isSmall ? 20 : 32),
+                padding: EdgeInsets.fromLTRB(24, 0, 24, isSmall ? 20 : 32),
                 child: Wrap(
                   spacing: 12,
                   runSpacing: 12,
@@ -282,14 +304,14 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                     final isCorrectThis = article == _correctArticle;
 
                     Color bgColor = SeedlingColors.cardBackground;
-                    Color borderColor =
-                        SeedlingColors.morningDew.withValues(alpha: 0.4);
+                    Color borderColor = SeedlingColors.morningDew.withValues(
+                      alpha: 0.4,
+                    );
                     Color textColor = SeedlingColors.textPrimary;
 
                     if (_hasAnswered) {
                       if (isCorrectThis) {
-                        bgColor =
-                            SeedlingColors.success.withValues(alpha: 0.2);
+                        bgColor = SeedlingColors.success.withValues(alpha: 0.2);
                         borderColor = SeedlingColors.success;
                         textColor = SeedlingColors.success;
                       } else if (isSelected && !isCorrectThis) {
@@ -298,8 +320,9 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                         textColor = SeedlingColors.error;
                       }
                     } else if (isSelected) {
-                      bgColor = SeedlingColors.seedlingGreen
-                          .withValues(alpha: 0.12);
+                      bgColor = SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.12,
+                      );
                       borderColor = SeedlingColors.seedlingGreen;
                     }
 
@@ -314,12 +337,12 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                         decoration: BoxDecoration(
                           color: bgColor,
                           borderRadius: BorderRadius.circular(20),
-                          border:
-                              Border.all(color: borderColor, width: 2),
+                          border: Border.all(color: borderColor, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: SeedlingColors.seedlingGreen
-                                  .withValues(alpha: 0.1),
+                              color: SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.1,
+                              ),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -331,19 +354,24 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                             if (_hasAnswered && isCorrectThis)
                               const Padding(
                                 padding: EdgeInsets.only(right: 6),
-                                child: Icon(Icons.check_circle,
-                                    color: SeedlingColors.success, size: 18),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: SeedlingColors.success,
+                                  size: 18,
+                                ),
                               ),
                             if (_hasAnswered && isSelected && !isCorrectThis)
                               const Padding(
                                 padding: EdgeInsets.only(right: 6),
-                                child: Icon(Icons.cancel,
-                                    color: SeedlingColors.error, size: 18),
+                                child: Icon(
+                                  Icons.cancel,
+                                  color: SeedlingColors.error,
+                                  size: 18,
+                                ),
                               ),
                             Text(
                               article,
-                              style:
-                                  SeedlingTypography.heading2.copyWith(
+                              style: SeedlingTypography.heading2.copyWith(
                                 fontSize: isSmall ? 18 : 22,
                                 color: textColor,
                                 fontWeight: FontWeight.w700,

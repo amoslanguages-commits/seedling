@@ -163,16 +163,16 @@ class Course {
   String get emoji => targetLanguage.flag;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'native': nativeLanguage.toJson(),
-        'target': targetLanguage.toJson(),
-      };
+    'id': id,
+    'native': nativeLanguage.toJson(),
+    'target': targetLanguage.toJson(),
+  };
 
   factory Course.fromJson(Map<String, dynamic> j) => Course(
-        id: j['id'] as String,
-        nativeLanguage: Language.fromJson(j['native'] as Map<String, dynamic>),
-        targetLanguage: Language.fromJson(j['target'] as Map<String, dynamic>),
-      );
+    id: j['id'] as String,
+    nativeLanguage: Language.fromJson(j['native'] as Map<String, dynamic>),
+    targetLanguage: Language.fromJson(j['target'] as Map<String, dynamic>),
+  );
 
   static List<Course> listFromJson(String raw) {
     final list = jsonDecode(raw) as List<dynamic>;

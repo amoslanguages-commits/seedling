@@ -4,7 +4,7 @@ class Language {
   final String nativeName;
   final String flag;
   final bool isAvailable;
-  
+
   Language({
     required this.code,
     required this.name,

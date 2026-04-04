@@ -9,16 +9,13 @@ import '../../providers/app_providers.dart';
 
 class CompetitionDetailScreen extends ConsumerWidget {
   final Competition competition;
-  
-  const CompetitionDetailScreen({
-    super.key,
-    required this.competition,
-  });
-  
+
+  const CompetitionDetailScreen({super.key, required this.competition});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isParticipant = competition.participants.any(
-      (p) => p.userId == ref.read(socialServiceProvider).currentUserId
+      (p) => p.userId == ref.read(socialServiceProvider).currentUserId,
     );
 
     return Scaffold(
@@ -41,15 +38,12 @@ class CompetitionDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 child: const Center(
-                  child: Text(
-                    '🏆',
-                    style: TextStyle(fontSize: 80),
-                  ),
+                  child: Text('🏆', style: TextStyle(fontSize: 80)),
                 ),
               ),
             ),
           ),
-          
+
           SliverPadding(
             padding: const EdgeInsets.all(20),
             sliver: SliverList(
@@ -59,9 +53,9 @@ class CompetitionDetailScreen extends ConsumerWidget {
                   competition.description,
                   style: SeedlingTypography.bodyLarge,
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Time Remaining
                 GrowingCard(
                   child: Row(
@@ -98,9 +92,9 @@ class CompetitionDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Prize
                 GrowingCard(
                   child: Row(
@@ -137,30 +131,35 @@ class CompetitionDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                
+
                 if (competition.participants.isNotEmpty) ...[
                   const SizedBox(height: 30),
-                  Text(
-                    'Leaderboard',
-                    style: SeedlingTypography.heading2,
-                  ),
+                  Text('Leaderboard', style: SeedlingTypography.heading2),
                   const SizedBox(height: 15),
-                  ...competition.participants.map((p) => _buildLeaderboardRow(p)),
+                  ...competition.participants.map(
+                    (p) => _buildLeaderboardRow(p),
+                  ),
                 ],
-                
+
                 const SizedBox(height: 30),
-                
+
                 // Join/Continue Button
                 if (competition.isActive)
                   OrganicButton(
-                    text: isParticipant ? 'Continue Competing' : 'Join Competition',
+                    text: isParticipant
+                        ? 'Continue Competing'
+                        : 'Join Competition',
                     onPressed: () async {
                       if (!isParticipant) {
-                        await ref.read(socialServiceProvider).joinCompetition(competition.id);
+                        await ref
+                            .read(socialServiceProvider)
+                            .joinCompetition(competition.id);
                         ref.invalidate(competitionsProvider);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Joined competition!')),
+                            const SnackBar(
+                              content: Text('Joined competition!'),
+                            ),
                           );
                           Navigator.pop(context);
                         }
@@ -170,16 +169,21 @@ class CompetitionDetailScreen extends ConsumerWidget {
                     },
                     height: 60,
                   ),
-                
-                if (competition.status == CompetitionStatus.upcoming && !isParticipant)
+
+                if (competition.status == CompetitionStatus.upcoming &&
+                    !isParticipant)
                   OrganicButton(
                     text: 'Register Early',
                     onPressed: () async {
-                      await ref.read(socialServiceProvider).joinCompetition(competition.id);
+                      await ref
+                          .read(socialServiceProvider)
+                          .joinCompetition(competition.id);
                       ref.invalidate(competitionsProvider);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Registered successfully!')),
+                          const SnackBar(
+                            content: Text('Registered successfully!'),
+                          ),
                         );
                         Navigator.pop(context);
                       }
@@ -193,13 +197,13 @@ class CompetitionDetailScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildLeaderboardRow(CompetitionParticipant p) {
     Color rankColor = SeedlingColors.textSecondary;
     if (p.rank == 1) rankColor = const Color(0xFFFFD700);
     if (p.rank == 2) rankColor = const Color(0xFFC0C0C0);
     if (p.rank == 3) rankColor = const Color(0xFFCD7F32);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -241,14 +245,13 @@ class CompetitionDetailScreen extends ConsumerWidget {
             child: Text(
               p.isCurrentUser ? 'You' : p.displayName,
               style: SeedlingTypography.body.copyWith(
-                fontWeight: p.isCurrentUser ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: p.isCurrentUser
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
             ),
           ),
-          Text(
-            '${p.score}',
-            style: SeedlingTypography.heading3,
-          ),
+          Text('${p.score}', style: SeedlingTypography.heading3),
         ],
       ),
     );

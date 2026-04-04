@@ -41,12 +41,18 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
   void initState() {
     super.initState();
     // Speak the key word for audio context
-    TtsService.instance
-        .speak(widget.item.targetWord, widget.item.targetLangCode);
+    TtsService.instance.speak(
+      widget.item.targetWord,
+      widget.item.targetLangCode,
+    );
     _bloomCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _shakeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
   }
 
   @override
@@ -69,8 +75,10 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
       AudioService.haptic(HapticType.correct).ignore();
       // Speak the full sentence once answered correctly
       Future.delayed(const Duration(milliseconds: 300), () {
-        TtsService.instance
-            .speak(widget.item.targetSentence, widget.item.targetLangCode);
+        TtsService.instance.speak(
+          widget.item.targetSentence,
+          widget.item.targetLangCode,
+        );
       });
     } else {
       _shakeCtrl.forward(from: 0);
@@ -84,126 +92,144 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxHeight < 620;
-      return Column(
-        children: [
-          // ── Branch Visualization ────────────────────────────────────────
-          AnimatedBuilder(
-            animation: Listenable.merge([_bloomCtrl, _shakeCtrl]),
-            builder: (_, __) {
-              final shake = math.sin(_shakeCtrl.value * math.pi * 8) *
-                  10 *
-                  (1 - _shakeCtrl.value);
-              final isWrong = _hasAnswered &&
-                  _selectedIndex != null &&
-                  widget.options[_selectedIndex!] != widget.item.targetWord;
-              return Transform.translate(
-                offset: Offset(shake, 0),
-                child: SizedBox(
-                  height: isSmall ? 110 : 140,
-                  child: CustomPaint(
-                    size: Size(double.infinity, isSmall ? 110 : 140),
-                    painter: _BranchPainter(
-                      bloomProgress: _bloomCtrl.value,
-                      isWrong: isWrong,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxHeight < 620;
+        return Column(
+          children: [
+            // ── Branch Visualization ────────────────────────────────────────
+            AnimatedBuilder(
+              animation: Listenable.merge([_bloomCtrl, _shakeCtrl]),
+              builder: (_, __) {
+                final shake =
+                    math.sin(_shakeCtrl.value * math.pi * 8) *
+                    10 *
+                    (1 - _shakeCtrl.value);
+                final isWrong =
+                    _hasAnswered &&
+                    _selectedIndex != null &&
+                    widget.options[_selectedIndex!] != widget.item.targetWord;
+                return Transform.translate(
+                  offset: Offset(shake, 0),
+                  child: SizedBox(
+                    height: isSmall ? 110 : 140,
+                    child: CustomPaint(
+                      size: Size(double.infinity, isSmall ? 110 : 140),
+                      painter: _BranchPainter(
+                        bloomProgress: _bloomCtrl.value,
+                        isWrong: isWrong,
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
 
-          // ── Sentence Card ───────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: 20, vertical: isSmall ? 8 : 14),
-            child: Container(
-              width: double.infinity,
+            // ── Sentence Card ───────────────────────────────────────────────
+            Padding(
               padding: EdgeInsets.symmetric(
-                  horizontal: 20, vertical: isSmall ? 14 : 20),
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                    color:
-                        SeedlingColors.seedlingGreen.withValues(alpha: 0.25)),
-                boxShadow: [
-                  BoxShadow(
-                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                horizontal: 20,
+                vertical: isSmall ? 8 : 14,
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'Fill in the missing word',
-                    style: SeedlingTypography.caption.copyWith(
-                      color: SeedlingColors.textSecondary,
-                      fontSize: isSmall ? 11 : 12,
-                    ),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: isSmall ? 14 : 20,
+                ),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.cardBackground,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.25),
                   ),
-                  SizedBox(height: isSmall ? 10 : 14),
-                  _SentenceWithGap(
-                    gapped: widget.item.gappedSentence,
-                    revealWord: _hasAnswered ? widget.item.targetWord : null,
-                    isCorrect: _hasAnswered &&
-                        _selectedIndex != null &&
-                        widget.options[_selectedIndex!] == widget.item.targetWord,
-                    fontSize: isSmall ? 17.0 : 21.0,
-                  ),
-                  SizedBox(height: isSmall ? 8 : 12),
-                  // Native hint
-                  Text(
-                    widget.item.nativeSentence.replaceFirst(
-                      RegExp(r'\b' +
-                          RegExp.escape(widget.item.nativeWord) +
-                          r'\b',
-                          caseSensitive: false),
-                      '___',
+                  boxShadow: [
+                    BoxShadow(
+                      color: SeedlingColors.seedlingGreen.withValues(
+                        alpha: 0.08,
+                      ),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
                     ),
-                    style: SeedlingTypography.caption.copyWith(
-                      color: SeedlingColors.textSecondary.withValues(alpha: 0.7),
-                      fontSize: isSmall ? 12 : 13,
-                      fontStyle: FontStyle.italic,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Fill in the missing word',
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.textSecondary,
+                        fontSize: isSmall ? 11 : 12,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  // Audio replay
-                  GestureDetector(
-                    onTap: () => TtsService.instance
-                        .speak(widget.item.targetWord, widget.item.targetLangCode),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Icon(Icons.volume_up_rounded,
+                    SizedBox(height: isSmall ? 10 : 14),
+                    _SentenceWithGap(
+                      gapped: widget.item.gappedSentence,
+                      revealWord: _hasAnswered ? widget.item.targetWord : null,
+                      isCorrect:
+                          _hasAnswered &&
+                          _selectedIndex != null &&
+                          widget.options[_selectedIndex!] ==
+                              widget.item.targetWord,
+                      fontSize: isSmall ? 17.0 : 21.0,
+                    ),
+                    SizedBox(height: isSmall ? 8 : 12),
+                    // Native hint
+                    Text(
+                      widget.item.nativeSentence.replaceFirst(
+                        RegExp(
+                          r'\b' + RegExp.escape(widget.item.nativeWord) + r'\b',
+                          caseSensitive: false,
+                        ),
+                        '___',
+                      ),
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.textSecondary.withValues(
+                          alpha: 0.7,
+                        ),
+                        fontSize: isSmall ? 12 : 13,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    // Audio replay
+                    GestureDetector(
+                      onTap: () => TtsService.instance.speak(
+                        widget.item.targetWord,
+                        widget.item.targetLangCode,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Icon(
+                          Icons.volume_up_rounded,
                           color: SeedlingColors.seedlingGreen,
-                          size: isSmall ? 18 : 20),
+                          size: isSmall ? 18 : 20,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          const Spacer(),
+            const Spacer(),
 
-          // ── Options Grid 2×2 ───────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, isSmall ? 12 : 20),
-            child: _OptionsGrid(
-              options: widget.options,
-              selectedIndex: _selectedIndex,
-              hasAnswered: _hasAnswered,
-              correctAnswer: widget.item.targetWord,
-              isSmall: isSmall,
-              onTap: _handleAnswer,
+            // ── Options Grid 2×2 ───────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, isSmall ? 12 : 20),
+              child: _OptionsGrid(
+                options: widget.options,
+                selectedIndex: _selectedIndex,
+                hasAnswered: _hasAnswered,
+                correctAnswer: widget.item.targetWord,
+                isSmall: isSmall,
+                onTap: _handleAnswer,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -241,12 +267,18 @@ class _TranslationSprintQuizState extends State<TranslationSprintQuiz>
   @override
   void initState() {
     super.initState();
-    TtsService.instance
-        .speak(widget.item.targetSentence, widget.item.targetLangCode);
+    TtsService.instance.speak(
+      widget.item.targetSentence,
+      widget.item.targetLangCode,
+    );
     _bloomCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     _shakeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
   }
 
   @override
@@ -279,113 +311,129 @@ class _TranslationSprintQuizState extends State<TranslationSprintQuiz>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmall = constraints.maxHeight < 620;
-      return Column(
-        children: [
-          // ── Branch Visualization ────────────────────────────────────────
-          AnimatedBuilder(
-            animation: Listenable.merge([_bloomCtrl, _shakeCtrl]),
-            builder: (_, __) {
-              final shake = math.sin(_shakeCtrl.value * math.pi * 8) *
-                  10 *
-                  (1 - _shakeCtrl.value);
-              final isWrong = _hasAnswered &&
-                  _selectedIndex != null &&
-                  widget.options[_selectedIndex!] != widget.item.nativeWord;
-              return Transform.translate(
-                offset: Offset(shake, 0),
-                child: SizedBox(
-                  height: isSmall ? 110 : 140,
-                  child: CustomPaint(
-                    size: Size(double.infinity, isSmall ? 110 : 140),
-                    painter: _BranchPainter(
-                      bloomProgress: _bloomCtrl.value,
-                      isWrong: isWrong,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxHeight < 620;
+        return Column(
+          children: [
+            // ── Branch Visualization ────────────────────────────────────────
+            AnimatedBuilder(
+              animation: Listenable.merge([_bloomCtrl, _shakeCtrl]),
+              builder: (_, __) {
+                final shake =
+                    math.sin(_shakeCtrl.value * math.pi * 8) *
+                    10 *
+                    (1 - _shakeCtrl.value);
+                final isWrong =
+                    _hasAnswered &&
+                    _selectedIndex != null &&
+                    widget.options[_selectedIndex!] != widget.item.nativeWord;
+                return Transform.translate(
+                  offset: Offset(shake, 0),
+                  child: SizedBox(
+                    height: isSmall ? 110 : 140,
+                    child: CustomPaint(
+                      size: Size(double.infinity, isSmall ? 110 : 140),
+                      painter: _BranchPainter(
+                        bloomProgress: _bloomCtrl.value,
+                        isWrong: isWrong,
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
 
-          // ── Sentence Card ───────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: 20, vertical: isSmall ? 8 : 14),
-            child: Container(
-              width: double.infinity,
+            // ── Sentence Card ───────────────────────────────────────────────
+            Padding(
               padding: EdgeInsets.symmetric(
-                  horizontal: 20, vertical: isSmall ? 14 : 20),
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                    color:
-                        SeedlingColors.water.withValues(alpha: 0.35)),
-                boxShadow: [
-                  BoxShadow(
-                    color: SeedlingColors.water.withValues(alpha: 0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                horizontal: 20,
+                vertical: isSmall ? 8 : 14,
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'What does the highlighted word mean?',
-                    style: SeedlingTypography.caption.copyWith(
-                      color: SeedlingColors.textSecondary,
-                      fontSize: isSmall ? 11 : 12,
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: isSmall ? 14 : 20,
+                ),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.cardBackground,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: SeedlingColors.water.withValues(alpha: 0.35),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: SeedlingColors.water.withValues(alpha: 0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: isSmall ? 10 : 14),
-                  // Full target sentence with key word highlighted
-                  _SentenceWithHighlight(
-                    sentence: widget.item.targetSentence,
-                    highlightWord: widget.item.targetWord,
-                    fontSize: isSmall ? 17.0 : 21.0,
-                    revealNative: _hasAnswered ? widget.item.nativeWord : null,
-                    isCorrect: _hasAnswered &&
-                        _selectedIndex != null &&
-                        widget.options[_selectedIndex!] == widget.item.nativeWord,
-                  ),
-                  // Audio replay
-                  GestureDetector(
-                    onTap: () => TtsService.instance.speak(
-                        widget.item.targetSentence, widget.item.targetLangCode),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Icon(Icons.volume_up_rounded,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'What does the highlighted word mean?',
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.textSecondary,
+                        fontSize: isSmall ? 11 : 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: isSmall ? 10 : 14),
+                    // Full target sentence with key word highlighted
+                    _SentenceWithHighlight(
+                      sentence: widget.item.targetSentence,
+                      highlightWord: widget.item.targetWord,
+                      fontSize: isSmall ? 17.0 : 21.0,
+                      revealNative: _hasAnswered
+                          ? widget.item.nativeWord
+                          : null,
+                      isCorrect:
+                          _hasAnswered &&
+                          _selectedIndex != null &&
+                          widget.options[_selectedIndex!] ==
+                              widget.item.nativeWord,
+                    ),
+                    // Audio replay
+                    GestureDetector(
+                      onTap: () => TtsService.instance.speak(
+                        widget.item.targetSentence,
+                        widget.item.targetLangCode,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Icon(
+                          Icons.volume_up_rounded,
                           color: SeedlingColors.water,
-                          size: isSmall ? 18 : 20),
+                          size: isSmall ? 18 : 20,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          const Spacer(),
+            const Spacer(),
 
-          // ── Options Grid 2×2 ───────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, isSmall ? 12 : 20),
-            child: _OptionsGrid(
-              options: widget.options,
-              selectedIndex: _selectedIndex,
-              hasAnswered: _hasAnswered,
-              correctAnswer: widget.item.nativeWord,
-              isSmall: isSmall,
-              onTap: _handleAnswer,
-              accentColor: SeedlingColors.water,
+            // ── Options Grid 2×2 ───────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, isSmall ? 12 : 20),
+              child: _OptionsGrid(
+                options: widget.options,
+                selectedIndex: _selectedIndex,
+                hasAnswered: _hasAnswered,
+                correctAnswer: widget.item.nativeWord,
+                isSmall: isSmall,
+                onTap: _handleAnswer,
+                accentColor: SeedlingColors.water,
+              ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -413,8 +461,9 @@ class _SentenceWithGap extends StatelessWidget {
     final parts = gapped.split('___');
     final before = parts.isNotEmpty ? parts[0] : '';
     final after = parts.length > 1 ? parts[1] : '';
-    final gapColor =
-        revealWord != null ? (isCorrect ? SeedlingColors.success : SeedlingColors.error) : SeedlingColors.seedlingGreen;
+    final gapColor = revealWord != null
+        ? (isCorrect ? SeedlingColors.success : SeedlingColors.error)
+        : SeedlingColors.seedlingGreen;
 
     return RichText(
       textAlign: TextAlign.center,
@@ -462,13 +511,16 @@ class _SentenceWithHighlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final idx =
-        sentence.toLowerCase().indexOf(highlightWord.toLowerCase());
+    final idx = sentence.toLowerCase().indexOf(highlightWord.toLowerCase());
     if (idx < 0) {
-      return Text(sentence,
-          textAlign: TextAlign.center,
-          style: SeedlingTypography.bodyLarge
-              .copyWith(fontSize: fontSize, height: 1.6));
+      return Text(
+        sentence,
+        textAlign: TextAlign.center,
+        style: SeedlingTypography.bodyLarge.copyWith(
+          fontSize: fontSize,
+          height: 1.6,
+        ),
+      );
     }
     final before = sentence.substring(0, idx);
     final word = sentence.substring(idx, idx + highlightWord.length);
@@ -488,7 +540,7 @@ class _SentenceWithHighlight extends StatelessWidget {
               TextSpan(text: before),
               TextSpan(
                 text: word,
-                style: TextStyle(
+                style: const TextStyle(
                   color: SeedlingColors.water,
                   fontWeight: FontWeight.bold,
                   decoration: TextDecoration.underline,
@@ -585,7 +637,7 @@ class _OptionsGrid extends StatelessWidget {
                         color: accentColor.withValues(alpha: 0.18),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
-                      )
+                      ),
                     ]
                   : null,
             ),
@@ -607,13 +659,19 @@ class _OptionsGrid extends StatelessWidget {
                 ),
                 if (hasAnswered && isCorrect) ...[
                   const SizedBox(width: 4),
-                  Icon(Icons.check_circle_rounded,
-                      color: SeedlingColors.success, size: 16),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: SeedlingColors.success,
+                    size: 16,
+                  ),
                 ],
                 if (hasAnswered && isSelected && !isCorrect) ...[
                   const SizedBox(width: 4),
-                  Icon(Icons.cancel_rounded,
-                      color: SeedlingColors.error, size: 16),
+                  const Icon(
+                    Icons.cancel_rounded,
+                    color: SeedlingColors.error,
+                    size: 16,
+                  ),
                 ],
               ],
             ),
@@ -637,14 +695,10 @@ class _BranchPainter extends CustomPainter {
   static const int _leafCount = 5;
   static const int _budIdx = 2;
 
-  const _BranchPainter({
-    required this.bloomProgress,
-    required this.isWrong,
-  });
+  const _BranchPainter({required this.bloomProgress, required this.isWrong});
 
   // ── Cubic bezier helpers ──────────────────────────────────────────────────
-  double _bezierX(
-          double x0, double x1, double x2, double x3, double t) {
+  double _bezierX(double x0, double x1, double x2, double x3, double t) {
     final m = 1 - t;
     return m * m * m * x0 +
         3 * m * m * t * x1 +
@@ -652,8 +706,7 @@ class _BranchPainter extends CustomPainter {
         t * t * t * x3;
   }
 
-  double _bezierY(
-          double y0, double y1, double y2, double y3, double t) {
+  double _bezierY(double y0, double y1, double y2, double y3, double t) {
     final m = 1 - t;
     return m * m * m * y0 +
         3 * m * m * t * y1 +
@@ -693,7 +746,7 @@ class _BranchPainter extends CustomPainter {
     }
 
     // ── Draw the bud / blooming / wilted leaf at budIdx ───────────────────
-    final budT = _budIdx / (_leafCount - 1);
+    const budT = _budIdx / (_leafCount - 1);
     final budX = _bezierX(w * bx0, w * bx1, w * bx2, w * bx3, budT);
     final budY = _bezierY(h * by0, h * by1, h * by2, h * by3, budT);
     final budAbove = _budIdx.isOdd;
@@ -707,8 +760,14 @@ class _BranchPainter extends CustomPainter {
     }
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y, bool above,
-      double scale, Color color) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    bool above,
+    double scale,
+    Color color,
+  ) {
     if (scale <= 0) return;
     final dir = above ? -1.0 : 1.0;
     final stemLen = 14.0 * scale;
@@ -730,11 +789,24 @@ class _BranchPainter extends CustomPainter {
     final base = Offset(x, y + dir * stemLen);
     final path = Path()
       ..moveTo(base.dx, base.dy)
-      ..quadraticBezierTo(base.dx - leafW, base.dy + dir * leafLen * 0.55,
-          tip.dx, tip.dy)
-      ..quadraticBezierTo(base.dx + leafW, base.dy + dir * leafLen * 0.55,
-          base.dx, base.dy);
-    canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
+      ..quadraticBezierTo(
+        base.dx - leafW,
+        base.dy + dir * leafLen * 0.55,
+        tip.dx,
+        tip.dy,
+      )
+      ..quadraticBezierTo(
+        base.dx + leafW,
+        base.dy + dir * leafLen * 0.55,
+        base.dx,
+        base.dy,
+      );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
   }
 
   void _drawBud(Canvas canvas, double x, double y, bool above) {
@@ -778,16 +850,28 @@ class _BranchPainter extends CustomPainter {
   }
 
   void _drawBloomingLeaf(
-      Canvas canvas, double x, double y, bool above, double progress) {
+    Canvas canvas,
+    double x,
+    double y,
+    bool above,
+    double progress,
+  ) {
     final color = Color.lerp(
-        SeedlingColors.seedlingGreen, SeedlingColors.freshSprout, progress)!;
+      SeedlingColors.seedlingGreen,
+      SeedlingColors.freshSprout,
+      progress,
+    )!;
     _drawLeaf(canvas, x, y, above, progress, color);
 
     // Golden shimmer when fully bloomed
     if (progress > 0.65) {
       final shimmerAlpha = (progress - 0.65) / 0.35 * 0.28;
       _drawLeaf(
-        canvas, x, y, above, progress * 1.12,
+        canvas,
+        x,
+        y,
+        above,
+        progress * 1.12,
         SeedlingColors.sunlight.withValues(alpha: shimmerAlpha),
       );
     }

@@ -35,7 +35,10 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
 
     // Auto-play TTS on word reveal
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode);
+      TtsService.instance.speak(
+        widget.word.ttsWord,
+        widget.word.targetLanguageCode,
+      );
     });
   }
 
@@ -80,8 +83,14 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                   const SizedBox(height: 10),
                   // TTS replay button
                   OutlinedButton.icon(
-                    onPressed: () => TtsService.instance.speak(widget.word.ttsWord, widget.word.targetLanguageCode),
-                    icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen),
+                    onPressed: () => TtsService.instance.speak(
+                      widget.word.ttsWord,
+                      widget.word.targetLanguageCode,
+                    ),
+                    icon: const Icon(
+                      Icons.volume_up_rounded,
+                      color: SeedlingColors.seedlingGreen,
+                    ),
                     label: Text(
                       'Hear pronunciation',
                       style: SeedlingTypography.body.copyWith(
@@ -89,11 +98,16 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: SeedlingColors.seedlingGreen),
+                      side: const BorderSide(
+                        color: SeedlingColors.seedlingGreen,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -159,7 +173,10 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
                     const SizedBox(height: 16),
                     Text('Definition', style: SeedlingTypography.caption),
                     const SizedBox(height: 8),
-                    Text(widget.word.definition!, style: SeedlingTypography.body),
+                    Text(
+                      widget.word.definition!,
+                      style: SeedlingTypography.body,
+                    ),
                   ],
                 ],
               ),
@@ -171,18 +188,30 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
             Row(
               children: [
                 Expanded(
-                  child: _buildStatCard('Streak', '${widget.word.streak}',
-                      Icons.bolt, Colors.orange),
+                  child: _buildStatCard(
+                    'Streak',
+                    '${widget.word.streak}',
+                    Icons.bolt,
+                    Colors.orange,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatCard('Reviews', '${widget.word.totalReviews}',
-                      Icons.remove_red_eye, SeedlingColors.water),
+                  child: _buildStatCard(
+                    'Reviews',
+                    '${widget.word.totalReviews}',
+                    Icons.remove_red_eye,
+                    SeedlingColors.water,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatCard('Correct', '${widget.word.timesCorrect}',
-                      Icons.check_circle_outline, SeedlingColors.seedlingGreen),
+                  child: _buildStatCard(
+                    'Correct',
+                    '${widget.word.timesCorrect}',
+                    Icons.check_circle_outline,
+                    SeedlingColors.seedlingGreen,
+                  ),
                 ),
               ],
             ),
@@ -192,7 +221,12 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return GrowingCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -238,13 +272,12 @@ class WordGrowthPainter extends CustomPainter {
   void _drawSoil(Canvas canvas, double cx, double gy) {
     // Soil mound
     final soilPaint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(cx, gy - 10),
-        Offset(cx, gy + 10),
-        [const Color(0xFF6B4226), const Color(0xFF4A2C17)],
-      )
+      ..shader = ui.Gradient.linear(Offset(cx, gy - 10), Offset(cx, gy + 10), [
+        const Color(0xFF6B4226),
+        const Color(0xFF4A2C17),
+      ])
       ..style = PaintingStyle.fill;
-    
+
     final path = Path()
       ..moveTo(cx - 30, gy)
       ..quadraticBezierTo(cx, gy - 15, cx + 30, gy)
@@ -267,38 +300,106 @@ class WordGrowthPainter extends CustomPainter {
     final scale = growthProgress;
     final r = 6.0 * scale;
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, gy - 2), width: r * 2.2, height: r * 1.5),
+      Rect.fromCenter(
+        center: Offset(cx, gy - 2),
+        width: r * 2.2,
+        height: r * 1.5,
+      ),
       Paint()..color = const Color(0xFFA07040),
     );
   }
 
-  void _drawSproutStage(Canvas canvas, double cx, double gy, double heightScale) {
+  void _drawSproutStage(
+    Canvas canvas,
+    double cx,
+    double gy,
+    double heightScale,
+  ) {
     final stemH = 40.0 * growthProgress * heightScale;
-    
+
     // Stem
     _drawStem(canvas, cx, gy, stemH, 0.1);
-    
+
     // Single leaf
-    _drawLeaf(canvas, cx + 2, gy - stemH * 0.8, 0.4, 12, const Color(0xFF74C69D));
+    _drawLeaf(
+      canvas,
+      cx + 2,
+      gy - stemH * 0.8,
+      0.4,
+      12,
+      const Color(0xFF74C69D),
+    );
   }
 
-  void _drawPlantStage(Canvas canvas, double cx, double gy, double heightScale) {
+  void _drawPlantStage(
+    Canvas canvas,
+    double cx,
+    double gy,
+    double heightScale,
+  ) {
     final stemH = 70.0 * growthProgress * heightScale;
     _drawStem(canvas, cx, gy, stemH, 0.2);
-    
-    _drawLeaf(canvas, cx - 3, gy - stemH * 0.4, -0.5, 15, const Color(0xFF52B788));
-    _drawLeaf(canvas, cx + 2, gy - stemH * 0.7, 0.4, 18, const Color(0xFF74C69D));
-    _drawLeaf(canvas, cx - 1, gy - stemH * 0.95, -0.2, 14, const Color(0xFF95D5B2));
+
+    _drawLeaf(
+      canvas,
+      cx - 3,
+      gy - stemH * 0.4,
+      -0.5,
+      15,
+      const Color(0xFF52B788),
+    );
+    _drawLeaf(
+      canvas,
+      cx + 2,
+      gy - stemH * 0.7,
+      0.4,
+      18,
+      const Color(0xFF74C69D),
+    );
+    _drawLeaf(
+      canvas,
+      cx - 1,
+      gy - stemH * 0.95,
+      -0.2,
+      14,
+      const Color(0xFF95D5B2),
+    );
   }
 
-  void _drawBuddingStage(Canvas canvas, double cx, double gy, double heightScale) {
+  void _drawBuddingStage(
+    Canvas canvas,
+    double cx,
+    double gy,
+    double heightScale,
+  ) {
     final stemH = 100.0 * growthProgress * heightScale;
     _drawStem(canvas, cx, gy, stemH, 0.3);
-    
-    _drawLeaf(canvas, cx - 3, gy - stemH * 0.3, -0.5, 18, const Color(0xFF40916C));
-    _drawLeaf(canvas, cx + 4, gy - stemH * 0.55, 0.6, 22, const Color(0xFF52B788));
-    _drawLeaf(canvas, cx - 2, gy - stemH * 0.8, -0.4, 16, const Color(0xFF74C69D));
-    
+
+    _drawLeaf(
+      canvas,
+      cx - 3,
+      gy - stemH * 0.3,
+      -0.5,
+      18,
+      const Color(0xFF40916C),
+    );
+    _drawLeaf(
+      canvas,
+      cx + 4,
+      gy - stemH * 0.55,
+      0.6,
+      22,
+      const Color(0xFF52B788),
+    );
+    _drawLeaf(
+      canvas,
+      cx - 2,
+      gy - stemH * 0.8,
+      -0.4,
+      16,
+      const Color(0xFF74C69D),
+    );
+
     // Bud at top
     canvas.drawCircle(
       Offset(cx + 4, gy - stemH - 5),
@@ -307,23 +408,56 @@ class WordGrowthPainter extends CustomPainter {
     );
   }
 
-  void _drawBloomingStage(Canvas canvas, double cx, double gy, double heightScale) {
+  void _drawBloomingStage(
+    Canvas canvas,
+    double cx,
+    double gy,
+    double heightScale,
+  ) {
     final stemH = 120.0 * growthProgress * heightScale;
     _drawStem(canvas, cx, gy, stemH, 0.4);
-    
-    _drawLeaf(canvas, cx - 4, gy - stemH * 0.3, -0.5, 20, const Color(0xFF2D6A4F));
-    _drawLeaf(canvas, cx + 5, gy - stemH * 0.5, 0.6, 24, const Color(0xFF40916C));
-    _drawLeaf(canvas, cx - 3, gy - stemH * 0.75, -0.45, 18, const Color(0xFF52B788));
-    _drawLeaf(canvas, cx + 2, gy - stemH * 0.9, 0.3, 15, const Color(0xFF74C69D));
-    
+
+    _drawLeaf(
+      canvas,
+      cx - 4,
+      gy - stemH * 0.3,
+      -0.5,
+      20,
+      const Color(0xFF2D6A4F),
+    );
+    _drawLeaf(
+      canvas,
+      cx + 5,
+      gy - stemH * 0.5,
+      0.6,
+      24,
+      const Color(0xFF40916C),
+    );
+    _drawLeaf(
+      canvas,
+      cx - 3,
+      gy - stemH * 0.75,
+      -0.45,
+      18,
+      const Color(0xFF52B788),
+    );
+    _drawLeaf(
+      canvas,
+      cx + 2,
+      gy - stemH * 0.9,
+      0.3,
+      15,
+      const Color(0xFF74C69D),
+    );
+
     // Full Flower
     final fx = cx + 5.0;
     final fy = gy - stemH - 10;
-    
+
     final petalPaint = Paint()
       ..color = const Color(0xFFFFD166)
       ..style = PaintingStyle.fill;
-      
+
     // 5 petals
     for (int i = 0; i < 5; i++) {
       final angle = (i / 5.0) * math.pi * 2;
@@ -333,14 +467,14 @@ class WordGrowthPainter extends CustomPainter {
         petalPaint,
       );
     }
-    
+
     // Flower center
     canvas.drawCircle(
       Offset(fx, fy),
       6,
       Paint()..color = const Color(0xFFFF9F1C),
     );
-    
+
     // Sparkles for mastery
     _drawSparkle(canvas, fx - 20, fy - 10, 0.0);
     _drawSparkle(canvas, fx + 25, fy + 5, 0.5);
@@ -350,61 +484,70 @@ class WordGrowthPainter extends CustomPainter {
   void _drawStem(Canvas canvas, double cx, double gy, double h, double curve) {
     final tipX = cx + math.sin(curve) * h * 0.3;
     final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(cx, gy), Offset(tipX, gy - h),
-        [const Color(0xFF2D6A4F), const Color(0xFF74C69D)],
-      )
+      ..shader = ui.Gradient.linear(Offset(cx, gy), Offset(tipX, gy - h), [
+        const Color(0xFF2D6A4F),
+        const Color(0xFF74C69D),
+      ])
       ..strokeWidth = 4.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-      
+
     final path = Path()
       ..moveTo(cx, gy)
       ..quadraticBezierTo(cx + curve * 20, gy - h / 2, tipX, gy - h);
     canvas.drawPath(path, paint);
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y, double angle, double size, Color tipColor) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double size,
+    Color tipColor,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(angle);
-    
+
     final path = Path()
       ..moveTo(0, 0)
       ..quadraticBezierTo(-size * 0.5, -size * 0.3, 0, -size)
       ..quadraticBezierTo(size * 0.5, -size * 0.3, 0, 0);
-      
+
     canvas.drawPath(
-      path, 
-      Paint()..shader = ui.Gradient.linear(
-        const Offset(0, 0), Offset(0, -size),
-        [const Color(0xFF2D6A4F), tipColor]
-      )
+      path,
+      Paint()
+        ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, -size), [
+          const Color(0xFF2D6A4F),
+          tipColor,
+        ]),
     );
-    
+
     canvas.drawLine(
-      const Offset(0, 0), Offset(0, -size * 0.9),
+      const Offset(0, 0),
+      Offset(0, -size * 0.9),
       Paint()
         ..color = const Color(0xFF2D6A4F).withValues(alpha: 0.4)
         ..strokeWidth = 0.8,
     );
-    
+
     canvas.restore();
   }
-  
+
   void _drawSparkle(Canvas canvas, double x, double y, double phase) {
     final t = (growthProgress + phase) % 1.0;
     final alpha = math.sin(t * math.pi);
     if (alpha <= 0) return;
-    
+
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(t * math.pi / 2);
-    
+
     final r = 4.0 * math.sin(t * math.pi);
     final paint = Paint()
       ..color = const Color(0xFFFFD166).withValues(alpha: alpha);
-      
+
     final path = Path();
     for (int i = 0; i < 4; i++) {
       final a = (i / 4.0) * math.pi * 2;
@@ -421,7 +564,7 @@ class WordGrowthPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WordGrowthPainter oldDelegate) => 
-      oldDelegate.masteryLevel != masteryLevel || 
+  bool shouldRepaint(covariant WordGrowthPainter oldDelegate) =>
+      oldDelegate.masteryLevel != masteryLevel ||
       oldDelegate.growthProgress != growthProgress;
 }

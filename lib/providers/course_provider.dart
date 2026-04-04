@@ -46,7 +46,8 @@ class CourseNotifier extends StateNotifier<CourseState> {
         final courses = Course.listFromJson(raw);
         state = CourseState(
           courses: courses,
-          activeCourseId: activeId ?? (courses.isNotEmpty ? courses.first.id : null),
+          activeCourseId:
+              activeId ?? (courses.isNotEmpty ? courses.first.id : null),
         );
         return;
       } catch (_) {}

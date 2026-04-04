@@ -4,6 +4,8 @@ import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../models/social.dart';
 import '../../providers/app_providers.dart';
+import '../../models/multiplayer.dart';
+import '../../providers/multiplayer_provider.dart';
 import 'live_duel_screen.dart';
 
 class DuelLobbyScreen extends ConsumerStatefulWidget {
@@ -13,19 +15,20 @@ class DuelLobbyScreen extends ConsumerStatefulWidget {
   ConsumerState<DuelLobbyScreen> createState() => _DuelLobbyScreenState();
 }
 
-class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTickerProviderStateMixin {
+class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   List<Friend> _searchResults = [];
   bool _isSearching = false;
-  
+
   late AnimationController _fadeController;
 
   @override
   void initState() {
     super.initState();
     _fadeController = AnimationController(
-      vsync: this, 
-      duration: const Duration(milliseconds: 800)
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
     )..forward();
   }
 
@@ -46,9 +49,9 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
     }
 
     setState(() => _isSearching = true);
-    
+
     final results = await ref.read(socialServiceProvider).searchUsers(query);
-    
+
     if (mounted) {
       setState(() {
         _searchResults = results;
@@ -56,20 +59,46 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
       });
     }
   }
-  
-  void _startDuel(Friend opponent) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LiveDuelScreen(opponent: opponent),
-      ),
+
+  void _startDuel(Friend opponent) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: SeedlingColors.waterBlue)),
     );
+
+    final session = LiveGameSession(
+      id: '',
+      hostId: '',
+      hostName: '',
+      title: 'Duel vs ${opponent.displayName}',
+      gameType: LiveGameType.vocabulary,
+      theme: 'General',
+      subtheme: '',
+      totalQuestions: 50,
+      timePerQuestion: 60,
+      maxPlayers: 2,
+      isPrivate: true,
+      isDuel: true,
+    );
+
+    await ref.read(activeSessionProvider.notifier).hostGame(session);
+
+    if (mounted) {
+      Navigator.pop(context);
+      
+      // We will now pass the opponent for UI, but the real backend sync will happen.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => LiveDuelScreen(opponent: opponent, sessionId: ref.read(activeSessionProvider)?.id)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(friendsProvider);
-    
+
     return Scaffold(
       backgroundColor: SeedlingColors.background,
       appBar: AppBar(
@@ -90,14 +119,19 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [SeedlingColors.deepRoot, SeedlingColors.seedlingGreen],
+                        colors: [
+                          SeedlingColors.deepRoot,
+                          SeedlingColors.seedlingGreen,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: SeedlingColors.seedlingGreen.withOpacity(0.3),
+                          color: SeedlingColors.seedlingGreen.withValues(
+                            alpha: 0.3,
+                          ),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
@@ -112,32 +146,43 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
                             children: [
                               Text(
                                 "Live Duel",
-                                style: SeedlingTypography.heading2.copyWith(color: Colors.white),
+                                style: SeedlingTypography.heading2.copyWith(
+                                  color: Colors.white,
+                                ),
                               ),
                               const SizedBox(height: 5),
                               Text(
                                 "Challenge a friend or rival.\nWinner takes the Sunlight pot!",
                                 style: SeedlingTypography.body.copyWith(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.star, color: SeedlingColors.sunlight, size: 20),
+                              const Icon(
+                                Icons.star,
+                                color: SeedlingColors.sunlight,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 "50 XP",
-                                style: SeedlingTypography.heading3.copyWith(color: SeedlingColors.sunlight),
+                                style: SeedlingTypography.heading3.copyWith(
+                                  color: SeedlingColors.sunlight,
+                                ),
                               ),
                             ],
                           ),
@@ -145,9 +190,9 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 30),
-                  
+
                   Text('Find Opponent', style: SeedlingTypography.heading3),
                   const SizedBox(height: 15),
                   TextField(
@@ -161,7 +206,10 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
                     },
                     decoration: InputDecoration(
                       hintText: 'Enter username...',
-                      prefixIcon: const Icon(Icons.search, color: SeedlingColors.waterBlue),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: SeedlingColors.waterBlue,
+                      ),
                       filled: true,
                       fillColor: SeedlingColors.cardBackground,
                       border: OutlineInputBorder(
@@ -170,17 +218,20 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: SeedlingColors.waterBlue, width: 2),
+                        borderSide: const BorderSide(
+                          color: SeedlingColors.waterBlue,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   Expanded(
                     child: _searchController.text.isNotEmpty
-                      ? _buildSearchResults()
-                      : _buildFriendsList(friendsAsync),
+                        ? _buildSearchResults()
+                        : _buildFriendsList(friendsAsync),
                   ),
                 ],
               ),
@@ -190,33 +241,34 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
       ),
     );
   }
-  
+
   Widget _buildSearchResults() {
     if (_isSearching) {
-      return const Center(child: CircularProgressIndicator(color: SeedlingColors.waterBlue));
+      return const Center(
+        child: CircularProgressIndicator(color: SeedlingColors.waterBlue),
+      );
     }
-    
+
     if (_searchResults.isEmpty) {
       return Center(
         child: Text(
           'No users found matching "${_searchController.text}"',
-          style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+          style: SeedlingTypography.body.copyWith(
+            color: SeedlingColors.textSecondary,
+          ),
         ),
       );
     }
-    
+
     return ListView.builder(
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final user = _searchResults[index];
-        return _OpponentCard(
-          friend: user,
-          onTap: () => _startDuel(user),
-        );
+        return _OpponentCard(friend: user, onTap: () => _startDuel(user));
       },
     );
   }
-  
+
   Widget _buildFriendsList(AsyncValue<List<Friend>> friendsAsync) {
     return friendsAsync.when(
       data: (friends) {
@@ -225,31 +277,42 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.people_alt_outlined, size: 60, color: SeedlingColors.morningDew),
+                const Icon(
+                  Icons.people_alt_outlined,
+                  size: 60,
+                  color: SeedlingColors.morningDew,
+                ),
                 const SizedBox(height: 15),
                 Text(
                   'Search for a username above\nto start a duel!',
                   textAlign: TextAlign.center,
-                  style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+                  style: SeedlingTypography.body.copyWith(
+                    color: SeedlingColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           );
         }
-        
+
         final sortedFriends = List<Friend>.from(friends)
           ..sort((a, b) {
             if (a.isOnline && !b.isOnline) return -1;
             if (!a.isOnline && b.isOnline) return 1;
             return a.displayName.compareTo(b.displayName);
           });
-          
+
         return FadeTransition(
           opacity: _fadeController,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Available Friends', style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Available Friends',
+                style: SeedlingTypography.body.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 10),
               Expanded(
                 child: ListView.builder(
@@ -266,7 +329,9 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator(color: SeedlingColors.waterBlue)),
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: SeedlingColors.waterBlue),
+      ),
       error: (_, __) => const Center(child: Text('Could not load friends')),
     );
   }
@@ -275,11 +340,8 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen> with SingleTi
 class _OpponentCard extends StatelessWidget {
   final Friend friend;
   final VoidCallback onTap;
-  
-  const _OpponentCard({
-    required this.friend,
-    required this.onTap,
-  });
+
+  const _OpponentCard({required this.friend, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -289,12 +351,14 @@ class _OpponentCard extends StatelessWidget {
         color: SeedlingColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: friend.isOnline ? SeedlingColors.success.withOpacity(0.5) : Colors.transparent,
+          color: friend.isOnline
+              ? SeedlingColors.success.withValues(alpha: 0.5)
+              : Colors.transparent,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -315,11 +379,15 @@ class _OpponentCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: SeedlingColors.morningDew,
-                      backgroundImage: friend.avatarUrl != null ? NetworkImage(friend.avatarUrl!) : null,
+                      backgroundImage: friend.avatarUrl != null
+                          ? NetworkImage(friend.avatarUrl!)
+                          : null,
                       child: friend.avatarUrl == null
                           ? Text(
                               friend.displayName[0].toUpperCase(),
-                              style: SeedlingTypography.heading3.copyWith(color: SeedlingColors.seedlingGreen),
+                              style: SeedlingTypography.heading3.copyWith(
+                                color: SeedlingColors.seedlingGreen,
+                              ),
                             )
                           : null,
                     ),
@@ -333,7 +401,10 @@ class _OpponentCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: SeedlingColors.success,
                             shape: BoxShape.circle,
-                            border: Border.all(color: SeedlingColors.cardBackground, width: 2),
+                            border: Border.all(
+                              color: SeedlingColors.cardBackground,
+                              width: 2,
+                            ),
                           ),
                         ),
                       ),
@@ -346,27 +417,46 @@ class _OpponentCard extends StatelessWidget {
                     children: [
                       Text(
                         friend.displayName,
-                        style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold),
+                        style: SeedlingTypography.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.local_fire_department, size: 14, color: SeedlingColors.sunlight),
+                          const Icon(
+                            Icons.local_fire_department,
+                            size: 14,
+                            color: SeedlingColors.sunlight,
+                          ),
                           const SizedBox(width: 4),
-                          Text('${friend.currentStreak} Streak', style: SeedlingTypography.caption),
+                          Text(
+                            '${friend.currentStreak} Streak',
+                            style: SeedlingTypography.caption,
+                          ),
                           const SizedBox(width: 10),
-                          const Icon(Icons.star, size: 14, color: SeedlingColors.seedlingGreen),
+                          const Icon(
+                            Icons.star,
+                            size: 14,
+                            color: SeedlingColors.seedlingGreen,
+                          ),
                           const SizedBox(width: 4),
-                          Text('${friend.totalXP} XP', style: SeedlingTypography.caption),
+                          Text(
+                            '${friend.totalXP} XP',
+                            style: SeedlingTypography.caption,
+                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: SeedlingColors.waterBlue.withOpacity(0.1),
+                    color: SeedlingColors.waterBlue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

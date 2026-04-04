@@ -2,6 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 
+import 'settings_service.dart';
+
 /// Ultra premium reminder and notification system for Seedling.
 /// Sends a smart evening reminder that reflects how many words are due today.
 class NotificationService {
@@ -11,6 +13,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  final _settings = SettingsService();
 
   // Notification IDs
   static const int _kDailyReminderId = 1;
@@ -19,15 +22,18 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    const settings =
-        InitializationSettings(android: androidSettings, iOS: iosSettings);
+    const settings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
     await _plugin.initialize(settings: settings);
     _initialized = true;
@@ -41,14 +47,19 @@ class NotificationService {
     if (Platform.isAndroid) {
       final androidPlugin = _plugin
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       return (await androidPlugin?.requestNotificationsPermission()) ?? false;
     } else if (Platform.isIOS) {
       final iosPlugin = _plugin
           .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>();
+            IOSFlutterLocalNotificationsPlugin
+          >();
       return (await iosPlugin?.requestPermissions(
-              alert: true, badge: true, sound: true)) ??
+            alert: true,
+            badge: true,
+            sound: true,
+          )) ??
           false;
     }
     return false;
@@ -58,6 +69,7 @@ class NotificationService {
 
   Future<void> scheduleDailyReminder() async {
     if (!_initialized) await initialize();
+    if (!_settings.notificationsEnabled) return;
     await _showNotification(
       id: _kDailyReminderId,
       title: 'Your seedlings are waiting 🌿',
@@ -76,6 +88,11 @@ class NotificationService {
     int? minute,
   }) async {
     if (!_initialized) await initialize();
+
+    if (!_settings.notificationsEnabled) {
+      await _plugin.cancelAll();
+      return;
+    }
 
     // Always cancel stale notifications first
     await _plugin.cancel(id: _kWateringReminderId);
@@ -102,7 +119,8 @@ class NotificationService {
             : '$dueCount words are due for review. Don\'t let your garden wilt!',
       );
       debugPrint(
-          '[NotificationService] Watering reminder sent ($dueCount due).');
+        '[NotificationService] Watering reminder sent ($dueCount due).',
+      );
     } else {
       // 🌱 Gentle daily nudge
       await _showNotification(
@@ -111,7 +129,9 @@ class NotificationService {
         body:
             'All caught up! Plant something new to keep growing your vocabulary.',
       );
-      debugPrint('[NotificationService] Daily nudge sent (0 due, not practiced).');
+      debugPrint(
+        '[NotificationService] Daily nudge sent (0 due, not practiced).',
+      );
     }
   }
 
@@ -138,8 +158,10 @@ class NotificationService {
       presentSound: true,
     );
 
-    const details =
-        NotificationDetails(android: androidDetails, iOS: iosDetails);
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _plugin.show(
       id: id,

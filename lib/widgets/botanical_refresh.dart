@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../core/colors.dart';
 
 /// A completely custom botanical pull-to-refresh indicator.
-/// 
+///
 /// Shows a seedling being pulled out of the ground. When released,
 /// it blooms into a flower then shrinks away gracefully.
-/// 
+///
 /// Usage: wrap your `CustomScrollView` with `BotanicalRefreshWrapper`.
 class BotanicalRefreshWrapper extends StatefulWidget {
   final Widget child;
@@ -19,7 +19,8 @@ class BotanicalRefreshWrapper extends StatefulWidget {
   });
 
   @override
-  State<BotanicalRefreshWrapper> createState() => _BotanicalRefreshWrapperState();
+  State<BotanicalRefreshWrapper> createState() =>
+      _BotanicalRefreshWrapperState();
 }
 
 class _BotanicalRefreshWrapperState extends State<BotanicalRefreshWrapper>
@@ -59,8 +60,10 @@ class _BotanicalRefreshWrapperState extends State<BotanicalRefreshWrapper>
     if (_isRefreshing) return;
     if (notification.overscroll < 0) {
       setState(() {
-        _dragOffset = (_dragOffset - notification.overscroll)
-            .clamp(0.0, _maxDragDistance);
+        _dragOffset = (_dragOffset - notification.overscroll).clamp(
+          0.0,
+          _maxDragDistance,
+        );
         _triggered = _dragOffset >= _triggerDistance;
       });
     }
@@ -124,8 +127,8 @@ class _BotanicalRefreshWrapperState extends State<BotanicalRefreshWrapper>
                         _dismissController,
                       ]),
                       builder: (ctx, _) {
-                        final pullProgress =
-                            (_dragOffset / _triggerDistance).clamp(0.0, 1.0);
+                        final pullProgress = (_dragOffset / _triggerDistance)
+                            .clamp(0.0, 1.0);
                         return CustomPaint(
                           size: const Size(80, 80),
                           painter: _SeedlingPainter(
@@ -175,11 +178,7 @@ class _SeedlingPainter extends CustomPainter {
       ..color = groundColor.withValues(alpha: 0.6)
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(cx - 30, cy),
-      Offset(cx + 30, cy),
-      groundPaint,
-    );
+    canvas.drawLine(Offset(cx - 30, cy), Offset(cx + 30, cy), groundPaint);
 
     // ── Stem ─────────────────────────────────────────────────────
     final stemHeight = pullProgress * size.height * 0.7;
@@ -188,11 +187,7 @@ class _SeedlingPainter extends CustomPainter {
         ..color = stemColor
         ..strokeWidth = 3.5
         ..strokeCap = StrokeCap.round;
-      canvas.drawLine(
-        Offset(cx, cy),
-        Offset(cx, cy - stemHeight),
-        stemPaint,
-      );
+      canvas.drawLine(Offset(cx, cy), Offset(cx, cy - stemHeight), stemPaint);
     }
 
     // ── Seed / bud ───────────────────────────────────────────────
@@ -201,11 +196,7 @@ class _SeedlingPainter extends CustomPainter {
       final seedPaint = Paint()
         ..color = const Color(0xFF8D6E63)
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(cx, cy - stemHeight),
-        seedRadius,
-        seedPaint,
-      );
+      canvas.drawCircle(Offset(cx, cy - stemHeight), seedRadius, seedPaint);
     } else if (bloomProgress == 0) {
       // Sprout / bud phase
       final budPaint = Paint()
@@ -213,8 +204,18 @@ class _SeedlingPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       final budPath = Path()
         ..moveTo(cx, cy - stemHeight - 12)
-        ..quadraticBezierTo(cx + 10, cy - stemHeight - 8, cx + 4, cy - stemHeight)
-        ..quadraticBezierTo(cx - 10, cy - stemHeight - 8, cx, cy - stemHeight - 12);
+        ..quadraticBezierTo(
+          cx + 10,
+          cy - stemHeight - 8,
+          cx + 4,
+          cy - stemHeight,
+        )
+        ..quadraticBezierTo(
+          cx - 10,
+          cy - stemHeight - 8,
+          cx,
+          cy - stemHeight - 12,
+        );
       canvas.drawPath(budPath, budPaint);
     }
 
@@ -234,7 +235,9 @@ class _SeedlingPainter extends CustomPainter {
         final petalPaint = Paint()
           ..color = (i % 2 == 0)
               ? SeedlingColors.sunlight.withValues(alpha: 0.9 * bloomScale)
-              : SeedlingColors.seedlingGreen.withValues(alpha: 0.85 * bloomScale)
+              : SeedlingColors.seedlingGreen.withValues(
+                  alpha: 0.85 * bloomScale,
+                )
           ..style = PaintingStyle.fill;
         canvas.drawCircle(Offset(px, py), petalRadius, petalPaint);
       }

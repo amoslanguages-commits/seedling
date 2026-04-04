@@ -8,8 +8,8 @@ String buildGreeting({required int streak, required bool practicedToday}) {
   final timeGreeting = hour < 12
       ? 'Good morning'
       : hour < 17
-          ? 'Good afternoon'
-          : 'Good evening';
+      ? 'Good afternoon'
+      : 'Good evening';
 
   if (streak >= 7) {
     return '$timeGreeting — $streak days strong 🔥';
@@ -25,7 +25,10 @@ String buildGreeting({required int streak, required bool practicedToday}) {
 }
 
 /// Returns an encouraging subtitle for the home screen mascot area.
-String buildSubtitle({required int totalLearned, required bool practicedToday}) {
+String buildSubtitle({
+  required int totalLearned,
+  required bool practicedToday,
+}) {
   if (!practicedToday) {
     return 'Your seedlings need water today!';
   }
@@ -45,8 +48,10 @@ String relativeTime(DateTime? dt) {
   final diff = now.difference(dt);
 
   if (diff.inSeconds < 60) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min${diff.inMinutes == 1 ? '' : 's'} ago';
-  if (diff.inHours < 6) return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
+  if (diff.inMinutes < 60)
+    return '${diff.inMinutes} min${diff.inMinutes == 1 ? '' : 's'} ago';
+  if (diff.inHours < 6)
+    return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
 
   final today = DateTime(now.year, now.month, now.day);
   final dtDay = DateTime(dt.year, dt.month, dt.day);

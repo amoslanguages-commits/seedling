@@ -79,7 +79,9 @@ class PlaceholderSentences {
   /// Returns the sentence list for a given language pair.
   /// Currently always returns [esEn] — extend when adding more pairs.
   static List<SentenceItem> getForLanguagePair(
-      String nativeLang, String targetLang) {
+    String nativeLang,
+    String targetLang,
+  ) {
     // Future: query from a real sentences table filtered by lang pair.
     return List.of(esEn);
   }

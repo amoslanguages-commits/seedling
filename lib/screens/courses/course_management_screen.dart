@@ -67,7 +67,8 @@ class CourseManagementScreen extends ConsumerWidget {
               Expanded(
                 child: state.courses.isEmpty
                     ? _EmptyCoursesPlaceholder(
-                        onAdd: () => _openAddCourse(context, ref))
+                        onAdd: () => _openAddCourse(context, ref),
+                      )
                     : ListView.builder(
                         controller: scrollController,
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -96,9 +97,9 @@ class CourseManagementScreen extends ConsumerWidget {
 
   void _openAddCourse(BuildContext context, WidgetRef ref) {
     Navigator.pop(context); // close management sheet first
-    Navigator.of(context).push(
-      SeedlingPageRoute(page: const AddCourseScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(SeedlingPageRoute(page: const AddCourseScreen()));
   }
 }
 
@@ -130,14 +131,19 @@ class _CourseListTile extends StatelessWidget {
           color: SeedlingColors.error.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: const Icon(Icons.delete_outline_rounded,
-            color: SeedlingColors.textPrimary, size: 24),
+        child: const Icon(
+          Icons.delete_outline_rounded,
+          color: SeedlingColors.textPrimary,
+          size: 24,
+        ),
       ),
       confirmDismiss: (_) async {
         if (isActive) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Switch to another course before deleting this one.'),
+              content: Text(
+                'Switch to another course before deleting this one.',
+              ),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -194,8 +200,7 @@ class _CourseListTile extends StatelessWidget {
                   children: [
                     Text(
                       course.targetLanguage.name,
-                      style: SeedlingTypography.heading3
-                          .copyWith(fontSize: 16),
+                      style: SeedlingTypography.heading3.copyWith(fontSize: 16),
                     ),
                     Text(
                       'from ${course.nativeLanguage.name}',
@@ -207,8 +212,10 @@ class _CourseListTile extends StatelessWidget {
               // Active indicator
               if (isActive)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: SeedlingColors.seedlingGreen,
                     borderRadius: BorderRadius.circular(12),
@@ -222,8 +229,10 @@ class _CourseListTile extends StatelessWidget {
                   ),
                 )
               else
-                const Icon(Icons.chevron_right_rounded,
-                    color: SeedlingColors.textSecondary),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: SeedlingColors.textSecondary,
+                ),
             ],
           ),
         ),
@@ -248,9 +257,12 @@ class _EmptyCoursesPlaceholder extends StatelessWidget {
           const SizedBox(height: 12),
           Text('No courses yet', style: SeedlingTypography.heading3),
           const SizedBox(height: 6),
-          Text('Add your first course to start growing',
-              style:
-                  SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary)),
+          Text(
+            'Add your first course to start growing',
+            style: SeedlingTypography.body.copyWith(
+              color: SeedlingColors.textSecondary,
+            ),
+          ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: onAdd,
@@ -260,9 +272,9 @@ class _EmptyCoursesPlaceholder extends StatelessWidget {
               backgroundColor: SeedlingColors.seedlingGreen,
               foregroundColor: SeedlingColors.textPrimary,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],

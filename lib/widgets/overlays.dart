@@ -8,22 +8,22 @@ import '../models/gamification.dart';
 class AchievementUnlockOverlay extends StatefulWidget {
   final Achievement achievement;
   final VoidCallback onComplete;
-  
+
   const AchievementUnlockOverlay({
     super.key,
     required this.achievement,
     required this.onComplete,
   });
-  
+
   @override
-  State<AchievementUnlockOverlay> createState() => 
+  State<AchievementUnlockOverlay> createState() =>
       _AchievementUnlockOverlayState();
 }
 
-class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay> 
+class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  
+
   @override
   void initState() {
     super.initState();
@@ -31,18 +31,18 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 3000),
     );
-    
+
     _controller.forward().then((_) {
       widget.onComplete();
     });
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -51,9 +51,9 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
         final entryProgress = (_controller.value / 0.2).clamp(0.0, 1.0);
         final exitProgress = ((_controller.value - 0.8) / 0.2).clamp(0.0, 1.0);
         final opacity = entryProgress * (1.0 - exitProgress);
-        
+
         final scale = 0.5 + (entryProgress * 0.5) - (exitProgress * 0.3);
-        
+
         return IgnorePointer(
           child: Container(
             color: SeedlingColors.background.withValues(alpha: opacity * 0.7),
@@ -84,10 +84,7 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          '🏆',
-                          style: TextStyle(fontSize: 60),
-                        ),
+                        const Text('🏆', style: TextStyle(fontSize: 60)),
                         const SizedBox(height: 20),
                         Text(
                           'Achievement Unlocked!',
@@ -119,7 +116,9 @@ class _AchievementUnlockOverlayState extends State<AchievementUnlockOverlay>
                               Text(
                                 widget.achievement.description,
                                 style: SeedlingTypography.body.copyWith(
-                                  color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
+                                  color: SeedlingColors.textPrimary.withValues(
+                                    alpha: 0.9,
+                                  ),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -147,30 +146,32 @@ class AchievementBurstPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (progress == 0 || progress == 1) return;
-    
+
     final cx = size.width / 2;
     final cy = size.height / 2;
-    
+
     // 1. Expanding Ring
     final ringRadius = progress * size.width;
     final ringAlpha = (1.0 - progress).clamp(0.0, 1.0);
-    
+
     canvas.drawCircle(
-      Offset(cx, cy), 
-      ringRadius, 
+      Offset(cx, cy),
+      ringRadius,
       Paint()
-        ..color = SeedlingColors.seedlingGreen.withValues(alpha: ringAlpha * 0.5)
+        ..color = SeedlingColors.seedlingGreen.withValues(
+          alpha: ringAlpha * 0.5,
+        )
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4.0 * ringAlpha
+        ..strokeWidth = 4.0 * ringAlpha,
     );
 
     canvas.drawCircle(
-      Offset(cx, cy), 
-      ringRadius * 0.8, 
+      Offset(cx, cy),
+      ringRadius * 0.8,
       Paint()
         ..color = SeedlingColors.sunlight.withValues(alpha: ringAlpha * 0.35)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 10.0 * ringAlpha
+        ..strokeWidth = 10.0 * ringAlpha,
     );
 
     // 2. Rotating Rays
@@ -178,31 +179,28 @@ class AchievementBurstPainter extends CustomPainter {
       const rayCount = 12;
       final rayAlpha = math.sin((progress - 0.1) / 0.9 * math.pi) * 0.2;
       final rayLength = size.width * 0.8;
-      
+
       canvas.save();
       canvas.translate(cx, cy);
       canvas.rotate(progress * math.pi * 0.5); // slow rotation
-      
+
       final rayPaint = Paint()
-        ..shader = ui.Gradient.radial(
-          Offset.zero, rayLength,
-          [
-            SeedlingColors.textPrimary.withValues(alpha: rayAlpha),
-            SeedlingColors.textPrimary.withValues(alpha: 0.0),
-          ]
-        )
+        ..shader = ui.Gradient.radial(Offset.zero, rayLength, [
+          SeedlingColors.textPrimary.withValues(alpha: rayAlpha),
+          SeedlingColors.textPrimary.withValues(alpha: 0.0),
+        ])
         ..style = PaintingStyle.fill;
 
       for (int i = 0; i < rayCount; i++) {
         canvas.save();
         canvas.rotate((i / rayCount) * math.pi * 2);
-        
+
         final path = Path()
           ..moveTo(0, 0)
           ..lineTo(20, rayLength)
           ..lineTo(-20, rayLength)
           ..close();
-          
+
         canvas.drawPath(path, rayPaint);
         canvas.restore();
       }
@@ -211,5 +209,6 @@ class AchievementBurstPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant AchievementBurstPainter old) => old.progress != progress;
+  bool shouldRepaint(covariant AchievementBurstPainter old) =>
+      old.progress != progress;
 }

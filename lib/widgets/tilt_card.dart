@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/colors.dart';
 
 /// A wrapping widget that applies a real-time tilt effect to any draggable card.
-/// 
+///
 /// As the user drags the card horizontally, it rotates around the Z-axis
 /// proportional to the drag velocity/offset, and springs back to neutral on release.
 class TiltCard extends StatefulWidget {
@@ -52,16 +52,15 @@ class _TiltCardState extends State<TiltCard>
 
   void _onDragUpdate(DragUpdateDetails details) {
     final velocity = details.delta.dx;
-    final newTilt = (_currentTilt + velocity * widget.velocityFactor)
-        .clamp(-widget.maxTiltAngle, widget.maxTiltAngle);
+    final newTilt = (_currentTilt + velocity * widget.velocityFactor).clamp(
+      -widget.maxTiltAngle,
+      widget.maxTiltAngle,
+    );
     setState(() => _currentTilt = newTilt);
   }
 
   void _onDragEnd(DragEndDetails details) {
-    _springAnimation = Tween<double>(
-      begin: _currentTilt,
-      end: 0.0,
-    ).animate(
+    _springAnimation = Tween<double>(begin: _currentTilt, end: 0.0).animate(
       CurvedAnimation(parent: _springController, curve: Curves.elasticOut),
     );
     _springController.forward(from: 0.0).then((_) {
@@ -157,7 +156,9 @@ class TiltShadow extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: SeedlingColors.deepRoot.withValues(alpha: 0.25 + tiltFraction.abs() * 0.15),
+            color: SeedlingColors.deepRoot.withValues(
+              alpha: 0.25 + tiltFraction.abs() * 0.15,
+            ),
             blurRadius: 16 + tiltFraction.abs() * 12,
             offset: Offset(shadowX, 8 + tiltFraction.abs() * 6),
           ),

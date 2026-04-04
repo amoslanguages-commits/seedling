@@ -5,7 +5,7 @@ import '../core/colors.dart';
 
 // ignore_for_file: prefer_const_constructors
 
-enum MascotState { idle, happy, growing, sad, celebrating }
+enum MascotState { idle, happy, growing, sad, celebrating, excited, thinking }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Widget — displays the mascot PNG with a gentle bob + blink animation overlay
@@ -24,7 +24,11 @@ class SeedlingMascot extends StatefulWidget {
     this.onTap,
   });
 
-  static void paintForExport(Canvas canvas, Size size, {MascotState state = MascotState.idle}) {
+  static void paintForExport(
+    Canvas canvas,
+    Size size, {
+    MascotState state = MascotState.idle,
+  }) {
     final painter = PuppetMascotPainter(
       state: state,
       accessories: const MascotAccessories(),
@@ -57,11 +61,26 @@ class _SeedlingMascotState extends State<SeedlingMascot>
   @override
   void initState() {
     super.initState();
-    _bob = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
-    _sway = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat(reverse: true);
-    _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 4000));
-    _stateTransition = AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..forward();
-    _squish = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _bob = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+    _sway = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat(reverse: true);
+    _blink = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    );
+    _stateTransition = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..forward();
+    _squish = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
 
     // Periodic randomized blinking
     _startBlinkTimer();
@@ -69,7 +88,9 @@ class _SeedlingMascotState extends State<SeedlingMascot>
 
   void _startBlinkTimer() async {
     while (mounted) {
-      await Future.delayed(Duration(milliseconds: 1500 + math.Random().nextInt(3000)));
+      await Future.delayed(
+        Duration(milliseconds: 1500 + math.Random().nextInt(3000)),
+      );
       if (mounted) await _blink.forward(from: 0).then((_) => _blink.reverse());
     }
   }
@@ -100,7 +121,13 @@ class _SeedlingMascotState extends State<SeedlingMascot>
         widget.onTap?.call();
       },
       child: AnimatedBuilder(
-        animation: Listenable.merge([_bob, _sway, _blink, _stateTransition, _squish]),
+        animation: Listenable.merge([
+          _bob,
+          _sway,
+          _blink,
+          _stateTransition,
+          _squish,
+        ]),
         builder: (context, _) {
           return CustomPaint(
             size: Size(widget.size, widget.size * 1.2),
@@ -150,7 +177,11 @@ class PuppetMascotPainter extends CustomPainter {
     // 1. Calculate dynamic offsets based on rhythmic controllers
     final bobY = math.sin(bob * math.pi) * (baseSize * 0.08);
     final swayAngle = math.sin(sway * math.pi) * 0.045;
-    final stretchY = 1.0 - (squish * 0.15) + (state == MascotState.growing ? transition * 0.12 : 0);
+    final stretchY =
+        1.0 -
+        (squish * 0.15) +
+        (state == MascotState.growing ? transition * 0.12 : 0) +
+        (state == MascotState.excited ? transition * 0.08 : 0);
     final squishX = 1.0 + (squish * 0.12);
 
     canvas.save();
@@ -185,10 +216,10 @@ class PuppetMascotPainter extends CustomPainter {
 
   void _drawBody(Canvas canvas, double s) {
     final bodyPaint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(-s, -s), Offset(s, s),
-        [SeedlingColors.cardBackground, SeedlingColors.deepRoot],
-      );
+      ..shader = ui.Gradient.linear(Offset(-s, -s), Offset(s, s), [
+        SeedlingColors.cardBackground,
+        SeedlingColors.deepRoot,
+      ]);
 
     final path = Path()
       ..moveTo(-s * 0.6, -s * 0.7)
@@ -200,7 +231,9 @@ class PuppetMascotPainter extends CustomPainter {
     // Draw main body shadow
     canvas.drawPath(
       path.shift(const Offset(0, 4)),
-      Paint()..color = Colors.black.withValues(alpha: 0.2)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.2)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
     canvas.drawPath(path, bodyPaint);
@@ -216,17 +249,21 @@ class PuppetMascotPainter extends CustomPainter {
     final shinePaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.fill;
-    canvas.drawOval(Rect.fromLTWH(-s * 0.4, -s * 0.5, s * 0.2, s * 0.4), shinePaint);
+    canvas.drawOval(
+      Rect.fromLTWH(-s * 0.4, -s * 0.5, s * 0.2, s * 0.4),
+      shinePaint,
+    );
   }
 
   void _drawFoliage(Canvas canvas, double s) {
     // Primary Sprout
-    final sproutH = s * 0.6 + (state == MascotState.growing ? transition * 20 : 0);
+    final sproutH =
+        s * 0.6 + (state == MascotState.growing ? transition * 20 : 0);
     final paint = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, 0), Offset(0, -sproutH),
-        [SeedlingColors.seedlingGreen, SeedlingColors.freshSprout],
-      )
+      ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, -sproutH), [
+        SeedlingColors.seedlingGreen,
+        SeedlingColors.freshSprout,
+      ])
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -237,16 +274,44 @@ class PuppetMascotPainter extends CustomPainter {
     canvas.drawPath(stem, paint);
 
     // Leaves
-    _drawLeaf(canvas, 0, -s * 0.6 - sproutH, -0.4, s * 0.35, SeedlingColors.freshSprout);
-    _drawLeaf(canvas, 2, -s * 0.6 - sproutH * 0.6, 0.6, s * 0.28, SeedlingColors.morningDew);
+    _drawLeaf(
+      canvas,
+      0,
+      -s * 0.6 - sproutH,
+      -0.4,
+      s * 0.35,
+      SeedlingColors.freshSprout,
+    );
+    _drawLeaf(
+      canvas,
+      2,
+      -s * 0.6 - sproutH * 0.6,
+      0.6,
+      s * 0.28,
+      SeedlingColors.morningDew,
+    );
 
     if (state == MascotState.sad) {
       // Wilted secondary leaf
-      _drawLeaf(canvas, -4, -s * 0.6 - sproutH * 0.3, -1.2, s * 0.2, SeedlingColors.textSecondary);
+      _drawLeaf(
+        canvas,
+        -4,
+        -s * 0.6 - sproutH * 0.3,
+        -1.2,
+        s * 0.2,
+        SeedlingColors.textSecondary,
+      );
     }
   }
 
-  void _drawLeaf(Canvas canvas, double x, double y, double angle, double size, Color color) {
+  void _drawLeaf(
+    Canvas canvas,
+    double x,
+    double y,
+    double angle,
+    double size,
+    Color color,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(angle);
@@ -258,7 +323,11 @@ class PuppetMascotPainter extends CustomPainter {
 
     canvas.drawPath(
       leafPath,
-      Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, -size), [SeedlingColors.seedlingGreen, color]),
+      Paint()
+        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, -size), [
+          SeedlingColors.seedlingGreen,
+          color,
+        ]),
     );
     canvas.restore();
   }
@@ -274,29 +343,80 @@ class PuppetMascotPainter extends CustomPainter {
     // Adjust facial expression based on state
     double mouthWidth = s * 0.2;
     double mouthCurve = 8.0;
-    if (state == MascotState.happy || state == MascotState.celebrating) {
+    bool isThinking = state == MascotState.thinking;
+    bool isExcited = state == MascotState.excited;
+
+    if (state == MascotState.happy || state == MascotState.celebrating || isExcited) {
       mouthWidth = s * 0.35;
       mouthCurve = 15.0;
     } else if (state == MascotState.sad) {
       mouthWidth = s * 0.15;
       mouthCurve = -8.0;
+    } else if (isThinking) {
+      mouthWidth = s * 0.1;
+      mouthCurve = 2.0;
     }
 
     // Eyes
     canvas.save();
     canvas.translate(0, eyeY);
-    
-    // Left
-    canvas.drawOval(Rect.fromCenter(center: Offset(-eyeSpacing, 0), width: eyeSize, height: eyeSize * eyeScaleY), eyePaint);
-    // Right
-    canvas.drawOval(Rect.fromCenter(center: Offset(eyeSpacing, 0), width: eyeSize, height: eyeSize * eyeScaleY), eyePaint);
-    
-    // High-gloss eye sparkles
-    if (blink < 0.2) {
-      canvas.drawCircle(Offset(-eyeSpacing - 2, -2), 2, Paint()..color = Colors.white.withValues(alpha: 0.8));
-      canvas.drawCircle(Offset(eyeSpacing - 2, -2), 2, Paint()..color = Colors.white.withValues(alpha: 0.8));
+
+    if (isThinking) {
+      // Small thinking dots
+      canvas.drawCircle(Offset(-eyeSpacing, 0), eyeSize * 0.4, eyePaint);
+      canvas.drawCircle(Offset(eyeSpacing, 0), eyeSize * 0.4, eyePaint);
+    } else if (isExcited) {
+       // Tall excited eyes
+       canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(-eyeSpacing, -2),
+          width: eyeSize * 1.1,
+          height: eyeSize * 1.3 * eyeScaleY,
+        ),
+        eyePaint,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(eyeSpacing, -2),
+          width: eyeSize * 1.1,
+          height: eyeSize * 1.3 * eyeScaleY,
+        ),
+        eyePaint,
+      );
+    } else {
+      // Default / standard
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(-eyeSpacing, 0),
+          width: eyeSize,
+          height: eyeSize * eyeScaleY,
+        ),
+        eyePaint,
+      );
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(eyeSpacing, 0),
+          width: eyeSize,
+          height: eyeSize * eyeScaleY,
+        ),
+        eyePaint,
+      );
     }
     canvas.restore();
+
+    // High-gloss eye sparkles
+    if (blink < 0.2 && !isThinking) {
+      canvas.drawCircle(
+        Offset(-eyeSpacing - 2, -2),
+        2,
+        Paint()..color = Colors.white.withValues(alpha: 0.8),
+      );
+      canvas.drawCircle(
+        Offset(eyeSpacing - 2, -2),
+        2,
+        Paint()..color = Colors.white.withValues(alpha: 0.8),
+      );
+    }
 
     // Mouth
     final mouthPaint = Paint()
@@ -308,7 +428,7 @@ class PuppetMascotPainter extends CustomPainter {
     final mouthPath = Path()
       ..moveTo(-mouthWidth / 2, 0)
       ..quadraticBezierTo(0, mouthCurve, mouthWidth / 2, 0);
-    
+
     canvas.save();
     canvas.translate(0, s * 0.1);
     canvas.drawPath(mouthPath, mouthPaint);
@@ -331,13 +451,24 @@ class PuppetMascotPainter extends CustomPainter {
 
     final canPaint = Paint()
       ..shader = ui.Gradient.linear(
-        Offset(-canSize, -canSize), Offset(canSize, canSize),
+        Offset(-canSize, -canSize),
+        Offset(canSize, canSize),
         [SeedlingColors.water, SeedlingColors.water.withValues(alpha: 0.7)],
       );
 
     // Main body of can
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: canSize, height: canSize * 0.7), const Radius.circular(8)), canPaint);
-    
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: canSize,
+          height: canSize * 0.7,
+        ),
+        const Radius.circular(8),
+      ),
+      canPaint,
+    );
+
     // Spout
     final spout = Path()
       ..moveTo(canSize * 0.5, 0)
@@ -348,10 +479,20 @@ class PuppetMascotPainter extends CustomPainter {
 
     // Handle
     final handle = Path()
-      ..addOval(Rect.fromLTWH(-canSize * 0.8, -canSize * 0.5, canSize * 0.6, canSize * 0.6));
+      ..addOval(
+        Rect.fromLTWH(
+          -canSize * 0.8,
+          -canSize * 0.5,
+          canSize * 0.6,
+          canSize * 0.6,
+        ),
+      );
     canvas.drawPath(
       handle,
-      Paint()..color = SeedlingColors.water.withValues(alpha: 0.5)..style = PaintingStyle.stroke..strokeWidth = 4,
+      Paint()
+        ..color = SeedlingColors.water.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
     );
 
     canvas.restore();
@@ -379,8 +520,22 @@ class PuppetMascotPainter extends CustomPainter {
       );
 
       // Stem/Base
-      canvas.drawRect(Rect.fromCenter(center: Offset(0, tSize * 0.3), width: tSize * 0.1, height: tSize * 0.2), trophyPaint);
-      canvas.drawRect(Rect.fromCenter(center: Offset(0, tSize * 0.4), width: tSize * 0.4, height: tSize * 0.1), trophyPaint);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset(0, tSize * 0.3),
+          width: tSize * 0.1,
+          height: tSize * 0.2,
+        ),
+        trophyPaint,
+      );
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset(0, tSize * 0.4),
+          width: tSize * 0.4,
+          height: tSize * 0.1,
+        ),
+        trophyPaint,
+      );
 
       canvas.restore();
     }
@@ -393,28 +548,32 @@ class PuppetMascotPainter extends CustomPainter {
 
     for (int i = 0; i < 8; i++) {
       final angle = (i / 8.0) * math.pi * 2 + t * 0.5;
-      final dist = (size.width * 0.5) * (0.8 + math.sin(t * math.pi * 2 + i) * 0.2);
+      final dist =
+          (size.width * 0.5) * (0.8 + math.sin(t * math.pi * 2 + i) * 0.2);
       final sx = cx + math.cos(angle) * dist;
       final sy = cy + math.sin(angle) * dist;
-      
+
       final alpha = (math.sin(t * math.pi * 2 + i) * 0.5 + 0.5);
       final r = 6.0 * alpha;
 
       canvas.drawCircle(
-        Offset(sx, sy), r,
-        Paint()..color = SeedlingColors.sunlight.withValues(alpha: alpha * 0.8)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        Offset(sx, sy),
+        r,
+        Paint()
+          ..color = SeedlingColors.sunlight.withValues(alpha: alpha * 0.8)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
     }
   }
 
   @override
   bool shouldRepaint(covariant PuppetMascotPainter old) =>
-      old.state != state || 
+      old.state != state ||
       old.accessories != accessories ||
-      old.bob != bob || 
-      old.sway != sway || 
-      old.blink != blink || 
-      old.transition != transition || 
+      old.bob != bob ||
+      old.sway != sway ||
+      old.blink != blink ||
+      old.transition != transition ||
       old.squish != squish;
 }
 
@@ -432,4 +591,3 @@ class MascotAccessories {
   @override
   int get hashCode => holdingTrophy.hashCode;
 }
-

@@ -27,16 +27,25 @@ class ActiveCourseBanner extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add a Course',
-                    style: SeedlingTypography.heading3
-                        .copyWith(color: SeedlingColors.seedlingGreen, fontSize: 15)),
-                Text('Tap to get started',
-                    style: SeedlingTypography.caption.copyWith(fontSize: 11)),
+                Text(
+                  'Add a Course',
+                  style: SeedlingTypography.heading3.copyWith(
+                    color: SeedlingColors.seedlingGreen,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  'Tap to get started',
+                  style: SeedlingTypography.caption.copyWith(fontSize: 11),
+                ),
               ],
             ),
             const SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down_rounded,
-                size: 18, color: Colors.grey.shade400),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: Colors.grey.shade400,
+            ),
           ],
         ),
       );
@@ -48,11 +57,7 @@ class ActiveCourseBanner extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Flag
-          Twemoji(
-            emoji: course.targetLanguage.flag,
-            height: 28,
-            width: 28,
-          ),
+          Twemoji(emoji: course.targetLanguage.flag, height: 28, width: 28),
           const SizedBox(width: 10),
           // Language names
           Column(
@@ -93,8 +98,11 @@ class ActiveCourseBanner extends ConsumerWidget {
             ],
           ),
           const SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down_rounded,
-              size: 18, color: Colors.grey.shade400),
+          Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 18,
+            color: Colors.grey.shade400,
+          ),
         ],
       ),
     );

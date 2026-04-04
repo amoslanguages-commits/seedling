@@ -8,7 +8,7 @@ class UserProgress {
   final DateTime? lastStudySession;
   final int totalStudyMinutes;
   final bool isPremium;
-  
+
   UserProgress({
     required this.userId,
     required this.learningLanguage,

@@ -39,7 +39,9 @@ class TargetWordDisplay extends ConsumerWidget {
                 TextSpan(
                   text: '${word.targetArticle} ',
                   style: style.copyWith(
-                    color: style.color?.withValues(alpha: 0.6) ?? SeedlingColors.textPrimary.withValues(alpha: 0.6),
+                    color:
+                        style.color?.withValues(alpha: 0.6) ??
+                        SeedlingColors.textPrimary.withValues(alpha: 0.6),
                     fontWeight: FontWeight.normal,
                   ),
                 ),
@@ -47,18 +49,18 @@ class TargetWordDisplay extends ConsumerWidget {
               ],
             ),
           )
-        : Text(
-            word.word,
-            style: style,
-            textAlign: textAlign,
-          );
+        : Text(word.word, style: style, textAlign: textAlign);
 
-    if (shouldShow && word.pronunciation != null && word.pronunciation!.isNotEmpty) {
+    if (shouldShow &&
+        word.pronunciation != null &&
+        word.pronunciation!.isNotEmpty) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: textAlign == TextAlign.center
             ? CrossAxisAlignment.center
-            : (textAlign == TextAlign.right ? CrossAxisAlignment.end : CrossAxisAlignment.start),
+            : (textAlign == TextAlign.right
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start),
         children: [
           wordDisplay,
           const SizedBox(height: 4),
@@ -80,4 +82,3 @@ class TargetWordDisplay extends ConsumerWidget {
     return wordDisplay;
   }
 }
-

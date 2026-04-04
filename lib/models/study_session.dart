@@ -7,7 +7,7 @@ class StudySession {
   final int correctAnswers;
   final int durationMinutes;
   final bool isSynced;
-  
+
   StudySession({
     this.id,
     required this.userId,
@@ -18,7 +18,7 @@ class StudySession {
     required this.durationMinutes,
     this.isSynced = false,
   });
-  
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -31,7 +31,7 @@ class StudySession {
       'is_synced': isSynced ? 1 : 0,
     };
   }
-  
+
   factory StudySession.fromMap(Map<String, dynamic> map) {
     return StudySession(
       id: map['id'],

@@ -12,7 +12,7 @@ class FriendsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final friendsAsync = ref.watch(friendsProvider);
     final pendingAsync = ref.watch(pendingRequestsProvider);
-    
+
     return Scaffold(
       backgroundColor: SeedlingColors.background,
       appBar: AppBar(
@@ -36,7 +36,7 @@ class FriendsScreen extends ConsumerWidget {
           children: [
             // Pending Requests
             pendingAsync.when(
-              data: (pending) => pending.isEmpty 
+              data: (pending) => pending.isEmpty
                   ? const SizedBox.shrink()
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,22 +46,21 @@ class FriendsScreen extends ConsumerWidget {
                           style: SeedlingTypography.heading3,
                         ),
                         const SizedBox(height: 15),
-                        ...pending.map((friend) => _buildPendingCard(context, ref, friend)),
+                        ...pending.map(
+                          (friend) => _buildPendingCard(context, ref, friend),
+                        ),
                         const SizedBox(height: 30),
                       ],
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('Error loading requests: $e'),
             ),
-            
+
             // Friends List
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Your Friends',
-                  style: SeedlingTypography.heading3,
-                ),
+                Text('Your Friends', style: SeedlingTypography.heading3),
                 friendsAsync.when(
                   data: (friends) => Text(
                     '${friends.length} friends',
@@ -73,7 +72,7 @@ class FriendsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 15),
-            
+
             friendsAsync.when(
               data: (friends) => friends.isEmpty
                   ? const Center(
@@ -83,7 +82,9 @@ class FriendsScreen extends ConsumerWidget {
                       ),
                     )
                   : Column(
-                      children: friends.map((friend) => _buildFriendCard(friend)).toList(),
+                      children: friends
+                          .map((friend) => _buildFriendCard(friend))
+                          .toList(),
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('Error loading friends: $e'),
@@ -93,7 +94,7 @@ class FriendsScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildPendingCard(BuildContext context, WidgetRef ref, Friend friend) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -136,9 +137,14 @@ class FriendsScreen extends ConsumerWidget {
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.check_circle, color: SeedlingColors.success),
+                icon: const Icon(
+                  Icons.check_circle,
+                  color: SeedlingColors.success,
+                ),
                 onPressed: () async {
-                  await ref.read(socialServiceProvider).respondToRequest(friend.userId, true);
+                  await ref
+                      .read(socialServiceProvider)
+                      .respondToRequest(friend.userId, true);
                   ref.invalidate(friendsProvider);
                   ref.invalidate(pendingRequestsProvider);
                 },
@@ -146,7 +152,9 @@ class FriendsScreen extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.cancel, color: SeedlingColors.error),
                 onPressed: () async {
-                  await ref.read(socialServiceProvider).respondToRequest(friend.userId, false);
+                  await ref
+                      .read(socialServiceProvider)
+                      .respondToRequest(friend.userId, false);
                   ref.invalidate(pendingRequestsProvider);
                 },
               ),
@@ -156,7 +164,7 @@ class FriendsScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildFriendCard(Friend friend) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -189,7 +197,10 @@ class FriendsScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: SeedlingColors.success,
                       shape: BoxShape.circle,
-                      border: Border.all(color: SeedlingColors.cardBackground, width: 2),
+                      border: Border.all(
+                        color: SeedlingColors.cardBackground,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -250,7 +261,7 @@ class FriendsScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   String _formatLastActive(DateTime lastActive) {
     final diff = DateTime.now().difference(lastActive);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
@@ -285,9 +296,12 @@ class FriendsScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   if (searchController.text.isNotEmpty)
                     FutureBuilder<List<Friend>>(
-                      future: ref.read(socialServiceProvider).searchUsers(searchController.text),
+                      future: ref
+                          .read(socialServiceProvider)
+                          .searchUsers(searchController.text),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const CircularProgressIndicator();
                         }
                         if (snapshot.hasError) {
@@ -313,13 +327,19 @@ class FriendsScreen extends ConsumerWidget {
                                 trailing: IconButton(
                                   icon: const Icon(Icons.add_circle_outline),
                                   onPressed: () async {
-                                    final messenger = ScaffoldMessenger.of(context);
+                                    final messenger = ScaffoldMessenger.of(
+                                      context,
+                                    );
                                     final nav = Navigator.of(context);
-                                    await ref.read(socialServiceProvider).sendFriendRequest(user.userId);
+                                    await ref
+                                        .read(socialServiceProvider)
+                                        .sendFriendRequest(user.userId);
                                     if (context.mounted) {
                                       nav.pop();
                                       messenger.showSnackBar(
-                                        const SnackBar(content: Text('Friend request sent!')),
+                                        const SnackBar(
+                                          content: Text('Friend request sent!'),
+                                        ),
                                       );
                                     }
                                   },

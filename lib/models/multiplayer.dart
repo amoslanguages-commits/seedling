@@ -1,30 +1,28 @@
-import 'package:flutter/foundation.dart';
-
 enum LiveGameType {
   vocabulary, // Multiple choice word matching
-  sentences,  // Fill-in-the-blank (cloze)
+  sentences, // Fill-in-the-blank (cloze)
 }
 
 enum GameStatus {
-  lobby,      // Host is gathering players, users can join as spectators and request to play
-  starting,   // 3... 2... 1... countdown
-  playing,    // The live quiz is active
-  finished,   // Results and podium
+  lobby, // Host is gathering players, users can join as spectators and request to play
+  starting, // 3... 2... 1... countdown
+  playing, // The live quiz is active
+  finished, // Results and podium
   terminated, // Host ended the game
 }
 
 enum PlayerRole {
-  host,       // The creator of the room
-  player,     // Accepted to compete (up to 5)
-  spectator,  // Just watching, can request to become a player
+  host, // The creator of the room
+  player, // Accepted to compete (up to 5)
+  spectator, // Just watching, can request to become a player
   requesting, // Spectator asking to join
 }
 
 enum AnswerStatus {
-  idle,       // Has not answered yet
-  answered,   // Picked an option (show checkmark but keeping answer hidden)
-  correct,    // Once times up, show green
-  incorrect,  // Once times up, show red
+  idle, // Has not answered yet
+  answered, // Picked an option (show checkmark but keeping answer hidden)
+  correct, // Once times up, show green
+  incorrect, // Once times up, show red
 }
 
 class LivePlayer {
@@ -32,13 +30,13 @@ class LivePlayer {
   final String displayName;
   final String avatarEmoji;
   final PlayerRole role;
-  
+
   // Game State
   int score;
   int streak;
   final AnswerStatus lastAnswerStatus;
   final bool hasRequestedToPlay;
-  
+
   LivePlayer({
     required this.id,
     required this.displayName,
@@ -55,9 +53,13 @@ class LivePlayer {
       id: json['user_id'] ?? '',
       displayName: json['display_name'] ?? 'Player',
       avatarEmoji: json['avatar_emoji'] ?? '👤',
-      role: PlayerRole.values.firstWhere((e) => e.name == (json['role'] ?? 'spectator')),
+      role: PlayerRole.values.firstWhere(
+        (e) => e.name == (json['role'] ?? 'spectator'),
+      ),
       score: json['score'] ?? 0,
-      lastAnswerStatus: AnswerStatus.values.firstWhere((e) => e.name == (json['last_answer_status'] ?? 'idle')),
+      lastAnswerStatus: AnswerStatus.values.firstWhere(
+        (e) => e.name == (json['last_answer_status'] ?? 'idle'),
+      ),
       hasRequestedToPlay: json['role'] == 'requesting',
     );
   }
@@ -132,7 +134,9 @@ class LiveChatMessage {
       senderId: json['sender_id'] ?? '',
       senderName: json['sender_name'] ?? 'Unknown',
       message: json['message'] ?? '',
-      timestamp: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      timestamp: DateTime.parse(
+        json['created_at'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 }
@@ -142,29 +146,32 @@ class LiveGameSession {
   final String hostId;
   final String hostName;
   final String title;
-  
+
   // Configuration
   final LiveGameType gameType;
-  final String theme;      
-  final String subtheme;   
+  final String theme;
+  final String subtheme;
   final int totalQuestions;
-  final int timePerQuestion; 
+  final int timePerQuestion;
   final int maxPlayers;
-  
+
   final String languageCode;
   final String targetLanguageCode;
-  
+
+  final bool isPrivate;
+  final bool isDuel;
+
   // State
   GameStatus status;
   int currentQuestionIndex;
-  List<LivePlayer> participants; 
+  List<LivePlayer> participants;
   List<LiveQuestion> questions;
   List<LiveChatMessage> chatMessages;
-  
+
   // Real-time synchronization
   final DateTime? currentQuestionStartAt;
   final List<String> questionIds;
-  
+
   String get joinCode => id.substring(0, 6).toUpperCase();
 
   LiveGameSession({
@@ -182,6 +189,8 @@ class LiveGameSession {
     this.languageCode = 'en',
     this.targetLanguageCode = 'es',
     this.currentQuestionIndex = 0,
+    this.isPrivate = false,
+    this.isDuel = false,
 
     this.participants = const [],
     this.questions = const [],
@@ -190,11 +199,17 @@ class LiveGameSession {
     this.questionIds = const [],
   });
 
-  factory LiveGameSession.fromJson(Map<String, dynamic> json, {List<LivePlayer> participants = const [], List<LiveChatMessage> messages = const []}) {
+  factory LiveGameSession.fromJson(
+    Map<String, dynamic> json, {
+    List<LivePlayer> participants = const [],
+    List<LiveChatMessage> messages = const [],
+  }) {
     return LiveGameSession(
       id: json['id'],
       hostId: json['host_id'],
-      hostName: json['host_name'] ?? 'Host', // Will be enriched from profiles join or stored
+      hostName:
+          json['host_name'] ??
+          'Host', // Will be enriched from profiles join or stored
       title: json['title'] ?? 'Live Arena',
       gameType: LiveGameType.values.firstWhere(
         (e) => e.name == json['game_type'],
@@ -212,28 +227,35 @@ class LiveGameSession {
       languageCode: json['language_code'] ?? 'en',
       targetLanguageCode: json['target_language_code'] ?? 'es',
       currentQuestionIndex: json['current_question_index'] ?? 0,
+      isPrivate: json['is_private'] ?? false,
+      isDuel: json['is_duel'] ?? false,
       participants: participants,
       chatMessages: messages,
-      currentQuestionStartAt: json['current_question_start_at'] != null 
-          ? DateTime.parse(json['current_question_start_at']) 
+      currentQuestionStartAt: json['current_question_start_at'] != null
+          ? DateTime.parse(json['current_question_start_at'])
           : null,
       questionIds: List<String>.from(json['question_ids'] ?? []),
     );
   }
-  
+
   // Helpers
-  List<LivePlayer> get activePlayers => 
-      participants.where((p) => p.role == PlayerRole.player || p.role == PlayerRole.host).toList();
-      
-  List<LivePlayer> get spectators => 
-      participants.where((p) => p.role == PlayerRole.spectator || p.role == PlayerRole.requesting).toList();
-      
-  List<LivePlayer> get pendingRequests => 
+  List<LivePlayer> get activePlayers => participants
+      .where((p) => p.role == PlayerRole.player || p.role == PlayerRole.host)
+      .toList();
+
+  List<LivePlayer> get spectators => participants
+      .where(
+        (p) =>
+            p.role == PlayerRole.spectator || p.role == PlayerRole.requesting,
+      )
+      .toList();
+
+  List<LivePlayer> get pendingRequests =>
       participants.where((p) => p.role == PlayerRole.requesting).toList();
 
   int get playerCount => activePlayers.length;
   bool get isFull => playerCount >= maxPlayers;
-  
+
   LiveGameSession copyWith({
     String? title,
     LiveGameType? gameType,
@@ -251,6 +273,8 @@ class LiveGameSession {
     List<LiveChatMessage>? chatMessages,
     DateTime? currentQuestionStartAt,
     List<String>? questionIds,
+    bool? isPrivate,
+    bool? isDuel,
   }) {
     return LiveGameSession(
       id: id,
@@ -270,8 +294,11 @@ class LiveGameSession {
       participants: participants ?? this.participants,
       questions: questions ?? this.questions,
       chatMessages: chatMessages ?? this.chatMessages,
-      currentQuestionStartAt: currentQuestionStartAt ?? this.currentQuestionStartAt,
+      currentQuestionStartAt:
+          currentQuestionStartAt ?? this.currentQuestionStartAt,
       questionIds: questionIds ?? this.questionIds,
+      isPrivate: isPrivate ?? this.isPrivate,
+      isDuel: isDuel ?? this.isDuel,
     );
   }
 }

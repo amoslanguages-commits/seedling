@@ -29,6 +29,18 @@ class SentenceItem {
     this.nativeLangCode = 'en',
   });
 
+  factory SentenceItem.fromJson(Map<String, dynamic> json) {
+    return SentenceItem(
+      id: json['id'] as String,
+      targetSentence: json['target_sentence'] as String,
+      nativeSentence: json['native_sentence'] as String,
+      targetWord: json['target_word'] as String,
+      nativeWord: json['native_word'] as String,
+      targetLangCode: json['target_lang_code'] as String? ?? 'es',
+      nativeLangCode: json['native_lang_code'] as String? ?? 'en',
+    );
+  }
+
   /// Returns [targetSentence] with [targetWord] replaced by "___".
   String get gappedSentence {
     return targetSentence.replaceFirst(
