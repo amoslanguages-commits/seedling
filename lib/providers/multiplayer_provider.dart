@@ -5,6 +5,9 @@ import '../models/multiplayer.dart';
 import '../core/supabase_config.dart';
 import '../services/auth_service.dart';
 import '../providers/app_providers.dart';
+import '../services/usage_service.dart';
+import '../models/gamification.dart';
+import '../database/database_helper.dart';
 
 // --- Discovery Hub State ---
 
@@ -15,19 +18,58 @@ final activeGamesProvider = StreamProvider<List<LiveGameSession>>((ref) {
       .stream(primaryKey: ['id'])
       .map((data) {
         return data
-            .where((json) => json['status'] == 'lobby' && json['is_private'] == false)
+            .where(
+              (json) =>
+                  json['status'] == 'lobby' && json['is_private'] == false,
+            )
             .map((json) => LiveGameSession.fromJson(json))
             .toList();
       });
 });
 
-final gameFilterProvider = StateProvider<String?>((ref) => null);
+// Filtering state for Discovery Hub
+final gameThemeFilterProvider = StateProvider<String?>((ref) => null);
+final gameCourseFilterProvider = StateProvider<String?>(
+  (ref) => 'All',
+); // 'NativeCode_TargetCode' or 'All'
+final gameModeFilterProvider = StateProvider<String>((ref) => 'All');
 
 final filteredGamesProvider = Provider<List<LiveGameSession>>((ref) {
   final games = ref.watch(activeGamesProvider).value ?? [];
-  final filter = ref.watch(gameFilterProvider);
-  if (filter == null || filter == 'All') return games;
-  return games.where((g) => g.theme == filter).toList();
+  final themeFilter = ref.watch(gameThemeFilterProvider);
+  final courseFilter = ref.watch(gameCourseFilterProvider);
+  final modeFilter = ref.watch(gameModeFilterProvider);
+
+  return games.where((g) {
+    // Theme Filter
+    if (themeFilter != null && themeFilter != 'All' && g.theme != themeFilter) {
+      return false;
+    }
+
+    // Course Filter (Native_Target)
+    if (courseFilter != null && courseFilter != 'All') {
+      final filterSplit = courseFilter.split('_');
+      if (filterSplit.length == 2) {
+        if (g.languageCode != filterSplit[0] ||
+            g.targetLanguageCode != filterSplit[1]) {
+          return false;
+        }
+      }
+    }
+
+    // Mode Filter
+    if (modeFilter != 'All') {
+      final isVocabMatch =
+          modeFilter == 'Vocabulary' && g.gameType == LiveGameType.vocabulary;
+      final isSentenceMatch =
+          modeFilter == 'Sentences' && g.gameType == LiveGameType.sentences;
+      if (!isVocabMatch && !isSentenceMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  }).toList();
 });
 
 // Provides the current user's active session for "Rejoin" functionality
@@ -41,10 +83,12 @@ final myActiveSessionProvider = StreamProvider<LiveGameSession?>((ref) {
       .asyncMap((data) async {
         final filteredData = data.where((p) => p['user_id'] == userId).toList();
         if (filteredData.isEmpty) return null;
-        
+
         // Find the most recent active session
-        final sessionIds = filteredData.map((p) => p['session_id'] as String).toList();
-        
+        final sessionIds = filteredData
+            .map((p) => p['session_id'] as String)
+            .toList();
+
         final sessionResponse = await SupabaseConfig.client
             .from('live_sessions')
             .select()
@@ -53,7 +97,7 @@ final myActiveSessionProvider = StreamProvider<LiveGameSession?>((ref) {
             .order('created_at', ascending: false)
             .limit(1)
             .maybeSingle();
-            
+
         if (sessionResponse == null) return null;
         return LiveGameSession.fromJson(sessionResponse);
       });
@@ -70,6 +114,7 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
 
   // Callback for real-time reactions
   void Function(String emoji)? onReactionReceived;
+  void Function(String type)? onPulseReceived;
 
   ActiveGameNotifier(this.ref) : super(null);
 
@@ -99,11 +144,21 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
     final targetLang = ref.read(currentLanguageProvider);
     final nativeLang = ref.read(nativeLanguageProvider);
 
+    final canHost = await UsageService().canHostGame();
+    if (!canHost) {
+      throw Exception('PREMIUM_LIMIT_HOST');
+    }
+
+    final (level, _, _) = await XPManager.getLevelProgress();
+
     // 1. Create session in DB
     final response = await SupabaseConfig.client
         .from('live_sessions')
         .insert({
           'host_id': user.id,
+          'host_name': user.userMetadata?['display_name'] ?? 'Host',
+          'host_level': level,
+          'host_avatar_emoji': user.userMetadata?['avatar_emoji'] ?? '👤',
           'title': session.title,
           'game_type': session.gameType.name,
           'max_players': session.maxPlayers,
@@ -116,6 +171,7 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
           'status': 'lobby',
           'is_private': session.isPrivate,
           'is_duel': session.isDuel,
+          'is_survival': session.isSurvival,
         })
         .select()
         .single();
@@ -129,10 +185,39 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
       'display_name': user.userMetadata?['display_name'] ?? 'Host',
       'avatar_emoji': '👑',
       'role': 'host',
+      'level': level,
     });
 
     // 3. Connect listeners
     await _connectToSession(newSessionId);
+
+    // 3.5 Manually set initial state to avoid race condition with stream
+    state = LiveGameSession.fromJson(
+      response,
+      participants: [
+        LivePlayer(
+          id: user.id,
+          displayName: user.userMetadata?['display_name'] ?? 'Host',
+          avatarEmoji: '👑',
+          role: PlayerRole.host,
+          level: level,
+        ),
+      ],
+    );
+
+    // 4. Log usage
+    await UsageService().logGameHosted();
+
+    // 5. Increment permanent stats
+    await DatabaseHelper().incrementTotalRoomsHosted();
+    await DatabaseHelper().logActivity(
+      type: 'competition_host',
+      description: 'Hosted a new challenge: ${session.title}',
+      xp: 50,
+    );
+
+    // Refresh competition header
+    ref.invalidate(userCompeteStatsProvider);
   }
 
   Future<void> joinAsSpectator(LiveGameSession session) async {
@@ -179,6 +264,11 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
         .maybeSingle();
 
     if (existing == null) {
+      final canJoin = await UsageService().canJoinGame();
+      if (!canJoin) {
+        throw Exception('PREMIUM_LIMIT_JOIN');
+      }
+
       // 2. Add as player
       await SupabaseConfig.client.from('live_participants').insert({
         'session_id': session.id,
@@ -186,6 +276,7 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
         'display_name': user.userMetadata?['display_name'] ?? 'Player',
         'avatar_emoji': '⚔️',
         'role': 'player',
+        'level': (await XPManager.getLevelProgress()).$1,
       });
     }
 
@@ -247,6 +338,15 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
             final emoji = payload['emoji'] as String?;
             if (emoji != null && onReactionReceived != null) {
               onReactionReceived!(emoji);
+            }
+          },
+        )
+        .onBroadcast(
+          event: 'pulse',
+          callback: (payload) {
+            final type = payload['type'] as String?;
+            if (type != null && onPulseReceived != null) {
+              onPulseReceived!(type);
             }
           },
         )
@@ -320,12 +420,30 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
         : currentPlayer.score;
     final newStreak = isCorrect ? currentPlayer.streak + 1 : 0;
 
+    // Survival Mode Elimination
+    final newRole = (state!.isSurvival && !isCorrect)
+        ? 'spectator'
+        : currentPlayer.role.name;
+
+    final List<String> updatedMissedIds = List<String>.from(
+      currentPlayer.missedConceptIds,
+    );
+    if (!isCorrect) {
+      final currentQuestionConceptId =
+          state!.questionIds[state!.currentQuestionIndex];
+      if (!updatedMissedIds.contains(currentQuestionConceptId)) {
+        updatedMissedIds.add(currentQuestionConceptId);
+      }
+    }
+
     await SupabaseConfig.client
         .from('live_participants')
         .update({
           'score': newScore,
           'streak': newStreak,
           'last_answer_status': isCorrect ? 'correct' : 'incorrect',
+          'role': newRole,
+          'missed_concept_ids': updatedMissedIds,
         })
         .eq('session_id', state!.id)
         .eq('user_id', user.id);
@@ -341,6 +459,13 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
           .update({'status': 'finished'})
           .eq('id', state!.id);
     } else {
+      // Survival Mode timing reduction (shrink by 10% each round, min 5s)
+      int nextTime = state!.timePerQuestion;
+      if (state!.isSurvival) {
+        nextTime = (state!.timePerQuestion * 0.9).round();
+        if (nextTime < 5) nextTime = 5;
+      }
+
       // Sync restart timer for everyone
       await SupabaseConfig.client
           .from('live_sessions')
@@ -349,6 +474,7 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
             'current_question_start_at': DateTime.now()
                 .toUtc()
                 .toIso8601String(),
+            'time_per_question': nextTime,
           })
           .eq('id', state!.id);
 
@@ -431,19 +557,31 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
   Future<List<String>> _generateSessionQuestions() async {
     if (state == null) return [];
 
-    // Fetch random concept_ids from current theme
-    final response = await SupabaseConfig.client
+    final bool isMixedTheme = state!.theme == 'All' || state!.theme.isEmpty;
+    final bool isMixedSubTheme =
+        state!.subtheme == 'All' || state!.subtheme.isEmpty;
+
+    // Build query based on theme/subtheme selection
+    var query = SupabaseConfig.client
         .from('vocabulary')
         .select('concept_id')
-        .eq('domain', state!.theme.toLowerCase())
-        .eq('lang_code', state!.targetLanguageCode)
-        .limit(state!.totalQuestions);
+        .eq('lang_code', state!.targetLanguageCode);
+
+    if (!isMixedTheme) {
+      query = query.eq('domain', state!.theme.toLowerCase());
+    }
+
+    if (!isMixedSubTheme) {
+      query = query.eq('sub_domain', state!.subtheme.toLowerCase());
+    }
+
+    final response = await query.limit(state!.totalQuestions);
 
     final ids = (response as List)
         .map((r) => r['concept_id'].toString())
         .toList();
 
-    // Fallback if theme is empty or insufficient words
+    // Fallback if results are insufficient
     if (ids.length < 5) {
       final globalResp = await SupabaseConfig.client
           .from('vocabulary')
@@ -490,6 +628,14 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
     );
   }
 
+  Future<void> sendPulse(String type) async {
+    if (_channel == null) return;
+    await _channel!.sendBroadcastMessage(
+      event: 'pulse',
+      payload: {'type': type, 'sender_id': AuthService().userId},
+    );
+  }
+
   Future<void> resetToLobby() async {
     if (state == null) return;
 
@@ -520,6 +666,18 @@ class ActiveGameNotifier extends StateNotifier<LiveGameSession?> {
     if (state == null) return;
     final userId = AuthService().userId;
     if (userId == null) return;
+
+    // Determine if the current user is the host
+    final isHost = state!.hostId == userId;
+
+    if (isHost) {
+      // If host leaves without using passHostAndLeave, terminate session
+      // suddenly to prevent "ghost" non-host sessions.
+      await SupabaseConfig.client
+          .from('live_sessions')
+          .update({'status': 'terminated'})
+          .eq('id', state!.id);
+    }
 
     await SupabaseConfig.client
         .from('live_participants')

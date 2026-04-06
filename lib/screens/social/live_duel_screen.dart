@@ -10,7 +10,6 @@ import '../../models/multiplayer.dart';
 import '../../providers/app_providers.dart';
 import '../../providers/multiplayer_provider.dart';
 import '../../services/auth_service.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/quizzes.dart';
 import '../../widgets/mascot.dart';
 import '../../widgets/premium_environment.dart';
@@ -84,7 +83,10 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
   void _startGame() {
     final session = ref.read(activeSessionProvider);
     if (session?.currentQuestionStartAt != null) {
-      final elapsed = DateTime.now().toUtc().difference(session!.currentQuestionStartAt!).inSeconds;
+      final elapsed = DateTime.now()
+          .toUtc()
+          .difference(session!.currentQuestionStartAt!)
+          .inSeconds;
       _timeLeft = (60 - elapsed).clamp(0, 60);
     }
 
@@ -106,14 +108,23 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
         backgroundColor: SeedlingColors.cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text('Match Terminated', style: SeedlingTypography.heading2),
-        content: Text('The host has ended the match or disconnected.', style: SeedlingTypography.body),
+        content: Text(
+          'The host has ended the match or disconnected.',
+          style: SeedlingTypography.body,
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop(); // Close dialog
               Navigator.of(context).pop(); // Exit screen
             },
-            child: Text('Return to Arena', style: SeedlingTypography.body.copyWith(color: SeedlingColors.waterBlue, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Return to Arena',
+              style: SeedlingTypography.body.copyWith(
+                color: SeedlingColors.waterBlue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -129,7 +140,9 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
     // If host, update session status to finished
     final session = ref.read(activeSessionProvider);
     if (session != null && session.hostId == AuthService().currentUser?.id) {
-      ref.read(activeSessionProvider.notifier).nextQuestion(); // This triggers next screen or finish
+      ref
+          .read(activeSessionProvider.notifier)
+          .nextQuestion(); // This triggers next screen or finish
     }
 
     setState(() {
@@ -169,11 +182,15 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
     }
 
     // Submit to real-time sync
-    ref.read(activeSessionProvider.notifier).submitAnswer(
-      _currentIndex, 
-      isCorrect ? 1 : 0, // Placeholder choice indexes as we are in a rapid quiz
-      isCorrect
-    );
+    ref
+        .read(activeSessionProvider.notifier)
+        .submitAnswer(
+          _currentIndex,
+          isCorrect
+              ? 1
+              : 0, // Placeholder choice indexes as we are in a rapid quiz
+          isCorrect,
+        );
 
     Future.delayed(const Duration(milliseconds: 1000), () {
       if (mounted && !_isGameOver) {
@@ -222,7 +239,7 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
         final me = session.participants.firstWhere((p) => p.id == user?.id);
         playerScore = me.score;
       } catch (_) {}
-      
+
       try {
         final opp = session.participants.firstWhere((p) => p.id != user?.id);
         opponentScore = opp.score;
@@ -238,7 +255,8 @@ class _LiveDuelScreenState extends ConsumerState<LiveDuelScreen>
       );
     }
 
-    if (_isGameOver || (session != null && session.status == GameStatus.finished)) {
+    if (_isGameOver ||
+        (session != null && session.status == GameStatus.finished)) {
       return _buildGameOverScreen(playerScore, opponentScore);
     }
 

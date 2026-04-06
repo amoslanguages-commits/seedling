@@ -1,12 +1,17 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/colors.dart';
-import '../../../core/typography.dart';
-import '../../../models/multiplayer.dart';
-import '../../../providers/multiplayer_provider.dart';
+import '../../../../core/colors.dart';
+import '../../../../core/typography.dart';
+import '../../../../models/multiplayer.dart';
+import '../../../../providers/multiplayer_provider.dart';
+import '../../../../providers/app_providers.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../database/database_helper.dart';
 import 'live_chat_overlay.dart';
 import 'live_exit_dialog.dart';
+import 'memory_patch_screen.dart';
+import '../../../../core/page_route.dart';
 
 class QuizResultsScreen extends ConsumerWidget {
   final LiveGameSession session;
@@ -35,6 +40,33 @@ class QuizResultsScreen extends ConsumerWidget {
 
     final top3 = sortedPlayers.take(3).toList();
     final rest = sortedPlayers.skip(3).toList();
+
+    // Determine my player to check win stats
+    final myPlayer = activeSession.participants
+        .where((p) => p.id == (AuthService().userId ?? 'current_user'))
+        .firstOrNull;
+
+    // Check if current user is the winner and increment stats once
+    final winnerId = top3.isNotEmpty ? top3[0].id : null;
+    final currentUserId = AuthService().userId;
+    if (winnerId != null &&
+        (winnerId == currentUserId || (top3[0].id == 'current_user'))) {
+      // We use a future that runs once when the screen builds
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Basic de-duplication check: check if we just won a match in the last 10 seconds?
+        // For now we assume this screen is only entered once per match completion.
+        await DatabaseHelper().incrementChallengeWin();
+        await DatabaseHelper().logActivity(
+          type: 'competition_win',
+          description: 'Victory in ${session.title}!',
+          xp: 250,
+        );
+
+        // Refresh shared global stats and competition header
+        ref.invalidate(userCompeteStatsProvider);
+        ref.invalidate(userStatsProvider);
+      });
+    }
 
     return PopScope(
       canPop: false,
@@ -191,6 +223,43 @@ class QuizResultsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 15),
                         ],
+                        if (myPlayer != null &&
+                            myPlayer.missedConceptIds.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                SeedlingPageRoute(
+                                  page: MemoryPatchScreen(
+                                    conceptIds: myPlayer.missedConceptIds,
+                                    theme: session.theme,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.psychology_rounded,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              'Memory Patch (${myPlayer.missedConceptIds.length} missed)',
+                              style: SeedlingTypography.body.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: SeedlingColors.hibiscusRed
+                                  .withValues(alpha: 0.8),
+                              minimumSize: const Size(double.infinity, 54),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 15),
                         ElevatedButton(
                           onPressed: () {
                             if (isHost) {

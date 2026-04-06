@@ -373,12 +373,15 @@ class VocabularyService {
             .eq('lang_code', nativeLang)
             .neq('concept_id', conceptId);
 
-        if (likePos != null && likePos.isNotEmpty)
+        if (likePos != null && likePos.isNotEmpty) {
           query = query.ilike('part_of_speech', '%$likePos%');
-        if (eqSubDomain != null && eqSubDomain.isNotEmpty)
+        }
+        if (eqSubDomain != null && eqSubDomain.isNotEmpty) {
           query = query.eq('sub_domain', eqSubDomain);
-        if (eqDomain != null && eqDomain.isNotEmpty)
+        }
+        if (eqDomain != null && eqDomain.isNotEmpty) {
           query = query.eq('domain', eqDomain);
+        }
 
         return await query.limit(10);
       }

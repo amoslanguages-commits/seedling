@@ -10,6 +10,7 @@ class TargetWordDisplay extends ConsumerWidget {
   final TextAlign textAlign;
   final bool? showPronunciation; // If null, honors the global provider
   final bool useGlobalToggle; // Defaults to true
+  final bool hideArticle;
 
   const TargetWordDisplay({
     super.key,
@@ -18,6 +19,7 @@ class TargetWordDisplay extends ConsumerWidget {
     this.textAlign = TextAlign.center,
     this.showPronunciation,
     this.useGlobalToggle = true,
+    this.hideArticle = false,
   });
 
   @override
@@ -30,7 +32,7 @@ class TargetWordDisplay extends ConsumerWidget {
       shouldShow = ref.watch(showPronunciationProvider);
     }
 
-    final wordDisplay = word.hasTargetArticle
+    final wordDisplay = (word.hasTargetArticle && !hideArticle)
         ? RichText(
             textAlign: textAlign,
             text: TextSpan(

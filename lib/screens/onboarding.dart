@@ -12,7 +12,6 @@ import 'package:twemoji/twemoji.dart';
 import 'package:confetti/confetti.dart';
 import '../widgets/animations.dart';
 
-
 // ============================================================================
 // ONBOARDING FLOW
 // Language selection, goal setting, and feature introduction for new users
@@ -231,8 +230,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
   }
 
   @override
@@ -401,12 +401,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             width: _currentPage == index ? 24 : 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color:
-                                  _currentPage == index
-                                      ? SeedlingColors.seedlingGreen
-                                      : SeedlingColors.water.withValues(
-                                        alpha: 0.2,
-                                      ),
+                              color: _currentPage == index
+                                  ? SeedlingColors.seedlingGreen
+                                  : SeedlingColors.water.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -414,7 +411,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
 
                       ElevatedButton(
-                        onPressed: controller.canProceed() ? () => _nextPage(controller) : null,
+                        onPressed: controller.canProceed()
+                            ? () => _nextPage(controller)
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: SeedlingColors.seedlingGreen,
                           foregroundColor: SeedlingColors.textPrimary,
@@ -648,22 +647,29 @@ class _NativeLanguageStepState extends ConsumerState<NativeLanguageStep> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                            ? SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.1,
+                              )
                             : SeedlingColors.cardBackground,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected
                               ? SeedlingColors.seedlingGreen
-                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                              : SeedlingColors.morningDew.withValues(
+                                  alpha: 0.3,
+                                ),
                           width: isSelected ? 2 : 1,
                         ),
-                        boxShadow: isSelected ? [
-                          BoxShadow(
-                            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ] : null,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: SeedlingColors.seedlingGreen
+                                      .withValues(alpha: 0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
                       ),
                       child: Row(
                         children: [
@@ -824,22 +830,29 @@ class _TargetLanguageStepState extends ConsumerState<TargetLanguageStep> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1)
+                            ? SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.1,
+                              )
                             : SeedlingColors.cardBackground,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected
                               ? SeedlingColors.seedlingGreen
-                              : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                              : SeedlingColors.morningDew.withValues(
+                                  alpha: 0.3,
+                                ),
                           width: isSelected ? 2 : 1,
                         ),
-                        boxShadow: isSelected ? [
-                          BoxShadow(
-                            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ] : null,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: SeedlingColors.seedlingGreen
+                                      .withValues(alpha: 0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
                       ),
                       child: Row(
                         children: [
@@ -927,13 +940,17 @@ class DailyGoalStep extends ConsumerWidget {
                             : SeedlingColors.morningDew.withValues(alpha: 0.3),
                         width: isSelected ? 2 : 1,
                       ),
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ] : null,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: SeedlingColors.seedlingGreen.withValues(
+                                  alpha: 0.15,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Row(
                       children: [
@@ -1111,65 +1128,67 @@ class RemindersStep extends ConsumerWidget {
                 ),
               ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // Sound toggle
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: controller.enableSounds
-                          ? SeedlingColors.seedlingGreen.withValues(alpha: 0.2)
-                          : SeedlingColors.morningDew.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
+              // Sound toggle
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.cardBackground,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: controller.enableSounds
+                            ? SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.2,
+                              )
+                            : SeedlingColors.morningDew.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.volume_up,
+                        color: controller.enableSounds
+                            ? SeedlingColors.seedlingGreen
+                            : SeedlingColors.textSecondary,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.volume_up,
-                      color: controller.enableSounds
-                          ? SeedlingColors.seedlingGreen
-                          : SeedlingColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sound Effects',
-                          style: SeedlingTypography.body.copyWith(
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sound Effects',
+                            style: SeedlingTypography.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Play sounds during learning',
-                          style: SeedlingTypography.caption,
-                        ),
-                      ],
+                          Text(
+                            'Play sounds during learning',
+                            style: SeedlingTypography.caption,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Switch(
-                    value: controller.enableSounds,
-                    onChanged: (value) => ref
-                        .read(onboardingControllerProvider.notifier)
-                        .setSounds(value),
-                    activeThumbColor: SeedlingColors.seedlingGreen,
-                  ),
-                ],
+                    Switch(
+                      value: controller.enableSounds,
+                      onChanged: (value) => ref
+                          .read(onboardingControllerProvider.notifier)
+                          .setSounds(value),
+                      activeThumbColor: SeedlingColors.seedlingGreen,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }

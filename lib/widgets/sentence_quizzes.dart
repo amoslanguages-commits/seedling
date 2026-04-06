@@ -174,15 +174,9 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
                       fontSize: isSmall ? 17.0 : 21.0,
                     ),
                     SizedBox(height: isSmall ? 8 : 12),
-                    // Native hint
+                    // Native hint: show complete sentence without blank
                     Text(
-                      widget.item.nativeSentence.replaceFirst(
-                        RegExp(
-                          r'\b' + RegExp.escape(widget.item.nativeWord) + r'\b',
-                          caseSensitive: false,
-                        ),
-                        '___',
-                      ),
+                      widget.item.fullNativeSentence,
                       style: SeedlingTypography.caption.copyWith(
                         color: SeedlingColors.textSecondary.withValues(
                           alpha: 0.7,
@@ -194,10 +188,13 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
                     ),
                     // Audio replay
                     GestureDetector(
-                      onTap: () => TtsService.instance.speak(
-                        widget.item.targetWord,
-                        widget.item.targetLangCode,
-                      ),
+                      onTap: () {
+                        AudioService.haptic(HapticType.selection).ignore();
+                        TtsService.instance.speak(
+                          widget.item.targetWord,
+                          widget.item.targetLangCode,
+                        );
+                      },
                       child: Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Icon(
@@ -397,10 +394,13 @@ class _TranslationSprintQuizState extends State<TranslationSprintQuiz>
                     ),
                     // Audio replay
                     GestureDetector(
-                      onTap: () => TtsService.instance.speak(
-                        widget.item.targetSentence,
-                        widget.item.targetLangCode,
-                      ),
+                      onTap: () {
+                        AudioService.haptic(HapticType.selection).ignore();
+                        TtsService.instance.speak(
+                          widget.item.targetSentence,
+                          widget.item.targetLangCode,
+                        );
+                      },
                       child: Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Icon(
@@ -624,7 +624,10 @@ class _OptionsGrid extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () => onTap(i),
+          onTap: () {
+            AudioService.haptic(HapticType.selection).ignore();
+            onTap(i);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             decoration: BoxDecoration(

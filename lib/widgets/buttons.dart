@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import '../core/colors.dart';
 import '../core/typography.dart';
+import '../services/haptic_service.dart';
 
 class OrganicButton extends StatefulWidget {
   final String text;
@@ -50,6 +51,7 @@ class _OrganicButtonState extends State<OrganicButton>
 
   void _handlePressDown(TapDownDetails details) {
     if (widget.onPressed == null || widget.loading) return;
+    HapticService.selectionClick();
     _pressController.forward();
   }
 
@@ -75,44 +77,46 @@ class _OrganicButtonState extends State<OrganicButton>
       child: AnimatedBuilder(
         animation: _pressController,
         builder: (context, child) {
-          return CustomPaint(
-            size: Size(widget.width, widget.height),
-            painter: OrganicButtonPainter(
-              progress: _pressController.value,
-              isPrimary: widget.isPrimary,
-              isPremiumActiveMode: widget.isPremiumActiveMode,
-            ),
-            child: Container(
-              width: widget.width,
-              height: widget.height,
-              alignment: Alignment.center,
-              child: widget.loading
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: widget.isPremiumActiveMode
-                            ? SeedlingColors.textPrimary
-                            : (widget.isPrimary
-                                ? SeedlingColors.textPrimary
-                                : SeedlingColors.seedlingGreen),
-                      ),
-                    )
-                  : Opacity(
-                      opacity: widget.onPressed == null ? 0.5 : 1.0,
-                      child:
-                          widget.child ??
-                          Text(
-                            widget.text,
-                            style: SeedlingTypography.bodyLarge.copyWith(
-                              color: widget.isPrimary
-                                  ? SeedlingColors.textPrimary
-                                  : SeedlingColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+          return RepaintBoundary(
+            child: CustomPaint(
+              size: Size(widget.width, widget.height),
+              painter: OrganicButtonPainter(
+                progress: _pressController.value,
+                isPrimary: widget.isPrimary,
+                isPremiumActiveMode: widget.isPremiumActiveMode,
+              ),
+              child: Container(
+                width: widget.width,
+                height: widget.height,
+                alignment: Alignment.center,
+                child: widget.loading
+                    ? SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: widget.isPremiumActiveMode
+                              ? SeedlingColors.textPrimary
+                              : (widget.isPrimary
+                                    ? SeedlingColors.textPrimary
+                                    : SeedlingColors.seedlingGreen),
+                        ),
+                      )
+                    : Opacity(
+                        opacity: widget.onPressed == null ? 0.5 : 1.0,
+                        child:
+                            widget.child ??
+                            Text(
+                              widget.text,
+                              style: SeedlingTypography.bodyLarge.copyWith(
+                                color: widget.isPrimary
+                                    ? SeedlingColors.textPrimary
+                                    : SeedlingColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                    ),
+                      ),
+              ),
             ),
           );
         },
@@ -160,11 +164,11 @@ class OrganicButtonPainter extends CustomPainter {
 
     // 3. Main Body
     final mainPaint = Paint()
-      ..color = isPremiumActiveMode 
+      ..color = isPremiumActiveMode
           ? SeedlingColors.autumnGold
           : (isPrimary
-              ? SeedlingColors.seedlingGreen
-              : SeedlingColors.morningDew.withValues(alpha: 0.15))
+                ? SeedlingColors.seedlingGreen
+                : SeedlingColors.morningDew.withValues(alpha: 0.15))
       ..style = PaintingStyle.fill;
     canvas.drawRRect(rrect, mainPaint);
 
@@ -199,8 +203,8 @@ class OrganicButtonPainter extends CustomPainter {
         ..color = isPremiumActiveMode
             ? Colors.orange.shade800
             : (isPrimary
-                ? SeedlingColors.deepRoot
-                : SeedlingColors.morningDew.withValues(alpha: 0.05))
+                  ? SeedlingColors.deepRoot
+                  : SeedlingColors.morningDew.withValues(alpha: 0.05))
         ..style = PaintingStyle.fill,
     );
 

@@ -52,4 +52,10 @@ class SentenceItem {
       '___',
     );
   }
+
+  /// Returns [nativeSentence] with any "___" or blanks replaced by [nativeWord].
+  String get fullNativeSentence {
+    // Some data might have "___" in the translation too; replace it to help the user.
+    return nativeSentence.replaceAll('___', nativeWord);
+  }
 }

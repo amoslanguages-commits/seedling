@@ -5,6 +5,7 @@ import '../../../core/colors.dart';
 import '../../../core/typography.dart';
 import '../../../models/multiplayer.dart';
 import '../../../providers/multiplayer_provider.dart';
+import '../../../services/auth_service.dart';
 
 class LiveExitDialog extends ConsumerWidget {
   final LiveGameSession session;
@@ -43,8 +44,9 @@ class LiveExitDialog extends ConsumerWidget {
     }
 
     // Check if there are other players to pass host to
-    final otherPlayers = session.activePlayers
-        .where((p) => p.id != 'current_user' && p.id != 'host')
+    final currentUserId = AuthService().userId;
+    final otherPlayers = session.participants
+        .where((p) => p.id != currentUserId)
         .toList();
     if (otherPlayers.isEmpty) {
       // Host is alone, just end the game

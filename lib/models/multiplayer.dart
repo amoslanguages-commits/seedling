@@ -37,6 +37,10 @@ class LivePlayer {
   final AnswerStatus lastAnswerStatus;
   final bool hasRequestedToPlay;
 
+  // Botanical Rank Metadata
+  final int level;
+  final List<String> missedConceptIds;
+
   LivePlayer({
     required this.id,
     required this.displayName,
@@ -46,7 +50,25 @@ class LivePlayer {
     this.streak = 0,
     this.lastAnswerStatus = AnswerStatus.idle,
     this.hasRequestedToPlay = false,
+    this.level = 1,
+    this.missedConceptIds = const [],
   });
+
+  String get botanicalRank {
+    if (level >= 15) return 'Great Bloom';
+    if (level >= 10) return 'Oak';
+    if (level >= 6) return 'Seedling';
+    if (level >= 3) return 'Sapling';
+    return 'Sprout';
+  }
+
+  String get rankEmoji {
+    if (level >= 15) return '🌸';
+    if (level >= 10) return '🌳';
+    if (level >= 6) return '🌲';
+    if (level >= 3) return '🌿';
+    return '🌱';
+  }
 
   factory LivePlayer.fromJson(Map<String, dynamic> json) {
     return LivePlayer(
@@ -61,6 +83,8 @@ class LivePlayer {
         (e) => e.name == (json['last_answer_status'] ?? 'idle'),
       ),
       hasRequestedToPlay: json['role'] == 'requesting',
+      level: json['level'] ?? 1,
+      missedConceptIds: List<String>.from(json['missed_concept_ids'] ?? []),
     );
   }
 
@@ -72,6 +96,8 @@ class LivePlayer {
       'role': role.name,
       'score': score,
       'last_answer_status': lastAnswerStatus.name,
+      'level': level,
+      'missed_concept_ids': missedConceptIds,
     };
   }
 
@@ -80,6 +106,8 @@ class LivePlayer {
     int? score,
     int? streak,
     AnswerStatus? lastAnswerStatus,
+    int? level,
+    List<String>? missedConceptIds,
   }) {
     return LivePlayer(
       id: id,
@@ -89,6 +117,8 @@ class LivePlayer {
       score: score ?? this.score,
       streak: streak ?? this.streak,
       lastAnswerStatus: lastAnswerStatus ?? this.lastAnswerStatus,
+      level: level ?? this.level,
+      missedConceptIds: missedConceptIds ?? this.missedConceptIds,
     );
   }
 }
@@ -160,6 +190,9 @@ class LiveGameSession {
 
   final bool isPrivate;
   final bool isDuel;
+  final int hostLevel;
+  final String hostAvatarEmoji;
+  final bool isSurvival;
 
   // State
   GameStatus status;
@@ -197,7 +230,26 @@ class LiveGameSession {
     this.chatMessages = const [],
     this.currentQuestionStartAt,
     this.questionIds = const [],
+    this.isSurvival = false,
+    this.hostLevel = 1,
+    this.hostAvatarEmoji = '👤',
   });
+
+  String get hostBotanicalRank {
+    if (hostLevel >= 15) return 'Great Bloom';
+    if (hostLevel >= 10) return 'Oak';
+    if (hostLevel >= 6) return 'Seedling';
+    if (hostLevel >= 3) return 'Sapling';
+    return 'Sprout';
+  }
+
+  String get hostRankEmoji {
+    if (hostLevel >= 15) return '🌸';
+    if (hostLevel >= 10) return '🌳';
+    if (hostLevel >= 6) return '🌲';
+    if (hostLevel >= 3) return '🌿';
+    return '🌱';
+  }
 
   factory LiveGameSession.fromJson(
     Map<String, dynamic> json, {
@@ -235,6 +287,9 @@ class LiveGameSession {
           ? DateTime.parse(json['current_question_start_at'])
           : null,
       questionIds: List<String>.from(json['question_ids'] ?? []),
+      isSurvival: json['is_survival'] ?? false,
+      hostLevel: json['host_level'] ?? 1,
+      hostAvatarEmoji: json['host_avatar_emoji'] ?? '👤',
     );
   }
 
@@ -260,6 +315,8 @@ class LiveGameSession {
     String? title,
     LiveGameType? gameType,
     String? theme,
+    String? subtheme,
+
     int? totalQuestions,
     int? timePerQuestion,
     int? maxPlayers,
@@ -275,6 +332,9 @@ class LiveGameSession {
     List<String>? questionIds,
     bool? isPrivate,
     bool? isDuel,
+    bool? isSurvival,
+    int? hostLevel,
+    String? hostAvatarEmoji,
   }) {
     return LiveGameSession(
       id: id,
@@ -283,7 +343,8 @@ class LiveGameSession {
       title: title ?? this.title,
       gameType: gameType ?? this.gameType,
       theme: theme ?? this.theme,
-      subtheme: subtheme,
+      subtheme: subtheme ?? this.subtheme,
+
       totalQuestions: totalQuestions ?? this.totalQuestions,
       timePerQuestion: timePerQuestion ?? this.timePerQuestion,
       maxPlayers: maxPlayers ?? this.maxPlayers,
@@ -299,6 +360,9 @@ class LiveGameSession {
       questionIds: questionIds ?? this.questionIds,
       isPrivate: isPrivate ?? this.isPrivate,
       isDuel: isDuel ?? this.isDuel,
+      isSurvival: isSurvival ?? this.isSurvival,
+      hostLevel: hostLevel ?? this.hostLevel,
+      hostAvatarEmoji: hostAvatarEmoji ?? this.hostAvatarEmoji,
     );
   }
 }

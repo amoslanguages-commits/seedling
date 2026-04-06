@@ -144,7 +144,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
                 SliverAppBar(
-                  expandedHeight: 340,
+                  expandedHeight: 380,
                   pinned: true,
                   backgroundColor: SeedlingColors.background,
                   flexibleSpace: FlexibleSpaceBar(
@@ -201,7 +201,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               // Settings button top-right
               Align(
                 alignment: Alignment.topRight,
@@ -274,7 +274,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               // Stat pills row
               _buildStatPillsRow(data),
               const SizedBox(height: 8),

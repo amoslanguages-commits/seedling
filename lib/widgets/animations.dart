@@ -32,18 +32,12 @@ class _FadeInStaggeredState extends State<FadeInStaggered>
       duration: const Duration(milliseconds: 800),
     );
 
-    _fade = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
 
     _slide = Tween<Offset>(
       begin: widget.offset,
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutBack,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     Future.delayed(widget.delay * widget.index, () {
       if (mounted) _controller.forward();
@@ -63,10 +57,7 @@ class _FadeInStaggeredState extends State<FadeInStaggered>
       builder: (context, child) {
         return Opacity(
           opacity: _fade.value,
-          child: Transform.translate(
-            offset: _slide.value,
-            child: child,
-          ),
+          child: Transform.translate(offset: _slide.value, child: child),
         );
       },
       child: widget.child,

@@ -15,12 +15,20 @@ class CompetitionStats {
   final int totalXP;
   final int globalPosition;
 
+  // Real Stat Fields
+  final int challengesWon;
+  final int totalRoomsHosted;
+  final int spectatorMinutes;
+
   const CompetitionStats({
     required this.rank,
     required this.winRate,
     required this.medals,
     required this.totalXP,
     required this.globalPosition,
+    this.challengesWon = 0,
+    this.totalRoomsHosted = 0,
+    this.spectatorMinutes = 0,
   });
 
   /// XP-to-league name mapping
@@ -36,10 +44,13 @@ class CompetitionStats {
   factory CompetitionStats.empty() {
     return const CompetitionStats(
       rank: 'Sapling',
-      winRate: '—',
+      winRate: '0%',
       medals: 0,
       totalXP: 0,
       globalPosition: 0,
+      challengesWon: 0,
+      totalRoomsHosted: 0,
+      spectatorMinutes: 0,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/colors.dart';
 import '../core/typography.dart';
@@ -13,6 +14,10 @@ import '../services/auth_service.dart';
 import '../services/sync_manager.dart';
 import '../services/audio_service.dart';
 import '../services/intelligence_service.dart';
+import '../services/usage_service.dart';
+import '../widgets/premium_gate.dart';
+import '../database/database_helper.dart';
+import '../widgets/readiness_hud.dart';
 
 // ================================================================
 // SESSION FLOW (the correct SRS-based loop):
@@ -70,7 +75,7 @@ class LearningSessionScreen extends ConsumerStatefulWidget {
 class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   _SessionPhase _phase = _SessionPhase.loading;
   List<Word> _dueWords = [];
-  Word? _newWordToPlant;
+  List<Word> _pendingNewWords = [];
   int _correctAnswers = 0;
   int _totalQuestions = 0;
   int _cumulativeCorrect = 0;
@@ -79,6 +84,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   List<Word> _initialPlantedWords = [];
   int _batchIndex = 0;
   bool _isReplenishing = false;
+  bool _isLimitReached = false;
 
   // Intelligence & Settings
   List<Map<String, dynamic>> _coverageGaps = []; // domain heatmap
@@ -97,93 +103,149 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   }
 
   Future<void> _loadSession() async {
-    final db = ref.read(databaseProvider);
-    final targetLang = ref.read(currentLanguageProvider);
-    final nativeLang = ref.read(nativeLanguageProvider);
+    try {
+      final db = ref.read(databaseProvider);
+      final targetLang = ref.read(currentLanguageProvider);
+      final nativeLang = ref.read(nativeLanguageProvider);
 
-    // ── Mastery Decay on Silence (runs silently on every session start) ──────
-    final decayed = await IntelligenceService.instance
-        .detectAndApplyMasteryDecay(db, nativeLang, targetLang);
-    if (decayed > 0) {
-      debugPrint(
-        '[LearningSession] Mastery decay applied to $decayed fragile words',
-      );
-    }
+      // ── Mastery Decay on Silence (runs silently on every session start) ──────
+      final decayed = await IntelligenceService.instance
+          .detectAndApplyMasteryDecay(db, nativeLang, targetLang);
+      if (decayed > 0) {
+        debugPrint(
+          '[LearningSession] Mastery decay applied to $decayed fragile words',
+        );
+      }
 
-    // ── Domain Coverage Heatmap (loaded once per session) ───────────────
-    _coverageGaps = await db.getDomainCoverageGaps(nativeLang, targetLang);
+      // ── Domain Coverage Heatmap (loaded once per session) ───────────────
+      _coverageGaps = await db.getDomainCoverageGaps(nativeLang, targetLang);
 
-    // Check if user has learned any words yet
-    final totalLearned = await db.getTotalWordsLearned(targetLang);
-    final isBrandNew = totalLearned == 0;
+      // Check if user has learned any words yet
+      final totalLearned = await db.getTotalWordsLearned(targetLang);
+      final isBrandNew = totalLearned == 0;
 
-    final int wordsToFetch = isBrandNew ? 3 : 1;
-    final List<Word> newWords = [];
+      final bool canPlant = await UsageService().canPlantWord();
+      final int wordsToFetch = isBrandNew ? 3 : (canPlant ? 1 : 0);
+      final List<Word> newWords = [];
+      bool limitReached = false;
 
-    for (int i = 0; i < wordsToFetch; i++) {
-      final w = await db.getNewWordToPlant(
+      if (wordsToFetch > 0) {
+        for (int i = 0; i < wordsToFetch; i++) {
+          final w = await db.getNewWordToPlant(
+            nativeLang,
+            targetLang,
+            categoryId: widget.categoryId,
+            domain: widget.domain,
+            subDomain: widget.subDomain,
+            partOfSpeech: widget.partOfSpeech,
+            microCategory: widget.microCategory,
+          );
+          if (w != null && !newWords.any((existing) => existing.id == w.id)) {
+            newWords.add(w);
+          } else {
+            break;
+          }
+        }
+      } else if (!isBrandNew) {
+        // Check if there WOULD have been a word to plant
+        final possibleWord = await db.getNewWordToPlant(
+          nativeLang,
+          targetLang,
+          categoryId: widget.categoryId,
+        );
+        if (possibleWord != null) {
+          limitReached = true;
+        }
+      }
+
+      // ── Forgotten Curve Detection: load critically overdue words first ──────
+      final forgottenWords = await db.getForgottenWords(
         nativeLang,
         targetLang,
-        categoryId: widget.categoryId,
-        domain: widget.domain,
-        subDomain: widget.subDomain,
+        limit: 3,
+      );
+
+      final due = await db.getSRSDueWords(
+        nativeLang,
+        targetLang,
+        limit: 15,
+        categoryId: null,
         partOfSpeech: widget.partOfSpeech,
         microCategory: widget.microCategory,
       );
-      if (w != null && !newWords.any((existing) => existing.id == w.id)) {
-        newWords.add(w);
-      } else {
-        break;
+
+      // ── SILE: Cross-Subtheme Reviews ──────────────────────────────────────────
+      final crossReviews = await db.getCrossSubthemeReviews(
+        nativeLang,
+        targetLang,
+        limit: 5, // up to 5 interleaves
+        excludeSubDomain: widget.subDomain ?? _activeSubDomain,
+      );
+
+      // Merge forgotten, theme due, and cross-subtheme (shuffle cross reviews)
+      final mergedDue = <Word>[
+        ...forgottenWords,
+        ...due.where((w) => !forgottenWords.any((f) => f.id == w.id)),
+        ...crossReviews,
+      ];
+      // We could shuffle mergedDue slightly, but QuizManager _AdaptiveQueue will shuffle anyway.
+
+      // ── SILE: Fetch additional new word candidates for pending queue ──────────
+      if (!isBrandNew && canPlant && newWords.isNotEmpty) {
+        final moreCandidates = await db.getSmartNewWordCandidates(
+          nativeLang,
+          targetLang,
+          limit: 2,
+          categoryId: widget.categoryId,
+          domain: widget.domain,
+          subDomain: widget.subDomain,
+          activeSubDomain: _activeSubDomain,
+          coverageGaps: _coverageGaps,
+        );
+        for (final mw in moreCandidates) {
+          if (!newWords.any((w) => w.id == mw.id)) {
+            newWords.add(mw);
+          }
+        }
+      }
+
+      // Derive active sub-domain from the loaded words for contextual grouping
+      _activeSubDomain = IntelligenceService.instance.getDominantSubDomain(
+        mergedDue,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _dueWords = mergedDue;
+        _pendingNewWords = isBrandNew ? [] : newWords;
+        _initialPlantedWords = isBrandNew ? newWords : [];
+        _isFirstSession = isBrandNew;
+        _isLimitReached = limitReached;
+
+        if (isBrandNew && _initialPlantedWords.isNotEmpty) {
+          _phase = _SessionPhase.noWordsYet;
+        } else if (mergedDue.isEmpty && _pendingNewWords.isEmpty) {
+          // If we have no more reviews AND we can't plant new words, end session
+          if (_isLimitReached) {
+            _showPremiumForPlanting();
+          } else {
+            _forceEndSession();
+          }
+        } else {
+          // First, choose the goal/budget for this session
+          _phase = _SessionPhase.goalSelection;
+          AudioService.instance.startAmbient();
+        }
+      });
+    } catch (e, stack) {
+      debugPrint('[LearningSession] FATAL: Failed to load session: $e\n$stack');
+      if (mounted) {
+        setState(() {
+          _phase = _SessionPhase.goalSelection; // Transition anyway to allow UI to recover
+        });
       }
     }
-
-    // ── Forgotten Curve Detection: load critically overdue words first ──────
-    final forgottenWords = await db.getForgottenWords(
-      nativeLang,
-      targetLang,
-      limit: 3,
-    );
-
-    final due = await db.getSRSDueWords(
-      nativeLang,
-      targetLang,
-      limit: 15,
-      categoryId: null,
-      partOfSpeech: widget.partOfSpeech,
-      microCategory: widget.microCategory,
-    );
-
-    // Merge forgotten words at the front (they are highest priority)
-    final mergedDue = <Word>[
-      ...forgottenWords,
-      ...due.where((w) => !forgottenWords.any((f) => f.id == w.id)),
-    ];
-
-    // Derive active sub-domain from the loaded words for contextual grouping
-    _activeSubDomain = IntelligenceService.instance.getDominantSubDomain(
-      mergedDue,
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _dueWords = mergedDue;
-      _newWordToPlant = isBrandNew
-          ? null
-          : (newWords.isNotEmpty ? newWords.first : null);
-      _initialPlantedWords = isBrandNew ? newWords : [];
-      _isFirstSession = isBrandNew;
-
-      if (isBrandNew && _initialPlantedWords.isNotEmpty) {
-        _phase = _SessionPhase.noWordsYet;
-      } else if (mergedDue.isEmpty && _newWordToPlant == null) {
-        _forceEndSession();
-      } else {
-        // First, choose the goal/budget for this session
-        _phase = _SessionPhase.goalSelection;
-        AudioService.instance.startAmbient();
-      }
-    });
   }
 
   /// Called by QuizManager when it runs out of cards.
@@ -199,62 +261,131 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
           '[LearningSession] Session goal reached ($elapsed / $_sessionBudgetMins mins). Stopping replenishment.',
         );
         setState(() => _budgetReached = true);
+        _forceEndSession();
         return;
       }
     }
 
     _isReplenishing = true;
 
-    debugPrint('[LearningSessionScreen] Replenishing session...');
+    try {
+      debugPrint('[LearningSessionScreen] Replenishing session...');
 
-    final db = ref.read(databaseProvider);
-    final targetLang = ref.read(currentLanguageProvider);
-    final nativeLang = ref.read(nativeLanguageProvider);
+      final db = ref.read(databaseProvider);
+      final targetLang = ref.read(currentLanguageProvider);
+      final nativeLang = ref.read(nativeLanguageProvider);
 
-    // 1. Smart new word: biased by active sub-domain + coverage gaps
-    final nextNewWord = await db.getSmartNewWord(
-      nativeLang,
-      targetLang,
-      categoryId: widget.categoryId,
-      domain: widget.domain,
-      subDomain: widget.subDomain,
-      partOfSpeech: widget.partOfSpeech,
-      microCategory: widget.microCategory,
-      activeSubDomain: _activeSubDomain,
-      coverageGaps: _coverageGaps,
-    );
+      // Get existing IDs to avoid duplicates
+      final existingIds = _quizKey.currentState?.allWordIds ?? [];
 
-    // 2. More due reviews
-    final moreDue = await db.getSRSDueWords(
-      nativeLang,
-      targetLang,
-      limit: 10,
-      categoryId: null,
-      partOfSpeech: widget.partOfSpeech,
-      microCategory: widget.microCategory,
-    );
+      // 1. SILE: Intelligent candidate fetching (with timeout)
+      final results = await Future.wait([
+        UsageService().canPlantWord().timeout(const Duration(seconds: 5)),
+        db
+            .getSmartNewWordCandidates(
+              nativeLang,
+              targetLang,
+              limit: 2,
+              categoryId: widget.categoryId,
+              domain: widget.domain,
+              subDomain: widget.subDomain,
+              activeSubDomain: _activeSubDomain,
+              partOfSpeech: widget.partOfSpeech,
+              microCategory: widget.microCategory,
+              coverageGaps: _coverageGaps,
+            )
+            .timeout(const Duration(seconds: 5)),
+        db
+            .getSRSDueWords(
+              nativeLang,
+              targetLang,
+              limit: 10,
+              categoryId: null,
+              partOfSpeech: widget.partOfSpeech,
+              microCategory: widget.microCategory,
+            )
+            .timeout(const Duration(seconds: 5)),
+        db
+            .getCrossSubthemeReviews(
+              nativeLang,
+              targetLang,
+              limit: 3,
+              excludeSubDomain: widget.subDomain ?? _activeSubDomain,
+            )
+            .timeout(const Duration(seconds: 5)),
+      ]);
 
-    if (nextNewWord == null && moreDue.isEmpty) {
-      _isReplenishing = false;
-      _forceEndSession();
-      return;
+      final bool canPlant = results[0] as bool;
+      if (!canPlant) {
+        _isLimitReached = true;
+      }
+
+      final List<Word> nextNewWords = (results[1] as List<Word>)
+          .where((w) => !existingIds.contains(w.id.toString()))
+          .toList();
+      final List<Word> moreDue = results[2] as List<Word>;
+      final List<Word> moreCrossReviews = results[3] as List<Word>;
+
+      final combinedDue = [...moreDue, ...moreCrossReviews]
+          .where((w) => !existingIds.contains(w.id.toString()))
+          .toList();
+
+      if (nextNewWords.isEmpty && combinedDue.isEmpty) {
+        // Fallback: Unlimited Smart Reviews
+        final randomLearned = await db.getRandomLearnedWords(
+          nativeLang,
+          targetLang,
+          limit: 10,
+        );
+        
+        final filteredRandom = randomLearned
+            .where((w) => !existingIds.contains(w.id.toString()))
+            .toList();
+
+        if (filteredRandom.isEmpty) {
+          // No content anywhere. Only end if QuizManager is also empty.
+          final hasActiveContent = _quizKey.currentState?.hasContent ?? false;
+          if (!hasActiveContent) {
+            if (_isLimitReached) {
+              _showPremiumForPlanting();
+            } else {
+              _forceEndSession();
+            }
+          }
+          return;
+        }
+
+        // Inject fallback smart reviews
+        _quizKey.currentState?.replenish(
+          moreReviews: filteredRandom,
+          moreNewWords: const [],
+        );
+      } else {
+        // 3. Inject into the existing quiz state
+        _quizKey.currentState?.replenish(
+          moreReviews: combinedDue,
+          moreNewWords: nextNewWords,
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _batchIndex++;
+        });
+      }
+    } catch (e) {
+      debugPrint('[LearningSession] Replenishment error/timeout: $e');
+      // If we timed out or crashed, and the queue is empty, end the session
+      if (mounted && (_quizKey.currentState?.allWordIds.isEmpty ?? true)) {
+        _forceEndSession();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isReplenishing = false;
+        });
+      }
     }
-
-    // Update contextual sub-domain for next replenishment
-    if (nextNewWord?.subDomain != null) {
-      _activeSubDomain = nextNewWord!.subDomain;
-    }
-
-    // 3. Inject into the existing quiz state
-    _quizKey.currentState?.replenish(
-      moreReviews: moreDue,
-      nextNewWord: nextNewWord,
-    );
-
-    setState(() {
-      _batchIndex++;
-      _isReplenishing = false;
-    });
   }
 
   // Called continuously by QuizManager
@@ -265,6 +396,15 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
         _totalQuestions = total;
       });
     }
+  }
+
+  void _showPremiumForPlanting() {
+    PremiumGateDialog.show(
+      context,
+      title: 'Daily Seed Limit Reached',
+      message:
+          'You\'ve planted 5 seeds today. Free accounts can plant up to 5 words daily to ensure steady growth. Upgrade to plant unlimited seeds!',
+    );
   }
 
   // Called when the user clicks the exit/close button or session ends naturally
@@ -300,6 +440,16 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
 
       // Trigger background sync to Supabase for "real data" in social/competitions
       SyncManager().syncToCloud().ignore();
+
+      // Refresh Home Tab stats immediately
+      ref.invalidate(userStatsProvider);
+
+      // Log session activity for Garden Journal
+      await DatabaseHelper().logActivity(
+        type: 'review',
+        description: 'Completed a ${durationMins}m $targetLang review session',
+        xp: xpGained,
+      );
     }
 
     setState(() {
@@ -317,7 +467,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
         // Go straight to quiz. The 3 planted words are treated as active new words!
         setState(() {
           _dueWords = []; // They are not due review words, they are brand new.
-          _newWordToPlant = null;
+          _pendingNewWords = [];
           _isFirstSession = false;
           _phase = _SessionPhase.quiz;
           _batchIndex++;
@@ -344,6 +494,14 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
     if (word.id == null) return;
     final db = ref.read(databaseProvider);
     await db.markWordAsPlanted(word.id!);
+    await UsageService().logWordPlanted();
+
+    // Log planting activity for Garden Journal
+    await DatabaseHelper().logActivity(
+      type: 'planting',
+      description: 'Planted "${word.translation}" in your garden',
+      xp: 25,
+    );
   }
 
   @override
@@ -634,10 +792,21 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   }
 
   Widget _buildQuizPhase() {
-    final totalWords = _dueWords.length + (_newWordToPlant != null ? 1 : 0);
+    final totalWords = _dueWords.length + (_pendingNewWords.isNotEmpty ? 1 : 0);
     final progress = _totalQuestions > 0
         ? (_correctAnswers / _totalQuestions).clamp(0.0, 1.0)
         : 0.0;
+
+    // ── UVLS: derive live CLS proxy from available session stats ──────────
+    // We proxy CLS as a 0-100 number using accuracy + streak from QuizManager.
+    final accuracyPct = _totalQuestions > 0
+        ? (_correctAnswers / _totalQuestions)
+        : 0.0;
+    final streakFromQueue = _quizKey.currentState?.streak ?? 0;
+    final wordsMasteredToday = _quizKey.currentState?.wordsMastered ?? 0;
+
+    // Simple proxy for HUD (real CLS is inside QuizManagerState)
+    final realCls = _quizKey.currentState?.currentCls ?? 50.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -654,14 +823,23 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
               isVerySmall,
               progress,
             ),
+            // ── UVLS: Garden Pulse HUD ─────────────────────────────────
+            if (!isVerySmall)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                child: ReadinessHUD(
+                  clsScore: realCls,
+                  streak: streakFromQueue,
+                  accuracy: accuracyPct,
+                  wordsMastered: wordsMasteredToday,
+                ),
+              ),
             Expanded(
               child: QuizManager(
                 key: _quizKey,
                 words: _dueWords,
-                initialNewWords: _batchIndex == 0
-                    ? _initialPlantedWords
-                    : const [],
-                newWordToPlant: _newWordToPlant,
+                initialNewWords: _initialPlantedWords,
+                pendingNewWords: _pendingNewWords,
                 onWordPlanted: _markPlanted,
                 onWordAnswered: _handleWordAnswered,
                 onProgressUpdate: _onProgressUpdate,
@@ -808,14 +986,12 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
 // (Signature widget is updated in seed_planting.dart to support these params)
 
 // ================================================================
-// SESSION SUMMARY SCREEN
+// SESSION SUMMARY SCREEN  (animated — confetti + counting stats)
 // ================================================================
 
-class SessionSummaryScreen extends StatelessWidget {
+class SessionSummaryScreen extends StatefulWidget {
   final int correctAnswers;
   final int totalQuestions;
-
-  /// When embedded inside LearningSessionScreen, we pop instead of pushReplacement.
   final bool isEmbedded;
 
   const SessionSummaryScreen({
@@ -826,121 +1002,401 @@ class SessionSummaryScreen extends StatelessWidget {
   });
 
   @override
+  State<SessionSummaryScreen> createState() => _SessionSummaryScreenState();
+}
+
+class _SessionSummaryScreenState extends State<SessionSummaryScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _entryController;
+  late AnimationController _confettiController;
+  late AnimationController _counterController;
+  late List<_ConfettiParticle> _particles;
+
+  late Animation<double> _slideIn;
+  late Animation<double> _fadeIn;
+  int _displayedAccuracy = 0;
+  int _displayedCorrect = 0;
+  int _displayedXP = 0;
+
+  int get _accuracy => widget.totalQuestions > 0
+      ? (widget.correctAnswers / widget.totalQuestions * 100).toInt()
+      : 100;
+  int get _xp => widget.correctAnswers * 10;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _slideIn = Tween<double>(begin: 60, end: 0).animate(
+      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+    );
+    _fadeIn = CurvedAnimation(parent: _entryController, curve: Curves.easeOut);
+
+    _confettiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+
+    _counterController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 1400),
+        )..addListener(() {
+          setState(() {
+            _displayedAccuracy = (_accuracy * _counterController.value).toInt();
+            _displayedCorrect =
+                (widget.correctAnswers * _counterController.value).toInt();
+            _displayedXP = (_xp * _counterController.value).toInt();
+          });
+        });
+
+    final rng = math.Random();
+    _particles = List.generate(55, (_) => _ConfettiParticle(rng));
+
+    _entryController.forward();
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        _counterController.forward(from: 0);
+        _confettiController.forward(from: 0);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _confettiController.dispose();
+    _counterController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final accuracy = totalQuestions > 0
-        ? (correctAnswers / totalQuestions * 100).toInt()
-        : 100;
-    final xp = correctAnswers * 10;
+    final accuracy = _accuracy;
+    final String headline = accuracy >= 80
+        ? 'Excellent Growth! 🌻'
+        : accuracy >= 50
+        ? 'Good Progress! 🌱'
+        : 'Keep Nurturing! 🌿';
 
     return Scaffold(
       backgroundColor: SeedlingColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SeedlingMascot(size: 130, state: MascotState.celebrating),
-              const SizedBox(height: 28),
-              Text(
-                accuracy >= 80
-                    ? 'Excellent Growth! 🌻'
-                    : accuracy >= 50
-                    ? 'Good Progress! 🌱'
-                    : 'Keep Nurturing! 🌿',
-                style: SeedlingTypography.heading1.copyWith(fontSize: 26),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your roots are getting stronger.',
-                style: SeedlingTypography.body.copyWith(
-                  color: SeedlingColors.textSecondary,
+      body: Stack(
+        children: [
+          // ── Confetti layer ───────────────────────────────────────
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _confettiController,
+              builder: (_, __) => CustomPaint(
+                painter: _ConfettiPainter(
+                  particles: _particles,
+                  progress: _confettiController.value,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 36),
+            ),
+          ),
 
-              // Stats row
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: SeedlingColors.cardBackground,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: SeedlingColors.seedlingGreen.withValues(
-                        alpha: 0.1,
+          // ── Main content ─────────────────────────────────────────
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeIn,
+              child: AnimatedBuilder(
+                animation: _slideIn,
+                builder: (context, child) => Transform.translate(
+                  offset: Offset(0, _slideIn.value),
+                  child: child,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SeedlingMascot(
+                        size: 130,
+                        state: MascotState.celebrating,
                       ),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _stat(
-                      'Accuracy',
-                      '$accuracy%',
-                      SeedlingColors.seedlingGreen,
-                    ),
-                    _stat('Correct', '$correctAnswers', SeedlingColors.success),
-                    _stat('XP', '+$xp', SeedlingColors.sunlight),
-                  ],
-                ),
-              ),
+                      const SizedBox(height: 22),
 
-              const SizedBox(height: 40),
-
-              // SRS reminder
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: SeedlingColors.morningDew.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: SeedlingColors.morningDew.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Text('🌿', style: TextStyle(fontSize: 20)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'These words will return at the perfect interval to lock them into long-term memory.',
-                        style: SeedlingTypography.caption.copyWith(
+                      Text(
+                        headline,
+                        style: SeedlingTypography.heading1.copyWith(
+                          fontSize: 26,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Your roots are getting stronger.',
+                        style: SeedlingTypography.body.copyWith(
                           color: SeedlingColors.textSecondary,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 28),
+
+                      // ── Animated stats card ──────────────────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 22,
+                        ),
+                        decoration: BoxDecoration(
+                          color: SeedlingColors.cardBackground,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: SeedlingColors.seedlingGreen.withValues(
+                              alpha: 0.15,
+                            ),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.12,
+                              ),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _animatedStat(
+                              '🎯',
+                              '$_displayedAccuracy%',
+                              'Accuracy',
+                              SeedlingColors.seedlingGreen,
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: SeedlingColors.textSecondary.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                            _animatedStat(
+                              '✅',
+                              '$_displayedCorrect',
+                              'Correct',
+                              SeedlingColors.success,
+                            ),
+                            Container(
+                              width: 1,
+                              height: 50,
+                              color: SeedlingColors.textSecondary.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                            _animatedStat(
+                              '⚡',
+                              '+$_displayedXP',
+                              'XP',
+                              SeedlingColors.sunlight,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      // ── Animated accuracy bar ────────────────────
+                      _buildAccuracyBar(accuracy),
+
+                      const SizedBox(height: 22),
+
+                      // SRS reminder pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: SeedlingColors.morningDew.withValues(
+                            alpha: 0.1,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: SeedlingColors.morningDew.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('🌿', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'These words will return at the perfect interval to lock them into long-term memory.',
+                                style: SeedlingTypography.caption.copyWith(
+                                  color: SeedlingColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+                      OrganicButton(
+                        text: 'Back to Garden',
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-
-              const SizedBox(height: 36),
-              OrganicButton(
-                text: 'Back to Garden',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _stat(String label, String value, Color color) {
+  Widget _animatedStat(String emoji, String value, String label, Color color) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value, style: SeedlingTypography.heading2.copyWith(color: color)),
-        const SizedBox(height: 4),
-        Text(label, style: SeedlingTypography.caption),
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: SeedlingTypography.heading2.copyWith(
+            color: color,
+            fontSize: 22,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: SeedlingTypography.caption.copyWith(fontSize: 11)),
       ],
     );
   }
+
+  Widget _buildAccuracyBar(int accuracy) {
+    final Color barColor = accuracy >= 80
+        ? SeedlingColors.success
+        : accuracy >= 50
+        ? SeedlingColors.sunlight
+        : SeedlingColors.error;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Session accuracy',
+              style: SeedlingTypography.caption.copyWith(
+                color: SeedlingColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              '$_displayedAccuracy%',
+              style: SeedlingTypography.caption.copyWith(
+                color: barColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: AnimatedBuilder(
+            animation: _counterController,
+            builder: (_, __) => LinearProgressIndicator(
+              value: (_accuracy / 100) * _counterController.value,
+              backgroundColor: SeedlingColors.textSecondary.withValues(
+                alpha: 0.1,
+              ),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              minHeight: 10,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Confetti Particle System ──────────────────────────────────────
+
+class _ConfettiParticle {
+  final double x;
+  final double speed;
+  final double angle;
+  final double rotSpeed;
+  final Color color;
+  final double size;
+  final double xDrift;
+  final double phase;
+
+  _ConfettiParticle(math.Random rng)
+    : x = rng.nextDouble(),
+      speed = 0.3 + rng.nextDouble() * 0.5,
+      angle = rng.nextDouble() * math.pi * 2,
+      rotSpeed = (rng.nextDouble() - 0.5) * 8,
+      size = 6 + rng.nextDouble() * 8,
+      xDrift = 0.02 + rng.nextDouble() * 0.04,
+      phase = rng.nextDouble() * math.pi * 2,
+      color = _kConfettiColors[rng.nextInt(_kConfettiColors.length)];
+
+  static const _kConfettiColors = [
+    Color(0xFF4CAF50),
+    Color(0xFF8BC34A),
+    Color(0xFFFFEB3B),
+    Color(0xFFFF9800),
+    Color(0xFF03A9F4),
+    Color(0xFFE91E63),
+    Color(0xFF9C27B0),
+    Color(0xFF00BCD4),
+  ];
+}
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_ConfettiParticle> particles;
+  final double progress;
+
+  _ConfettiPainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1.0) return;
+    for (final p in particles) {
+      final t = (progress * p.speed).clamp(0.0, 1.0);
+      final y = t * size.height * 1.2;
+      final x =
+          p.x * size.width +
+          math.sin(progress * math.pi * 4 + p.phase) * p.xDrift * size.width;
+      final opacity = t > 0.7 ? (1.0 - (t - 0.7) / 0.3).clamp(0.0, 1.0) : 1.0;
+
+      final paint = Paint()
+        ..color = p.color.withValues(alpha: opacity * 0.85)
+        ..style = PaintingStyle.fill;
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(p.angle + p.rotSpeed * progress);
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: p.size,
+          height: p.size * 0.55,
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter old) =>
+      old.progress != progress;
 }

@@ -11,6 +11,9 @@ import '../models/gamification.dart';
 import '../services/settings_service.dart';
 import '../services/sync_manager.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
+import 'package:flutter/foundation.dart';
+import '../services/auth_service.dart';
+import '../core/supabase_config.dart';
 
 final settingsService = SettingsService();
 
@@ -21,6 +24,7 @@ class SettingsState {
   final int dailyWordGoal;
   final bool cloudSyncEnabled;
   final TimeOfDay reminderTime;
+  final String nativeLanguageCode;
 
   SettingsState({
     required this.notificationsEnabled,
@@ -29,6 +33,7 @@ class SettingsState {
     required this.dailyWordGoal,
     required this.cloudSyncEnabled,
     required this.reminderTime,
+    required this.nativeLanguageCode,
   });
 
   factory SettingsState.initial() => SettingsState(
@@ -38,6 +43,7 @@ class SettingsState {
     dailyWordGoal: settingsService.dailyWordGoal,
     cloudSyncEnabled: settingsService.cloudSyncEnabled,
     reminderTime: settingsService.reminderTime,
+    nativeLanguageCode: settingsService.nativeLanguageCode,
   );
 
   SettingsState copyWith({
@@ -47,6 +53,7 @@ class SettingsState {
     int? dailyWordGoal,
     bool? cloudSyncEnabled,
     TimeOfDay? reminderTime,
+    String? nativeLanguageCode,
   }) => SettingsState(
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
@@ -54,12 +61,15 @@ class SettingsState {
     dailyWordGoal: dailyWordGoal ?? this.dailyWordGoal,
     cloudSyncEnabled: cloudSyncEnabled ?? this.cloudSyncEnabled,
     reminderTime: reminderTime ?? this.reminderTime,
+    nativeLanguageCode: nativeLanguageCode ?? this.nativeLanguageCode,
   );
 }
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
-  return SettingsNotifier();
-});
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
+  (ref) {
+    return SettingsNotifier();
+  },
+);
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
   SettingsNotifier() : super(SettingsState.initial());
@@ -100,6 +110,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     _triggerSync();
   }
 
+  Future<void> setNativeLanguageCode(String code) async {
+    await settingsService.setNativeLanguageCode(code);
+    state = state.copyWith(nativeLanguageCode: code);
+    _triggerSync();
+  }
+
   void _triggerSync() {
     if (state.cloudSyncEnabled) {
       SyncManager().syncToCloud();
@@ -133,7 +149,9 @@ final nativeLanguageProvider = Provider<String>((ref) {
   return active?.nativeLanguage.code ?? 'en';
 });
 final isPremiumProvider = StreamProvider<bool>((ref) {
-  return SubscriptionService().subscriptionStatus.map((status) => status == SubscriptionStatus.premium);
+  return SubscriptionService().subscriptionStatus.map(
+    (status) => status == SubscriptionStatus.premium,
+  );
 });
 final showPronunciationProvider = StateProvider<bool>((ref) => false);
 
@@ -145,21 +163,52 @@ final wordsForStudyProvider = FutureProvider<List<Word>>((ref) async {
   return await db.getWordsForLanguage(nativeLang, targetLang, limit: 20);
 });
 
+/// Provides real user profile data (name, email, avatar).
+final userProfileProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final user = AuthService().currentUser;
+  if (user == null) return {'display_name': 'Guest Learner'};
+
+  try {
+    final response = await SupabaseConfig.client
+        .from('profiles')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (response != null) return response;
+
+    // Fallback to auth metadata
+    return {
+      'display_name': user.userMetadata?['display_name'] ?? 'Guest Learner',
+      'email': user.email,
+    };
+  } catch (e) {
+    debugPrint('Error fetching profile: $e');
+    return {
+      'display_name': user.userMetadata?['display_name'] ?? 'Guest Learner',
+      'email': user.email,
+    };
+  }
+});
+
 final userStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final db = ref.watch(databaseProvider);
   final targetLang = ref.watch(currentLanguageProvider);
   final nativeLang = ref.watch(nativeLanguageProvider);
+  final settings = ref.watch(settingsProvider);
 
   final totalLearned = await db.getTotalWordsLearned(targetLang);
   final dailyProgress = await db.getWordsReviewedToday(nativeLang, targetLang);
   final stats = await db.getUserStats();
+  final usage = await db.getDailyUsage();
 
   return {
     'totalLearned': totalLearned,
     'currentStreak': stats['currentStreak'] ?? 0,
     'totalMinutes': stats['totalStudyMinutes'] ?? 0,
-    'dailyGoal': 10,
+    'dailyGoal': settings.dailyWordGoal,
     'dailyProgress': dailyProgress,
+    'sentencesToday': usage['sentences_played'] ?? 0,
   };
 });
 
@@ -189,6 +238,18 @@ final recentActivityProvider = FutureProvider<List<Word>>((ref) async {
   final nativeLang = ref.watch(nativeLanguageProvider);
 
   return await db.getRecentActivity(nativeLang, targetLang);
+});
+
+final gardenJournalProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  return await DatabaseHelper().getRecentUserActivities(limit: 30);
+});
+
+final weeklyStudyStatsProvider = FutureProvider<Map<String, List<double>>>((
+  ref,
+) async {
+  return await DatabaseHelper().getWeeklyStudyStats();
 });
 
 final friendsProvider = FutureProvider<List<Friend>>((ref) async {
@@ -225,14 +286,19 @@ final userCompeteStatsProvider = FutureProvider<CompetitionStats>((ref) async {
   if (stats == null) return CompetitionStats.empty();
 
   final totalXP = (stats['total_xp'] as int?) ?? 0;
-  final streak = (stats['current_streak'] as int?) ?? 0;
+  final won = (stats['challenges_won'] as int?) ?? 0;
+  final hosted = (stats['total_rooms_hosted'] as int?) ?? 0;
+  final spectator = (stats['spectator_minutes'] as int?) ?? 0;
 
   return CompetitionStats(
     rank: CompetitionStats.rankFromXP(totalXP),
-    winRate: '$streak🔥',   // streak used as engagement proxy until win tracking is added
-    medals: (totalXP ~/ 100).clamp(0, 999),
+    winRate: '$won Wins', // Now showing real victory count
+    medals: hosted + (won * 2), // Medals derived from hosting and winning
     totalXP: totalXP,
     globalPosition: rankPos,
+    challengesWon: won,
+    totalRoomsHosted: hosted,
+    spectatorMinutes: spectator,
   );
 });
 
@@ -295,9 +361,11 @@ final smartFocusProvider = FutureProvider<FocusState>((ref) async {
   );
 });
 
-final dailyChallengesProvider = FutureProvider<List<DailyChallenge>>((ref) async {
+final dailyChallengesProvider = FutureProvider<List<DailyChallenge>>((
+  ref,
+) async {
   final stats = ref.watch(userStatsProvider).value;
   if (stats == null) return [];
-  
+
   return await DailyChallengeManager.getDailyChallenges();
 });

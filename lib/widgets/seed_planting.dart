@@ -361,8 +361,10 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
             child: IgnorePointer(
               child: AnimatedBuilder(
                 animation: _particleAnim,
-                builder: (ctx, _) => CustomPaint(
-                  painter: SeedParticlePainter(progress: _particleAnim.value),
+                builder: (ctx, _) => RepaintBoundary(
+                  child: CustomPaint(
+                    painter: SeedParticlePainter(progress: _particleAnim.value),
+                  ),
                 ),
               ),
             ),
@@ -399,11 +401,13 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
                 SizedBox(
                   width: 180,
                   height: 180,
-                  child: CustomPaint(
-                    painter: SeedRevealPainter(
-                      crackProgress: _crackAnim.value,
-                      revealProgress: _revealAnim.value,
-                      plantProgress: _plantAnim.value,
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: SeedRevealPainter(
+                        crackProgress: _crackAnim.value,
+                        revealProgress: _revealAnim.value,
+                        plantProgress: _plantAnim.value,
+                      ),
                     ),
                   ),
                 ),
@@ -640,9 +644,11 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
   Widget _buildSoilLayer() {
     return SizedBox(
       height: 60,
-      child: CustomPaint(
-        size: const Size(double.infinity, 60),
-        painter: _SoilLayerPainter(),
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: const Size(double.infinity, 60),
+          painter: _SoilLayerPainter(),
+        ),
       ),
     );
   }
@@ -689,6 +695,9 @@ class SeedRevealPainter extends CustomPainter {
     required this.plantProgress,
   });
 
+  Path? _cachedSeedPath;
+  Size? _lastSize;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
@@ -721,16 +730,21 @@ class SeedRevealPainter extends CustomPainter {
       )!.withValues(alpha: baseAlpha)
       ..style = PaintingStyle.fill;
 
-    final seedPath = _buildSeedPath(cx, cy, 54, 72);
-    canvas.drawPath(seedPath, seedPaint);
+    if (_cachedSeedPath == null || _lastSize != size) {
+      _cachedSeedPath = _buildSeedPath(cx, cy, 54, 72);
+      _lastSize = size;
+    }
+
+    canvas.drawPath(_cachedSeedPath!, seedPaint);
 
     // ── Seed highlight ──
     final highlightPaint = Paint()
       ..color = SeedlingColors.morningDew.withValues(alpha: 0.22 * baseAlpha)
       ..style = PaintingStyle.fill;
-    final highlightPath = _buildSeedPath(cx - 10, cy - 14, 20, 28);
     canvas.save();
-    canvas.clipPath(seedPath);
+    canvas.clipPath(_cachedSeedPath!);
+    final highlightPath = Path()
+      ..addOval(Rect.fromLTWH(cx - 30, cy - 45, 60, 40));
     canvas.drawPath(highlightPath, highlightPaint);
     canvas.restore();
 
@@ -758,7 +772,7 @@ class SeedRevealPainter extends CustomPainter {
               Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
             );
       canvas.save();
-      canvas.clipPath(seedPath);
+      canvas.clipPath(_cachedSeedPath!);
       canvas.drawCircle(Offset(cx, cy), glowRadius, glowPaint);
       canvas.restore();
 
@@ -771,7 +785,7 @@ class SeedRevealPainter extends CustomPainter {
       ..color = SeedlingColors.deepRoot.withValues(alpha: 0.6 * baseAlpha)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
-    canvas.drawPath(seedPath, outlinePaint);
+    canvas.drawPath(_cachedSeedPath!, outlinePaint);
   }
 
   Path _buildSeedPath(double cx, double cy, double rw, double rh) {
@@ -964,6 +978,9 @@ class _PlantedSeedling extends StatelessWidget {
 }
 
 class _PlantedSeedlingPainter extends CustomPainter {
+  Path? _cachedSoilPath;
+  Size? _lastSize;
+
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
@@ -974,13 +991,16 @@ class _PlantedSeedlingPainter extends CustomPainter {
       ..color = SeedlingColors.soil.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
 
-    final soilPath = Path()
-      ..moveTo(cx - 18, groundY)
-      ..quadraticBezierTo(cx, groundY - 8, cx + 18, groundY)
-      ..lineTo(cx + 20, groundY + 10)
-      ..lineTo(cx - 20, groundY + 10)
-      ..close();
-    canvas.drawPath(soilPath, soilPaint);
+    if (_cachedSoilPath == null || _lastSize != size) {
+      _cachedSoilPath = Path()
+        ..moveTo(cx - 18, groundY)
+        ..quadraticBezierTo(cx, groundY - 8, cx + 18, groundY)
+        ..lineTo(cx + 20, groundY + 10)
+        ..lineTo(cx - 20, groundY + 10)
+        ..close();
+      _lastSize = size;
+    }
+    canvas.drawPath(_cachedSoilPath!, soilPaint);
 
     // Stem
     final stemPaint = Paint()
@@ -1028,28 +1048,34 @@ class _PlantedSeedlingPainter extends CustomPainter {
 // ================================================================
 
 class _SoilLayerPainter extends CustomPainter {
+  Path? _cachedPath;
+  Size? _lastSize;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = SeedlingColors.soil.withValues(alpha: 0.25)
       ..style = PaintingStyle.fill;
 
-    final path = Path()..moveTo(0, size.height * 0.4);
+    if (_cachedPath == null || _lastSize != size) {
+      _cachedPath = Path()..moveTo(0, size.height * 0.4);
 
-    for (double x = 0; x <= size.width; x += 40) {
-      path.quadraticBezierTo(
-        x + 20,
-        size.height * 0.4 + 10 * math.sin((x / size.width) * math.pi * 3),
-        x + 40,
-        size.height * 0.4,
-      );
+      for (double x = 0; x <= size.width; x += 40) {
+        _cachedPath!.quadraticBezierTo(
+          x + 20,
+          size.height * 0.4 + 10 * math.sin((x / size.width) * math.pi * 3),
+          x + 40,
+          size.height * 0.4,
+        );
+      }
+      _cachedPath!
+        ..lineTo(size.width, size.height)
+        ..lineTo(0, size.height)
+        ..close();
+      _lastSize = size;
     }
-    path
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
 
-    canvas.drawPath(path, paint);
+    canvas.drawPath(_cachedPath!, paint);
   }
 
   @override

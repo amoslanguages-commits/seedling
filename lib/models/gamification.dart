@@ -43,7 +43,7 @@ class DailyChallengeManager {
     final studyMinutes = stats['totalStudyMinutes'] as int? ?? 0;
     // For "perfect accuracy", we'll use a heuristic or just a high-level stat for now
     // as we don't track per-quiz perfection in the aggregate yet.
-    
+
     return [
       DailyChallenge(
         id: 'challenge_1',

@@ -44,15 +44,17 @@ class _StemProgressBarState extends State<StemProgressBar>
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, _) {
-        return CustomPaint(
-          size: Size(
-            double.infinity,
-            widget.height + (widget.showLeaves ? 28 : 0),
-          ),
-          painter: StemProgressPainter(
-            progress: widget.progress,
-            showLeaves: widget.showLeaves,
-            pulseValue: _pulseController.value,
+        return RepaintBoundary(
+          child: CustomPaint(
+            size: Size(
+              double.infinity,
+              widget.height + (widget.showLeaves ? 28 : 0),
+            ),
+            painter: StemProgressPainter(
+              progress: widget.progress,
+              showLeaves: widget.showLeaves,
+              pulseValue: _pulseController.value,
+            ),
           ),
         );
       },

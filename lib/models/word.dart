@@ -135,8 +135,9 @@ class Word {
       'it',
       'pt',
       'ca',
-    ].contains(targetLanguageCode.toLowerCase()))
+    ].contains(targetLanguageCode.toLowerCase())) {
       return false;
+    }
     return languageSpecific['article'] != null &&
         languageSpecific['article'].toString().isNotEmpty;
   }
@@ -145,8 +146,10 @@ class Word {
       hasTargetArticle ? languageSpecific['article']!.toString() : '';
 
   // Use this whenever playing the word through TTS
-  String get ttsWord =>
-      (article != null && article!.isNotEmpty) ? '$article $word' : word;
+  String get ttsWord {
+    final art = hasTargetArticle ? targetArticle : (article ?? '');
+    return art.isNotEmpty ? '$art $word' : word;
+  }
 
   // Quiz Helpers for Multiplayer Arena
   List<String>? _customOptions;
@@ -156,8 +159,9 @@ class Word {
 
   // Use provided options or fall back to native translation with placeholders
   List<String> get options {
-    if (_customOptions != null && _customOptions!.isNotEmpty)
+    if (_customOptions != null && _customOptions!.isNotEmpty) {
       return _customOptions!;
+    }
     return [translation, 'Option A', 'Option B', 'Option C']..shuffle();
   }
 

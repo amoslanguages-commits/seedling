@@ -21,7 +21,7 @@ class DatabaseHelper {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
     return await openDatabase(
       dbPath,
-      version: 9,
+      version: 12,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -78,7 +78,10 @@ class DatabaseHelper {
         last_study_session TEXT,
         total_study_minutes INTEGER DEFAULT 0,
         total_xp INTEGER DEFAULT 0,
-        is_premium INTEGER DEFAULT 0
+        is_premium INTEGER DEFAULT 0,
+        challenges_won INTEGER DEFAULT 0,
+        total_rooms_hosted INTEGER DEFAULT 0,
+        spectator_minutes INTEGER DEFAULT 0
       )
     ''');
 
@@ -130,6 +133,28 @@ class DatabaseHelper {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_words_domain ON words (language_code, target_language_code, domain, sub_domain, mastery_level)',
     );
+
+    // Daily Usage Tracking
+    await db.execute('''
+      CREATE TABLE daily_usage(
+        date TEXT PRIMARY KEY,
+        words_planted INTEGER DEFAULT 0,
+        sentences_played INTEGER DEFAULT 0,
+        games_hosted INTEGER DEFAULT 0,
+        games_joined INTEGER DEFAULT 0
+      )
+    ''');
+
+    // User Activities Table (Garden Journal)
+    await db.execute('''
+      CREATE TABLE user_activities(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL, -- e.g. 'planted', 'mastered', 'challenge_win'
+        description TEXT,
+        xp_earned INTEGER DEFAULT 0,
+        timestamp TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -232,8 +257,68 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 9) {
-      await db.execute('ALTER TABLE user_progress ADD COLUMN total_xp INTEGER DEFAULT 0');
-      await db.execute('ALTER TABLE study_sessions ADD COLUMN xp_gained INTEGER DEFAULT 0');
+      await db.execute(
+        'ALTER TABLE user_progress ADD COLUMN total_xp INTEGER DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE study_sessions ADD COLUMN xp_gained INTEGER DEFAULT 0',
+      );
+    }
+
+    if (oldVersion < 10) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS daily_usage(
+          date TEXT PRIMARY KEY,
+          words_planted INTEGER DEFAULT 0,
+          sentences_played INTEGER DEFAULT 0,
+          games_hosted INTEGER DEFAULT 0,
+          games_joined INTEGER DEFAULT 0
+        )
+      ''');
+    }
+
+    if (oldVersion < 11) {
+      // Add multiplayer tracking to user_progress
+      try {
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN challenges_won INTEGER DEFAULT 0',
+        );
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN total_rooms_hosted INTEGER DEFAULT 0',
+        );
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN spectator_minutes INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+
+      // Add user_activities table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS user_activities(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          description TEXT,
+          xp_earned INTEGER DEFAULT 0,
+          timestamp TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 12) {
+      // Ensure multiplayer tracking columns exist in user_progress
+      try {
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN challenges_won INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN total_rooms_hosted INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+      try {
+        await db.execute(
+          'ALTER TABLE user_progress ADD COLUMN spectator_minutes INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
     }
   }
 
@@ -400,6 +485,104 @@ class DatabaseHelper {
     return words;
   }
 
+  // ── Cross-subtheme SRS reviews (for Smart Interleaved Learning Engine) ───
+  // Returns due words from ALL subthemes EXCEPT the currently active one.
+  // This powers the SILE feature: during a "Food" session, forgotten "Travel"
+  // or "People" words pop up naturally to prevent knowledge silos.
+  Future<List<Word>> getCrossSubthemeReviews(
+    String languageCode,
+    String targetLanguageCode, {
+    String? excludeSubDomain, // the current session's subtheme to exclude
+    String? excludeDomain, // the current session's domain to exclude
+    int limit = 8,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    String where =
+        'language_code = ? AND target_language_code = ? '
+        'AND mastery_level > 0 '
+        'AND (next_review IS NULL OR next_review <= ?)';
+    List<dynamic> args = [languageCode, targetLanguageCode, now];
+
+    // Exclude current topic to avoid duplicating with in-session reviews
+    if (excludeSubDomain != null && excludeSubDomain.isNotEmpty) {
+      where += ' AND (sub_domain != ? OR sub_domain IS NULL)';
+      args.add(excludeSubDomain);
+    } else if (excludeDomain != null && excludeDomain.isNotEmpty) {
+      // Fall back to domain exclusion if no subdomain
+      where += ' AND (domain != ? OR domain IS NULL)';
+      args.add(excludeDomain);
+    }
+
+    final rows = await db.query(
+      'words',
+      where: where,
+      whereArgs: args,
+      // Prioritise most overdue, then weakest mastery (they need help most)
+      orderBy: 'next_review ASC, mastery_level ASC',
+      limit: limit,
+    );
+
+    final words = rows.map((m) => Word.fromMap(m)).toList();
+    words.shuffle(); // final shuffle for variety
+    return words;
+  }
+
+  // ── Unlimited Smart Review Fallback ──────────────────────────────────────
+  // Fetches random previously-learned words when no due/new words are available.
+  Future<List<Word>> getRandomLearnedWords(
+    String languageCode,
+    String targetLanguageCode, {
+    int limit = 5,
+  }) async {
+    final db = await database;
+    final rows = await db.query(
+      'words',
+      where: 'language_code = ? AND target_language_code = ? AND mastery_level > 0',
+      whereArgs: [languageCode, targetLanguageCode],
+      orderBy: 'RANDOM()',
+      limit: limit,
+    );
+    return rows.map((m) => Word.fromMap(m)).toList();
+  }
+
+  // ── Get up to N unplanted words (smart new-word candidates) ─────────────
+  // Returns multiple candidates for the pendingNewWords queue.
+  Future<List<Word>> getSmartNewWordCandidates(
+    String languageCode,
+    String targetLanguageCode, {
+    String? categoryId,
+    String? domain,
+    String? subDomain,
+    String? partOfSpeech,
+    String? microCategory,
+    String? activeSubDomain,
+    List<Map<String, dynamic>> coverageGaps = const [],
+    int limit = 2,
+  }) async {
+    final results = <Word>[];
+    for (int i = 0; i < limit; i++) {
+      final w = await getSmartNewWord(
+        languageCode,
+        targetLanguageCode,
+        categoryId: categoryId,
+        domain: domain,
+        subDomain: subDomain,
+        partOfSpeech: partOfSpeech,
+        microCategory: microCategory,
+        activeSubDomain: activeSubDomain,
+        coverageGaps: coverageGaps,
+      );
+      if (w != null && !results.any((r) => r.id == w.id)) {
+        results.add(w);
+      } else {
+        break;
+      }
+    }
+    return results;
+  }
+
   // ── Get the next unplanted word to reveal ────────────────────────────────
   // Returns a word with mastery_level == 0 (never planted) for the language
   // pair. Topic/category filtering supported.
@@ -563,23 +746,87 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>> getUserStats() async {
     final db = await database;
+
+    // Get aggregated stats for better accuracy
+    final totalWords = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM words WHERE mastery_level > 0',
+    );
+    final sessionStats = await db.rawQuery(
+      'SELECT SUM(duration_minutes) as total_minutes, SUM(xp_gained) as total_xp FROM study_sessions',
+    );
+
     final result = await db.query('user_progress', limit: 1);
+
+    int wordsCount = (totalWords.first['count'] as num?)?.toInt() ?? 0;
+    int studyMins = (sessionStats.first['total_minutes'] as num?)?.toInt() ?? 0;
+    int totalXP = (sessionStats.first['total_xp'] as num?)?.toInt() ?? 0;
+
     if (result.isNotEmpty) {
+      // Sync totalWordsLearned if they differ significantly (e.g. from session updates)
       return {
-        'totalWordsLearned': result.first['total_words_learned'],
+        'totalWordsLearned':
+            wordsCount > (result.first['total_words_learned'] as int? ?? 0)
+            ? wordsCount
+            : result.first['total_words_learned'],
         'currentStreak': result.first['current_streak'],
         'longestStreak': result.first['longest_streak'],
-        'totalStudyMinutes': result.first['total_study_minutes'],
-        'totalXP': result.first['total_xp'] ?? 0,
+        'totalStudyMinutes':
+            studyMins > (result.first['total_study_minutes'] as int? ?? 0)
+            ? studyMins
+            : result.first['total_study_minutes'],
+        'totalXP': totalXP > (result.first['total_xp'] as int? ?? 0)
+            ? totalXP
+            : result.first['total_xp'],
       };
     }
     return {
-      'totalWordsLearned': 0,
+      'totalWordsLearned': wordsCount,
       'currentStreak': 0,
       'longestStreak': 0,
-      'totalStudyMinutes': 0,
-      'totalXP': 0,
+      'totalStudyMinutes': studyMins,
+      'totalXP': totalXP,
     };
+  }
+
+  Future<Map<String, List<double>>> getWeeklyStudyStats() async {
+    final db = await database;
+    final now = DateTime.now();
+
+    // Initialize 7 days ago at midnight
+    final startDate = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(const Duration(days: 6));
+
+    List<double> wordCounts = List.filled(7, 0.0);
+    List<double> minuteCounts = List.filled(7, 0.0);
+
+    // We use study_sessions as primary source of historical activity
+    final sessions = await db.rawQuery(
+      '''
+      SELECT session_date, SUM(words_studied) as total_words, SUM(duration_minutes) as total_minutes
+      FROM study_sessions 
+      WHERE DATE(session_date) >= DATE(?)
+      GROUP BY DATE(session_date)
+    ''',
+      [startDate.toIso8601String()],
+    );
+
+    for (var row in sessions) {
+      final dateStr = row['session_date'] as String;
+      final dateRaw = DateTime.tryParse(dateStr);
+      if (dateRaw != null) {
+        final date = DateTime(dateRaw.year, dateRaw.month, dateRaw.day);
+        final index = date.difference(startDate).inDays;
+        if (index >= 0 && index < 7) {
+          wordCounts[index] = (row['total_words'] as num? ?? 0).toDouble();
+          minuteCounts[index] = (row['total_minutes'] as num? ?? 0).toDouble();
+        }
+      }
+    }
+
+    return {'words': wordCounts, 'minutes': minuteCounts};
   }
 
   // Import StudySession if needed, but here we'll use dynamic for simplicity in the helper
@@ -631,9 +878,7 @@ class DatabaseHelper {
 
   Future<void> updatePremiumStatus(bool isPremium) async {
     final db = await database;
-    await db.update('user_progress', {
-      'is_premium': isPremium ? 1 : 0,
-    });
+    await db.update('user_progress', {'is_premium': isPremium ? 1 : 0});
   }
 
   Future<void> saveStudySession(Map<String, dynamic> session) async {
@@ -650,10 +895,9 @@ class DatabaseHelper {
     });
 
     // Also update aggregate XP in user_progress
-    await db.rawUpdate(
-      'UPDATE user_progress SET total_xp = total_xp + ?',
-      [session['xp_gained']],
-    );
+    await db.rawUpdate('UPDATE user_progress SET total_xp = total_xp + ?', [
+      session['xp_gained'],
+    ]);
   }
 
   Future<void> clearUserData() async {
@@ -687,6 +931,58 @@ class DatabaseHelper {
       word.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  // ── DAILY USAGE TRACKING ───────────────────────────────────────────────
+
+  String get _currentDate => DateTime.now().toIso8601String().substring(0, 10);
+
+  Future<Map<String, int>> getDailyUsage() async {
+    final db = await database;
+    final date = _currentDate;
+    final result = await db.query(
+      'daily_usage',
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+
+    if (result.isEmpty) {
+      return {
+        'words_planted': 0,
+        'sentences_played': 0,
+        'games_hosted': 0,
+        'games_joined': 0,
+      };
+    }
+
+    return {
+      'words_planted': result.first['words_planted'] as int? ?? 0,
+      'sentences_played': result.first['sentences_played'] as int? ?? 0,
+      'games_hosted': result.first['games_hosted'] as int? ?? 0,
+      'games_joined': result.first['games_joined'] as int? ?? 0,
+    };
+  }
+
+  Future<void> incrementDailyUsage(String column) async {
+    final db = await database;
+    final date = _currentDate;
+
+    await db.transaction((txn) async {
+      final exists = await txn.query(
+        'daily_usage',
+        where: 'date = ?',
+        whereArgs: [date],
+      );
+
+      if (exists.isEmpty) {
+        await txn.insert('daily_usage', {'date': date, column: 1});
+      } else {
+        await txn.rawUpdate(
+          'UPDATE daily_usage SET $column = $column + 1 WHERE date = ?',
+          [date],
+        );
+      }
+    });
   }
 
   Future<void> insertWordsBatch(List<Word> words) async {
@@ -1198,5 +1494,70 @@ class DatabaseHelper {
       if (w.masteryLevel > 1) w.masteryLevel = w.masteryLevel - 1;
       return w;
     }).toList();
+  }
+
+  // --- Activity & Stat Tracking ---
+
+  Future<void> logActivity({
+    required String type,
+    required String description,
+    required int xp,
+  }) async {
+    final db = await database;
+    await db.insert('user_activities', {
+      'type': type,
+      'description': description,
+      'xp_earned': xp,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getRecentUserActivities({
+    int limit = 20,
+  }) async {
+    final db = await database;
+    return await db.query(
+      'user_activities',
+      orderBy: 'timestamp DESC',
+      limit: limit,
+    );
+  }
+
+  Future<void> incrementChallengeWin() async {
+    final db = await database;
+    await db.execute(
+      'UPDATE user_progress SET challenges_won = challenges_won + 1',
+    );
+  }
+
+  Future<void> incrementTotalRoomsHosted() async {
+    final db = await database;
+    await db.execute(
+      'UPDATE user_progress SET total_rooms_hosted = total_rooms_hosted + 1',
+    );
+  }
+
+  Future<void> addSpectatorMinutes(int minutes) async {
+    final db = await database;
+    await db.execute(
+      'UPDATE user_progress SET spectator_minutes = spectator_minutes + ?',
+      [minutes],
+    );
+  }
+
+  Future<Map<String, dynamic>> getUserMultiplayerStats() async {
+    final db = await database;
+    final List<Map<String, dynamic>> res = await db.query(
+      'user_progress',
+      columns: ['challenges_won', 'total_rooms_hosted', 'spectator_minutes'],
+    );
+    if (res.isEmpty) {
+      return {
+        'challenges_won': 0,
+        'total_rooms_hosted': 0,
+        'spectator_minutes': 0,
+      };
+    }
+    return res.first;
   }
 }

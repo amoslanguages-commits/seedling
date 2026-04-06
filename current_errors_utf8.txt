@@ -1,0 +1,27 @@
+﻿Analyzing seedling...                                           
+
+warning - Duplicate import - lib\providers\app_providers.dart:17:8 - duplicate_import
+warning - Duplicate import - lib\providers\app_providers.dart:18:8 - duplicate_import
+warning - The value of the local variable 'streak' isn't used - lib\providers\app_providers.dart:291:9 - unused_local_variable
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:138:44 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:212:46 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:894:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:940:31 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:941:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:979:30 - use_build_context_synchronously
+warning - The value of the local variable 'themeFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:72:11 - unused_local_variable
+warning - The value of the local variable 'modeFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:73:11 - unused_local_variable
+warning - The value of the local variable 'courseFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:74:11 - unused_local_variable
+warning - The value of the local variable 'mySessionAsync' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:88:11 - unused_local_variable
+warning - The declaration '_onRefresh' isn't referenced - lib\screens\social\multiplayer\compete_home_screen.dart:156:16 - unused_element
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1179:41 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1194:37 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1208:39 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1215:39 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\services\sync_manager.dart:129:9 - avoid_print
+  error - The getter 'headingSmall' isn't defined for the type 'SeedlingTypography' - lib\widgets\premium_gate_dialog.dart:61:41 - undefined_getter
+  error - The getter 'button' isn't defined for the type 'SeedlingTypography' - lib\widgets\premium_gate_dialog.dart:82:49 - undefined_getter
+  error - The getter 'button' isn't defined for the type 'SeedlingTypography' - lib\widgets\premium_gate_dialog.dart:106:49 - undefined_getter
+warning - Unused import: '../models/taxonomy.dart' - lib\widgets\quizzes.dart:8:8 - unused_import
+   info - Invalid use of a private type in a public API - lib\widgets\quizzes.dart:2414:3 - library_private_types_in_public_api
+

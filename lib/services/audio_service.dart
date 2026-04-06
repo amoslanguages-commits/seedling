@@ -332,6 +332,9 @@ class AudioService {
         await HapticFeedback.heavyImpact();
         await Future.delayed(const Duration(milliseconds: 150));
         await HapticFeedback.mediumImpact();
+      case HapticType.selection:
+        // Selection = soft UI feedback
+        await HapticFeedback.selectionClick();
     }
   }
 
@@ -375,4 +378,12 @@ class AudioService {
 }
 
 /// Semantic haptic types matching app interactions.
-enum HapticType { correct, wrong, tap, plant, levelUp, sessionComplete }
+enum HapticType {
+  correct,
+  wrong,
+  tap,
+  plant,
+  levelUp,
+  sessionComplete,
+  selection,
+}

@@ -17,10 +17,11 @@ import '../services/tts_service.dart';
 
 class LeafLetterQuiz extends StatefulWidget {
   final Word word;
-  final Function(
+  final void Function(
     bool correct,
     int masteryGained, [
     String? chosenWrongTranslation,
+    bool isSkip,
   ])
   onAnswer;
 
@@ -41,6 +42,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
   late AnimationController _bloomController;
 
   bool _hasAnswered = false;
+  bool _wasSkipped = false;
   int _mistakes = 0;
 
   @override
@@ -153,6 +155,22 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
       });
     }
   }
+  void _skip() {
+    if (_hasAnswered) return;
+    setState(() {
+      _hasAnswered = true;
+      _wasSkipped = true;
+      _slottedLetters = List.from(_targetLetters);
+    });
+    AudioService.instance.play(SFX.wrongAnswer);
+    AudioService.haptic(HapticType.wrong).ignore();
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        widget.onAnswer(false, 0, null, true); // true = was skipped
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,16 +234,16 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
                   height: 54,
                   decoration: BoxDecoration(
                     color: letter != null
-                        ? SeedlingColors.seedlingGreen
+                        ? (_wasSkipped ? SeedlingColors.deepRoot.withValues(alpha: 0.2) : SeedlingColors.seedlingGreen)
                         : SeedlingColors.soil.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: letter != null
-                          ? SeedlingColors.freshSprout
+                          ? (_wasSkipped ? SeedlingColors.deepRoot : SeedlingColors.freshSprout)
                           : SeedlingColors.soil.withValues(alpha: 0.2),
                       width: 2,
                     ),
-                    boxShadow: letter != null
+                    boxShadow: letter != null && !_wasSkipped
                         ? [
                             BoxShadow(
                               color: SeedlingColors.seedlingGreen.withValues(
@@ -241,7 +259,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
                   child: Text(
                     letter?.toUpperCase() ?? '',
                     style: SeedlingTypography.heading2.copyWith(
-                      color: SeedlingColors.textPrimary,
+                      color: letter != null && _wasSkipped ? SeedlingColors.deepRoot : SeedlingColors.textPrimary,
                       fontSize: 24,
                     ),
                   ),
@@ -251,7 +269,29 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
           ),
         ),
 
-        const Spacer(flex: 3),
+        const Spacer(flex: 1),
+
+        // Skip Button
+        AnimatedOpacity(
+          opacity: _hasAnswered ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 300),
+          child: IgnorePointer(
+            ignoring: _hasAnswered,
+            child: TextButton(
+              onPressed: _skip,
+              child: Text(
+                'Skip',
+                style: SeedlingTypography.body.copyWith(
+                  color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ),
+          ),
+        ),
+        
+        const Spacer(flex: 1),
 
         // Letter Bank
         Container(
@@ -318,7 +358,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
 class ForestClozeQuiz extends StatefulWidget {
   final Word word;
   final List<String> options;
-  final Function(
+  final void Function(
     bool correct,
     int masteryGained, [
     String? chosenWrongTranslation,
@@ -525,16 +565,66 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz>
                           ),
                       ],
                     ),
-                    child: Text(
-                      widget.options[index],
-                      style: SeedlingTypography.body.copyWith(
-                        color: textColor,
-                        fontWeight:
-                            isSelected || (_hasAnswered && isCorrectOption)
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          margin: const EdgeInsets.only(right: 14),
+                          decoration: BoxDecoration(
+                            color: _hasAnswered
+                                ? (isCorrectOption
+                                      ? SeedlingColors.seedlingGreen.withValues(
+                                          alpha: 0.2,
+                                        )
+                                      : isSelected
+                                      ? SeedlingColors.deepRoot.withValues(
+                                          alpha: 0.3,
+                                        )
+                                      : SeedlingColors.morningDew.withValues(
+                                          alpha: 0.2,
+                                        ))
+                                : isSelected
+                                ? SeedlingColors.deepRoot.withValues(alpha: 0.1)
+                                : SeedlingColors.morningDew.withValues(
+                                    alpha: 0.2,
+                                  ),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            ['A', 'B', 'C', 'D'].elementAtOrNull(index) ??
+                                '${index + 1}',
+                            style: SeedlingTypography.caption.copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _hasAnswered
+                                  ? (isCorrectOption
+                                        ? SeedlingColors.seedlingGreen
+                                        : isSelected
+                                        ? SeedlingColors.textSecondary
+                                        : SeedlingColors.textSecondary)
+                                  : SeedlingColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.options[index],
+                            style: SeedlingTypography.body.copyWith(
+                              color: textColor,
+                              fontWeight:
+                                  isSelected ||
+                                      (_hasAnswered && isCorrectOption)
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        // balance spacing
+                        const SizedBox(width: 40),
+                      ],
                     ),
                   ),
                 ),

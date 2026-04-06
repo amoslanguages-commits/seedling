@@ -1,0 +1,101 @@
+1. PEOPLE
+Identity → name, age, gender, nationality
+Relationships → family, friend, colleague
+Roles → teacher, doctor, leader
+Traits → kind, rude, intelligent
+Emotions → happy, angry, anxious
+Health → sick, healthy, injured
+
+2. DAILY LIFE
+Activities → eat, sleep, work, study
+Household → clean, cook, wash
+Shopping → buy, sell, pay
+Communication → speak, call, message
+
+3. FOOD & DRINK
+Fruits → apple, banana
+Vegetables → carrot, spinach
+Meals → breakfast, lunch
+Drinks → water, juice, coffee
+Cooking → fry, boil, bake
+Taste → sweet, salty, bitter
+
+4. HOME & ENVIRONMENT
+House → room, kitchen, bed
+Furniture → chair, table
+Objects → tools, appliances
+Nature → tree, river, mountain
+Weather → rain, wind, heat
+
+5. EDUCATION
+Institutions → school, university
+Subjects → math, science, history
+Learning Actions → read, write, study
+Evaluation → test, grade, exam
+
+6. WORK & BUSINESS
+Jobs → engineer, farmer
+Workplace → office, factory
+Business → company, customer
+Finance → money, salary, profit
+
+7. TRAVEL & TRANSPORT
+Transport → car, bus, airplane
+Places → city, country, airport
+Accommodation → hotel, hostel
+Travel Actions → travel, arrive, depart
+
+8. SOCIETY & GOVERNMENT
+Government → president, law
+Politics → election, policy
+Law → crime, court, justice
+Community → culture, tradition
+
+9. TECHNOLOGY
+Devices → phone, computer
+Internet → website, app
+Actions → download, upload
+Digital Life → social media, data
+
+10. TIME & SPACE
+Time → day, week, year
+Frequency → always, often
+Sequence → before, after
+Space → location, distance, direction
+
+11. NUMBERS & MEASUREMENT
+Numbers → one, hundred
+Quantity → few, many
+Measurement → meter, kilogram
+Comparison → more, less, equal
+
+12. UNIVERSAL VERBS
+Movement → run, walk
+Creation → build, make
+Thinking → know, believe
+Change → grow, improve
+Possession → have, own
+Existence → be, exist
+
+13. DESCRIPTIONS
+Size → large, small
+Color → red, blue
+Shape → round, square
+Speed → fast, slow
+Intensity → very, extremely
+Quality → good, bad
+
+14. ABSTRACT CONCEPTS
+Ideas → freedom, truth
+States → success, failure
+Systems → language, logic
+Relationships → cause, effect
+
+15. GRAMMAR FUNCTIONS
+Pronouns → I, you, they
+Determiners & Articles → a, an, the
+Prepositions → on, in, under
+Adverbs → always, often
+Conjunctions → and, or, but
+Auxiliary & Modal Verbs → be, have, do
+Particles & Markers → to

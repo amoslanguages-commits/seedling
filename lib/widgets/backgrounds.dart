@@ -26,15 +26,15 @@ class _FloatingLeavesBackgroundState extends State<FloatingLeavesBackground>
     super.initState();
     _backLayer = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 18),
+      duration: const Duration(seconds: 24),
     )..repeat();
     _midLayer = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
+      duration: const Duration(seconds: 18),
     )..repeat();
     _frontLayer = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 8),
+      duration: const Duration(seconds: 12),
     )..repeat();
   }
 
@@ -109,7 +109,7 @@ class FloatingLeavesPainter extends CustomPainter {
       final x = size.width * (1.0 - tOffset) + leaf.xBias * size.width * 0.2;
       final y =
           size.height * leaf.baseY +
-          math.sin(tOffset * math.pi * 2 + leaf.sinPhase) * 28.0;
+          math.sin(tOffset * math.pi * 2 + leaf.sinPhase) * 8.0;
 
       // Alpha pulse (breathe)
       final alphaPulse =

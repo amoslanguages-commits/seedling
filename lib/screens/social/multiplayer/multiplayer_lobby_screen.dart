@@ -48,6 +48,45 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
     )..repeat(reverse: true);
 
     _spores = List.generate(15, (i) => _Spore());
+
+    // Set up pulse listener for spectators
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(activeSessionProvider.notifier).onPulseReceived = (type) {
+        _showPulse(type);
+      };
+    });
+  }
+
+  final List<_ActivePulse> _activePulses = [];
+
+  void _showPulse(String type) {
+    if (!mounted) return;
+    setState(() {
+      _activePulses.add(
+        _ActivePulse(
+          type: type,
+          startTime: DateTime.now(),
+          position: Offset(
+            20 +
+                math.Random().nextDouble() *
+                    (MediaQuery.of(context).size.width - 40),
+            MediaQuery.of(context).size.height * 0.4 +
+                math.Random().nextDouble() * 200,
+          ),
+        ),
+      );
+    });
+
+    // Remove pulse after animation
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _activePulses.removeWhere(
+            (p) => DateTime.now().difference(p.startTime).inSeconds >= 3,
+          );
+        });
+      }
+    });
   }
 
   @override
@@ -98,12 +137,10 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF070F06),
         body: Stack(
           children: [
             _buildAnimatedBackground(),
             _buildSporeParticles(),
-
             SafeArea(
               child: Column(
                 children: [
@@ -129,11 +166,18 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                             index < activeSession.activePlayers.length
                             ? activeSession.activePlayers[index]
                             : null;
-                        return _buildWarriorCard(player, index);
+                        return _buildPlayerCard(player, index);
                       },
                     ),
                   ),
                   _buildSpectatorArea(ref, activeSession, isHost),
+
+                  // NEW: Friends Invite Area
+                  if (isHost &&
+                      activeSession.activePlayers.length <
+                          activeSession.maxPlayers)
+                    _buildFriendsInviteArea(ref),
+
                   _buildActionBar(
                     ref,
                     context,
@@ -145,12 +189,17 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                 ],
               ),
             ),
+
+            // Pulse Overlay for spectators
+            ..._activePulses.map((p) => _PulseOverlay(pulse: p)),
+
             const LiveChatOverlay(),
           ],
         ),
       ),
     );
   }
+
   void _showTerminatedDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -159,11 +208,15 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
           backgroundColor: SeedlingColors.background,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: Text('Session Closed', style: SeedlingTypography.heading2),
           content: Text(
             'The host has terminated this session. You will be returned to the garden.',
-            style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+            style: SeedlingTypography.body.copyWith(
+              color: SeedlingColors.textSecondary,
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -173,9 +226,14 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: SeedlingColors.seedlingGreen,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Back to Home', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Back to Home',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -188,36 +246,47 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
       animation: _bgController,
       builder: (context, child) {
         final t = _bgController.value;
+        final theme = widget.session.theme.toLowerCase();
+
+        Color orb1 = SeedlingColors.deepRoot.withValues(alpha: 0.18);
+        Color orb2 = SeedlingColors.autumnGold.withValues(alpha: 0.1);
+        Color orb3 = SeedlingColors.water.withValues(alpha: 0.14);
+
+        if (theme.contains('food')) {
+          orb1 = Colors.orange.withValues(alpha: 0.15);
+          orb2 = Colors.yellow.withValues(alpha: 0.1);
+          orb3 = Colors.deepOrange.withValues(alpha: 0.1);
+        } else if (theme.contains('travel') || theme.contains('nature')) {
+          orb1 = Colors.lightBlue.withValues(alpha: 0.15);
+          orb2 = Colors.teal.withValues(alpha: 0.1);
+          orb3 = Colors.white.withValues(alpha: 0.1);
+        } else if (theme.contains('verb') || theme.contains('action')) {
+          orb1 = Colors.purple.withValues(alpha: 0.15);
+          orb2 = Colors.pinkAccent.withValues(alpha: 0.1);
+          orb3 = Colors.blueAccent.withValues(alpha: 0.1);
+        }
+
         return Stack(
           children: [
-            // Orb 1: Deep Moss - Moves in a wide oval
+            // Orb 1: Deep - Moves in a wide oval
             Positioned(
               top: -150 + (math.sin(t * math.pi * 2) * 100),
               left: -150 + (math.cos(t * math.pi * 2) * 80),
-              child: _Orb(
-                size: 500,
-                color: SeedlingColors.deepRoot.withValues(alpha: 0.18),
-              ),
+              child: _Orb(size: 500, color: orb1),
             ),
-            // Orb 2: Autumn Glow - Moves in a counter-oval
+            // Orb 2: Secondary - Moves in a counter-oval
             Positioned(
               bottom: -100 + (math.cos(t * math.pi * 2 + 0.5) * 120),
               right: -150 + (math.sin(t * math.pi * 2 + 0.5) * 100),
-              child: _Orb(
-                size: 600,
-                color: SeedlingColors.autumnGold.withValues(alpha: 0.1),
-              ),
+              child: _Orb(size: 600, color: orb2),
             ),
-            // Orb 3: Water Shimmer - Faster central float
+            // Orb 3: Shimmer - Faster central float
             Positioned(
               top:
                   MediaQuery.of(context).size.height * 0.3 +
                   (math.sin(t * math.pi * 4) * 40),
               right: -50 + (math.cos(t * math.pi * 2) * 60),
-              child: _Orb(
-                size: 400,
-                color: SeedlingColors.water.withValues(alpha: 0.14),
-              ),
+              child: _Orb(size: 400, color: orb3),
             ),
           ],
         );
@@ -247,7 +316,7 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'WARRIORS IN ARENA',
+                'PLAYERS IN ROOM',
                 style: SeedlingTypography.caption.copyWith(
                   color: Colors.white70,
                   letterSpacing: 2,
@@ -289,7 +358,7 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
     );
   }
 
-  Widget _buildWarriorCard(LivePlayer? player, int index) {
+  Widget _buildPlayerCard(LivePlayer? player, int index) {
     final isOccupied = player != null;
 
     return RepaintBoundary(
@@ -338,29 +407,33 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(12.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Avatar Bloom
                       _buildAvatarBloom(player, pulse),
-                      const SizedBox(height: 12),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 400),
+                      const SizedBox(height: 8),
+
+                      // Rank Badge
+                      if (isOccupied) _buildRankBadge(player),
+
+                      Text(
+                        isOccupied ? player.displayName : 'AWAITING...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: SeedlingTypography.body.copyWith(
                           color: isOccupied ? Colors.white : Colors.white24,
                           fontWeight: isOccupied
                               ? FontWeight.bold
                               : FontWeight.normal,
-                          fontSize: 14,
-                        ),
-                        child: Text(
-                          isOccupied ? player.displayName : 'AWAITING...',
+                          fontSize: 13,
                         ),
                       ),
+
                       if (isOccupied && player.role == PlayerRole.host)
                         Container(
-                          margin: const EdgeInsets.only(top: 6),
+                          margin: const EdgeInsets.only(top: 4),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 2,
@@ -368,14 +441,6 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
                           decoration: BoxDecoration(
                             color: SeedlingColors.autumnGold,
                             borderRadius: BorderRadius.circular(6),
-                            boxShadow: [
-                              BoxShadow(
-                                color: SeedlingColors.autumnGold.withValues(
-                                  alpha: 0.4,
-                                ),
-                                blurRadius: 8,
-                              ),
-                            ],
                           ),
                           child: Text(
                             'HOST',
@@ -394,6 +459,34 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildRankBadge(LivePlayer player) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(player.rankEmoji, style: const TextStyle(fontSize: 10)),
+          const SizedBox(width: 4),
+          Text(
+            player.botanicalRank.toUpperCase(),
+            style: SeedlingTypography.caption.copyWith(
+              color: Colors.white70,
+              fontSize: 7,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -484,7 +577,7 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             },
           ),
           Text(
-            'BATTLE LOBBY',
+            'CHALLENGE LOBBY',
             style: SeedlingTypography.heading3.copyWith(
               color: Colors.white,
               letterSpacing: 1.2,
@@ -579,8 +672,11 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
               ),
               const SizedBox(width: 24),
               _buildArenaMetric(
-                Icons.timer_rounded,
-                '${session.timePerQuestion}s',
+                session.isSurvival ? Icons.bolt_rounded : Icons.timer_rounded,
+                session.isSurvival ? 'SURVIVAL' : '${session.timePerQuestion}s',
+                color: session.isSurvival
+                    ? SeedlingColors.hibiscusRed
+                    : Colors.white38,
               ),
               const SizedBox(width: 24),
               _buildArenaMetric(
@@ -595,19 +691,24 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
     );
   }
 
-  Widget _buildArenaMetric(IconData icon, String label, {bool isCode = false}) {
+  Widget _buildArenaMetric(
+    IconData icon,
+    String label, {
+    bool isCode = false,
+    Color? color,
+  }) {
     return Column(
       children: [
         Icon(
           icon,
-          color: isCode ? SeedlingColors.autumnGold : Colors.white38,
+          color: color ?? (isCode ? SeedlingColors.autumnGold : Colors.white38),
           size: 20,
         ),
         const SizedBox(height: 4),
         Text(
           label,
           style: SeedlingTypography.body.copyWith(
-            color: isCode ? SeedlingColors.autumnGold : Colors.white,
+            color: color ?? (isCode ? SeedlingColors.autumnGold : Colors.white),
             fontWeight: isCode ? FontWeight.w900 : FontWeight.bold,
             letterSpacing: isCode ? 1.5 : 0,
             fontSize: isCode ? 16 : 14,
@@ -682,6 +783,87 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
     );
   }
 
+  Widget _buildFriendsInviteArea(WidgetRef ref) {
+    // This would typically fetch from a friends provider
+    final mockFriends = [
+      {'name': 'Amos', 'emoji': '🦊', 'level': 12},
+      {'name': 'Lumi', 'emoji': '🦄', 'level': 8},
+      {'name': 'Aris', 'emoji': '🦜', 'level': 15},
+    ];
+
+    return Container(
+      height: 80,
+      margin: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'INVITE FRIENDS',
+              style: SeedlingTypography.caption.copyWith(
+                color: Colors.white38,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              itemCount: mockFriends.length,
+              itemBuilder: (context, index) {
+                final friend = mockFriends[index];
+                return GestureDetector(
+                  onTap: () {
+                    // Send invite logic
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Invite sent to ${friend['name']}!'),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          friend['emoji'] as String,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          friend['name'] as String,
+                          style: SeedlingTypography.body.copyWith(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.add_circle_outline,
+                          color: SeedlingColors.autumnGold,
+                          size: 14,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showApprovalDialog(WidgetRef ref, LivePlayer player) {
     ref.read(activeSessionProvider.notifier).acceptParticipant(player.id);
   }
@@ -721,11 +903,15 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
   }
 
   Widget _buildHostControls(WidgetRef ref, LiveGameSession session) {
-    final canStart = session.playerCount >= 2;
+    final canStart = session.playerCount >= 1;
     return Column(
       children: [
         Text(
-          canStart ? 'Arena ready for battle.' : 'Waiting for more warriors...',
+          canStart
+              ? (session.playerCount == 1
+                    ? 'Room ready for solo challenge.'
+                    : 'Room ready for challenge.')
+              : 'Planting seeds...',
           style: SeedlingTypography.caption.copyWith(
             color: canStart ? SeedlingColors.seedlingGreen : Colors.white60,
           ),
@@ -757,7 +943,7 @@ class _MultiplayerLobbyScreenState extends ConsumerState<MultiplayerLobbyScreen>
             ),
             alignment: Alignment.center,
             child: Text(
-              'START BATTLE',
+              'START CHALLENGE',
               style: SeedlingTypography.heading3.copyWith(
                 color: canStart ? Colors.black : Colors.white24,
                 fontWeight: FontWeight.w900,
@@ -1080,6 +1266,95 @@ class _EditSettingsSheetState extends ConsumerState<_EditSettingsSheet> {
           onChanged: onChanged,
         ),
       ],
+    );
+  }
+}
+
+class _ActivePulse {
+  final String type;
+  final DateTime startTime;
+  final Offset position;
+
+  _ActivePulse({
+    required this.type,
+    required this.startTime,
+    required this.position,
+  });
+}
+
+class _PulseOverlay extends StatefulWidget {
+  final _ActivePulse pulse;
+  const _PulseOverlay({required this.pulse});
+
+  @override
+  State<_PulseOverlay> createState() => _PulseOverlayState();
+}
+
+class _PulseOverlayState extends State<_PulseOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _scale = Tween<double>(
+      begin: 0.5,
+      end: 3.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    _opacity = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.5, 1.0)),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: widget.pulse.position.dx - 50,
+      top: widget.pulse.position.dy - 50,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final isSun = widget.pulse.type == 'sunlight';
+          return Opacity(
+            opacity: _opacity.value,
+            child: Transform.scale(
+              scale: _scale.value,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      (isSun ? SeedlingColors.autumnGold : SeedlingColors.water)
+                          .withValues(alpha: 0.5),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  isSun ? '🌞' : '💧',
+                  style: const TextStyle(fontSize: 24),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

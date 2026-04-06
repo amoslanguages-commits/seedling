@@ -48,10 +48,12 @@ String relativeTime(DateTime? dt) {
   final diff = now.difference(dt);
 
   if (diff.inSeconds < 60) return 'Just now';
-  if (diff.inMinutes < 60)
+  if (diff.inMinutes < 60) {
     return '${diff.inMinutes} min${diff.inMinutes == 1 ? '' : 's'} ago';
-  if (diff.inHours < 6)
+  }
+  if (diff.inHours < 6) {
     return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
+  }
 
   final today = DateTime(now.year, now.month, now.day);
   final dtDay = DateTime(dt.year, dt.month, dt.day);

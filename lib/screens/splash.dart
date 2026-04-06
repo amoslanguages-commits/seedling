@@ -83,7 +83,8 @@ class _SplashScreenState extends State<SplashScreen>
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const OnboardingGate(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const OnboardingGate(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -133,7 +134,9 @@ class _SplashScreenState extends State<SplashScreen>
                       center: Alignment.center,
                       radius: 0.8 + (_pulseController.value * 0.4),
                       colors: [
-                        SeedlingColors.water.withValues(alpha: 0.05 * _pulseController.value),
+                        SeedlingColors.water.withValues(
+                          alpha: 0.05 * _pulseController.value,
+                        ),
                         SeedlingColors.background,
                       ],
                     ),
@@ -160,14 +163,18 @@ class _SplashScreenState extends State<SplashScreen>
                           Positioned(
                             bottom: 20,
                             child: Opacity(
-                              opacity: ((sproutVal - 0.4) / 0.6).clamp(0.0, 0.6),
+                              opacity: ((sproutVal - 0.4) / 0.6).clamp(
+                                0.0,
+                                0.6,
+                              ),
                               child: Container(
                                 width: 120,
                                 height: 30,
                                 decoration: BoxDecoration(
                                   boxShadow: [
                                     BoxShadow(
-                                      color: SeedlingColors.seedlingGreen.withValues(alpha: 0.4),
+                                      color: SeedlingColors.seedlingGreen
+                                          .withValues(alpha: 0.4),
                                       blurRadius: 40,
                                       spreadRadius: 10,
                                     ),
@@ -241,7 +248,10 @@ class _SplashScreenState extends State<SplashScreen>
                     Opacity(
                       opacity: _subtitleController.value,
                       child: Transform.translate(
-                        offset: Offset(0, 10.0 * (1 - _subtitleController.value)),
+                        offset: Offset(
+                          0,
+                          10.0 * (1 - _subtitleController.value),
+                        ),
                         child: Text(
                           'Grow your vocabulary',
                           style: SeedlingTypography.bodyLarge.copyWith(

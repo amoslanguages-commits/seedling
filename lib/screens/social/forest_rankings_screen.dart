@@ -4,13 +4,13 @@ import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../models/social.dart';
 import '../../providers/app_providers.dart';
-import 'duel_lobby_screen.dart';
 
 class ForestRankingsScreen extends ConsumerStatefulWidget {
   const ForestRankingsScreen({super.key});
 
   @override
-  ConsumerState<ForestRankingsScreen> createState() => _ForestRankingsScreenState();
+  ConsumerState<ForestRankingsScreen> createState() =>
+      _ForestRankingsScreenState();
 }
 
 class _ForestRankingsScreenState extends ConsumerState<ForestRankingsScreen> {
@@ -66,7 +66,8 @@ class _ForestRankingsScreenState extends ConsumerState<ForestRankingsScreen> {
                 },
                 loading: () => const Center(
                   child: CircularProgressIndicator(
-                      color: SeedlingColors.seedlingGreen),
+                    color: SeedlingColors.seedlingGreen,
+                  ),
                 ),
                 error: (_, __) =>
                     const Center(child: Text('Failed to load rankings')),

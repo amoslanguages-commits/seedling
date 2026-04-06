@@ -1,10 +1,9 @@
-﻿Analyzing seedling...
-
-  error - lib\screens\social\competitions_screen.dart:75:32 - Methods can't be invoked in constant expressions. - const_eval_method_invocation
-warning - lib\widgets\quizzes_v2.dart:2515:16 - The value of the field '_cardOffset' isn't used. Try removing the field, or using it. - unused_field
-warning - lib\widgets\quizzes_v2.dart:2516:8 - The value of the field '_isDragging' isn't used. Try removing the field, or using it. - unused_field
-   info - lib\screens\courses\add_course_screen.dart:260:13 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
-   info - lib\screens\courses\add_course_screen.dart:334:28 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
-   info - lib\screens\courses\course_management_screen.dart:225:17 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
-
-6 issues found.
+﻿WARNING|STATIC_WARNING|UNUSED_FIELD|C:\\app\\seedling\\lib\\screens\\social\\live_duel_screen.dart|44|11|13|The value of the field '_lastBurstPos' isn't used.
+WARNING|STATIC_WARNING|UNUSED_FIELD|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\floating_reaction_overlay.dart|16|23|13|The value of the field '_broadcastSub' isn't used.
+WARNING|STATIC_WARNING|UNUSED_FIELD|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|87|8|17|The value of the field '_isLoadingContent' isn't used.
+WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|C:\\app\\seedling\\lib\\services\\vocabulary_service.dart|366|13|4|The value of the local variable 'word' isn't used.
+WARNING|STATIC_WARNING|UNUSED_ELEMENT|C:\\app\\seedling\\lib\\services\\vocabulary_service.dart|410|18|21|The declaration '_findCategoryIdByName' isn't referenced.
+WARNING|STATIC_WARNING|UNUSED_LOCAL_VARIABLE|C:\\app\\seedling\\lib\\services\\vocabulary_service.dart|437|11|8|The value of the local variable 'allWords' isn't used.
+INFO|LINT|CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|583|36|39|Statements in an if should be enclosed in a block.
+INFO|LINT|CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|754|25|60|Statements in an if should be enclosed in a block.
+INFO|LINT|CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|755|10|45|Statements in an if should be enclosed in a block.

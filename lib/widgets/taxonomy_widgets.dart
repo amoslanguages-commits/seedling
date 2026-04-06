@@ -7,7 +7,7 @@ import '../core/typography.dart';
 // ================ CATEGORY FILTER WIDGET ================
 
 class CategoryFilterWidget extends StatefulWidget {
-  final Function(List<String> selectedCategories) onFilterChanged;
+  final void Function(List<String> selectedCategories) onFilterChanged;
   final List<String> initialSelected;
 
   const CategoryFilterWidget({
@@ -197,7 +197,7 @@ class _CategoryFilterWidgetState extends State<CategoryFilterWidget> {
 
 class POSFilterWidget extends StatelessWidget {
   final List<PartOfSpeech> selectedPOS;
-  final Function(List<PartOfSpeech>) onChanged;
+  final void Function(List<PartOfSpeech> pos) onChanged;
   final String languageCode;
 
   const POSFilterWidget({

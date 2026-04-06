@@ -64,7 +64,9 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: SeedlingColors.waterBlue)),
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: SeedlingColors.waterBlue),
+      ),
     );
 
     final session = LiveGameSession(
@@ -86,11 +88,16 @@ class _DuelLobbyScreenState extends ConsumerState<DuelLobbyScreen>
 
     if (mounted) {
       Navigator.pop(context);
-      
+
       // We will now pass the opponent for UI, but the real backend sync will happen.
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LiveDuelScreen(opponent: opponent, sessionId: ref.read(activeSessionProvider)?.id)),
+        MaterialPageRoute(
+          builder: (_) => LiveDuelScreen(
+            opponent: opponent,
+            sessionId: ref.read(activeSessionProvider)?.id,
+          ),
+        ),
       );
     }
   }

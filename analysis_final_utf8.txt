@@ -1,0 +1,5 @@
+﻿ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|154|20|17|Undefined name '_isLoadingContent'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|166|11|17|Undefined name '_isLoadingContent'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\live_quiz_screen.dart|172|35|17|Undefined name '_isLoadingContent'.
+WARNING|STATIC_WARNING|UNUSED_FIELD|C:\\app\\seedling\\lib\\screens\\social\\live_duel_screen.dart|44|11|12|The value of the field '_burstOrigin' isn't used.
+WARNING|STATIC_WARNING|UNUSED_IMPORT|C:\\app\\seedling\\lib\\screens\\social\\multiplayer\\floating_reaction_overlay.dart|1|8|12|Unused import: 'dart:async'.

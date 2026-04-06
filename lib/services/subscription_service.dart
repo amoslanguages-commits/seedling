@@ -62,12 +62,14 @@ class SubscriptionService {
       final result = await db.query('user_progress', columns: ['is_premium']);
       if (result.isNotEmpty) {
         _isPremium = result.first['is_premium'] == 1;
-        _subscriptionController.add(_isPremium ? SubscriptionStatus.premium : SubscriptionStatus.free);
+        _subscriptionController.add(
+          _isPremium ? SubscriptionStatus.premium : SubscriptionStatus.free,
+        );
       }
     }
   }
 
-  Future<void> upgradeToPremium() async {
+  Future<void> upgradeToPremium(String planId) async {
     try {
       final userId = AuthService().userId;
       if (userId == null) throw Exception('Must be logged in to upgrade');
@@ -77,7 +79,7 @@ class SubscriptionService {
       await SupabaseConfig.client.from('subscriptions').upsert({
         'user_id': userId,
         'status': 'active',
-        'plan_id': 'premium_monthly',
+        'plan_id': planId,
         'updated_at': DateTime.now().toIso8601String(),
       });
 

@@ -492,7 +492,9 @@ class DailyChallengesCard extends StatelessWidget {
             ),
             child: Icon(
               isDone ? Icons.check_circle_rounded : Icons.radio_button_off,
-              color: isDone ? SeedlingColors.seedlingGreen : SeedlingColors.textSecondary,
+              color: isDone
+                  ? SeedlingColors.seedlingGreen
+                  : SeedlingColors.textSecondary,
               size: 20,
             ),
           ),
@@ -508,7 +510,9 @@ class DailyChallengesCard extends StatelessWidget {
                       challenge.title,
                       style: SeedlingTypography.body.copyWith(
                         fontWeight: isDone ? FontWeight.bold : FontWeight.w500,
-                        color: isDone ? SeedlingColors.textPrimary : SeedlingColors.textSecondary,
+                        color: isDone
+                            ? SeedlingColors.textPrimary
+                            : SeedlingColors.textSecondary,
                       ),
                     ),
                     Text(
@@ -536,12 +540,17 @@ class DailyChallengesCard extends StatelessWidget {
                         height: 6,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [SeedlingColors.seedlingGreen, SeedlingColors.freshSprout],
+                            colors: [
+                              SeedlingColors.seedlingGreen,
+                              SeedlingColors.freshSprout,
+                            ],
                           ),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3),
+                              color: SeedlingColors.seedlingGreen.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 4,
                             ),
                           ],

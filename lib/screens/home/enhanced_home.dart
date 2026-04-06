@@ -10,8 +10,7 @@ import '../../models/taxonomy.dart';
 import '../courses/active_course_banner.dart';
 import '../sentence_session_screen.dart';
 import '../../widgets/word_library_sheet.dart';
-import '../../widgets/gamification_widgets.dart';
-import '../../models/gamification.dart';
+import '../../services/haptic_service.dart';
 
 class EnhancedHomeScreen extends ConsumerStatefulWidget {
   const EnhancedHomeScreen({super.key});
@@ -45,7 +44,10 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (index) => setState(() => _selectedIndex = index),
+          onTap: (index) {
+            HapticService.selectionClick();
+            setState(() => _selectedIndex = index);
+          },
           backgroundColor: SeedlingColors.background,
           selectedItemColor: SeedlingColors.seedlingGreen,
           unselectedItemColor: SeedlingColors.textSecondary,
@@ -110,7 +112,7 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     Expanded(
                       child: _StatMiniCard(
                         label: 'Streak',
-                        value: stats['currentStreak'].toString(),
+                        value: '${stats['currentStreak']} Days',
                         icon: Icons.bolt,
                         color: SeedlingColors.sunlight,
                       ),
@@ -118,8 +120,9 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: _StatMiniCard(
-                        label: 'Seeds',
-                        value: stats['totalLearned'].toString(),
+                        label: 'Daily Progress',
+                        value:
+                            '${stats['dailyProgress']}/${stats['dailyGoal']}',
                         icon: Icons.grass,
                         color: SeedlingColors.seedlingGreen,
                       ),
@@ -142,23 +145,6 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
             ),
           ),
 
-          // Daily Quests
-          if (_selectedTab == 0)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                child: ref.watch(dailyChallengesProvider).when(
-                      data: (challenges) =>
-                          DailyChallengesCard(challenges: challenges),
-                      loading: () => const DailyChallengesCard(
-                        challenges: [],
-                        isLoading: true,
-                      ),
-                      error: (_, __) => const SizedBox.shrink(),
-                    ),
-              ),
-            ),
-
           // ─── Pill Tab Bar ─────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
@@ -166,7 +152,10 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               child: _PillTabBar(
                 labels: const ['Vocabulary', 'Sentences'],
                 selected: _selectedTab,
-                onTap: (i) => setState(() => _selectedTab = i),
+                onTap: (i) {
+                  HapticService.selectionClick();
+                  setState(() => _selectedTab = i);
+                },
               ),
             ),
           ),
@@ -317,7 +306,10 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
       animation: _pulseAnimation,
       builder: (context, child) {
         return GestureDetector(
-          onTap: () => _handleTap(context, focus),
+          onTap: () {
+            HapticService.mediumImpact();
+            _handleTap(context, focus);
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             decoration: BoxDecoration(
@@ -700,6 +692,7 @@ class _CategoryCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        HapticService.lightImpact();
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => LearningSessionScreen(
@@ -875,6 +868,7 @@ class _CategoryCard extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
+                    HapticService.selectionClick();
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -915,11 +909,14 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _SentencesTabContent extends StatelessWidget {
+class _SentencesTabContent extends ConsumerWidget {
   const _SentencesTabContent();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(userStatsProvider).value;
+    final sentencesToday = stats?['sentencesToday'] ?? 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -985,7 +982,7 @@ class _SentencesTabContent extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '10 sample sentences loaded — a dedicated sentences library will be added soon.',
+                  'You have completed $sentencesToday sentences today. Keep growing your context knowledge!',
                   style: SeedlingTypography.caption.copyWith(
                     color: SeedlingColors.textSecondary,
                     height: 1.5,
@@ -1020,7 +1017,10 @@ class _SentenceModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticService.lightImpact();
+        onTap();
+      },
       child: Container(
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,

@@ -8,7 +8,6 @@ import '../database/database_helper.dart';
 import 'auth_service.dart';
 import 'offline_queue_manager.dart';
 import 'settings_service.dart';
-import 'package:flutter/material.dart' show TimeOfDay;
 
 // ================ SYNC MANAGER ================
 
@@ -86,22 +85,32 @@ class SyncManager {
         )
         .toList();
 
-    await SupabaseConfig.client.from('user_words').upsert(upsertData);
+    try {
+      await SupabaseConfig.client
+          .from('user_words')
+          .upsert(upsertData, onConflict: 'user_id, word_id');
+    } catch (e) {
+      debugPrint('Error syncing word progress to cloud: $e');
+    }
   }
 
   // Sync user stats
   Future<void> _syncUserStats(DatabaseHelper db, String userId) async {
     final stats = await db.getUserStats();
     if (stats.isNotEmpty) {
-      await SupabaseConfig.client.from('user_stats').upsert({
-        'user_id': userId,
-        'total_xp': stats['totalXP'] ?? 0,
-        'current_streak': stats['currentStreak'],
-        'longest_streak': stats['longestStreak'],
-        'total_study_minutes': stats['totalStudyMinutes'],
-        'total_words_learned': stats['totalWordsLearned'] ?? 0,
-        'last_updated': DateTime.now().toIso8601String(),
-      });
+      try {
+        await SupabaseConfig.client.from('user_stats').upsert({
+          'user_id': userId,
+          'total_xp': stats['totalXP'] ?? 0,
+          'current_streak': stats['currentStreak'],
+          'longest_streak': stats['longestStreak'],
+          'total_study_minutes': stats['totalStudyMinutes'],
+          'total_words_learned': stats['totalWordsLearned'] ?? 0,
+          'last_updated': DateTime.now().toIso8601String(),
+        }, onConflict: 'user_id');
+      } catch (e) {
+        debugPrint('Error syncing user stats to cloud: $e');
+      }
     }
   }
 
@@ -127,7 +136,7 @@ class SyncManager {
 
         await db.markSessionAsSynced(session['id']);
       } catch (e) {
-        print('Error syncing session ${session['id']}: $e');
+        debugPrint('Error syncing session ${session['id']}: $e');
       }
     }
   }
@@ -168,10 +177,12 @@ class SyncManager {
         await settings.setDailyWordGoal(data['daily_word_goal']);
         // Note: TimeOfDay needs careful handling as it's not a primitive
         // We'll trust the integer values from the DB
-        await settings.setReminderTime(TimeOfDay(
-          hour: data['reminder_hour'],
-          minute: data['reminder_minute'],
-        ));
+        await settings.setReminderTime(
+          TimeOfDay(
+            hour: data['reminder_hour'],
+            minute: data['reminder_minute'],
+          ),
+        );
         await settings.setCloudSyncEnabled(data['cloud_sync_enabled']);
       }
     } catch (e) {

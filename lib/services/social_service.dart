@@ -180,7 +180,9 @@ class SocialService {
 
     final response = await _supabase
         .from('user_stats')
-        .select('total_xp, current_streak, total_words_learned')
+        .select(
+          'total_xp, current_streak, total_words_learned, challenges_won, total_rooms_hosted, spectator_minutes',
+        )
         .eq('user_id', currentUserId!)
         .maybeSingle();
 

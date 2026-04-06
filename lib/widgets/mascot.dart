@@ -346,7 +346,9 @@ class PuppetMascotPainter extends CustomPainter {
     bool isThinking = state == MascotState.thinking;
     bool isExcited = state == MascotState.excited;
 
-    if (state == MascotState.happy || state == MascotState.celebrating || isExcited) {
+    if (state == MascotState.happy ||
+        state == MascotState.celebrating ||
+        isExcited) {
       mouthWidth = s * 0.35;
       mouthCurve = 15.0;
     } else if (state == MascotState.sad) {
@@ -366,8 +368,8 @@ class PuppetMascotPainter extends CustomPainter {
       canvas.drawCircle(Offset(-eyeSpacing, 0), eyeSize * 0.4, eyePaint);
       canvas.drawCircle(Offset(eyeSpacing, 0), eyeSize * 0.4, eyePaint);
     } else if (isExcited) {
-       // Tall excited eyes
-       canvas.drawOval(
+      // Tall excited eyes
+      canvas.drawOval(
         Rect.fromCenter(
           center: Offset(-eyeSpacing, -2),
           width: eyeSize * 1.1,

@@ -1,0 +1,24 @@
+﻿Analyzing seedling...                                           
+
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1172:41 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1187:37 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1201:39 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1208:39 - use_build_context_synchronously
+   info - Invalid use of a private type in a public API - lib\widgets\quizzes.dart:2413:3 - library_private_types_in_public_api
+
+flutter : 5 issues found. 
+(ran in 3.4s)
+At line:1 char:1
++ flutter analyze > 
+analysis_report.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (5  
+   issues found. (ran i   
+ n 3.4s):String) [], R    
+emoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 

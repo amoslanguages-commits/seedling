@@ -1,0 +1,51 @@
+Analyzing seedling...
+
+  error - lib\services\session_conductor.dart:318:28 - Undefined name 'PartOfSpeech'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+warning - lib\models\multiplayer.dart:1:8 - Unused import: 'package:flutter/material.dart'. Try removing the import directive. - unused_import
+warning - lib\providers\app_providers.dart:289:9 - The value of the local variable 'streak' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\home\enhanced_home.dart:13:8 - Unused import: '../../widgets/gamification_widgets.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\home\enhanced_home.dart:14:8 - Unused import: '../../models/gamification.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\learning.dart:19:8 - Unused import: '../models/gamification.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\learning.dart:20:8 - Unused import: '../services/haptic_service.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\settings.dart:11:8 - Unused import: '../services/subscription_service.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\settings.dart:12:8 - Unused import: '../services/settings_service.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\social\forest_rankings_screen.dart:7:8 - Unused import: 'duel_lobby_screen.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:16:8 - Unused import: '../../../services/social_service.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:73:11 - The value of the local variable 'themeFilter' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:74:11 - The value of the local variable 'modeFilter' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:75:11 - The value of the local variable 'courseFilter' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:89:11 - The value of the local variable 'mySessionAsync' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:147:61 - The operand can't be 'null', so the condition is always 'true'. Remove the condition. - unnecessary_null_comparison
+warning - lib\screens\social\multiplayer\compete_home_screen.dart:157:16 - The declaration '_onRefresh' isn't referenced. Try removing the declaration of '_onRefresh'. - unused_element
+warning - lib\screens\social\multiplayer\host_setup_screen.dart:11:8 - Unused import: '../../../models/course.dart'. Try removing the import directive. - unused_import
+warning - lib\widgets\quizzes.dart:8:8 - Unused import: '../models/taxonomy.dart'. Try removing the import directive. - unused_import
+   info - lib\screens\settings.dart:140:44 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\settings.dart:214:46 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\settings.dart:896:30 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\settings.dart:942:31 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\settings.dart:943:38 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\settings.dart:981:30 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:251:17 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1180:41 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1195:37 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1209:39 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1216:39 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1706:36 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:1800:22 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:2275:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\screens\social\multiplayer\compete_home_screen.dart:2280:25 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\screens\social\multiplayer\live_quiz_screen.dart:153:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\screens\social\multiplayer\memory_patch_screen.dart:8:8 - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart'. Try removing the import directive. - unnecessary_import
+   info - lib\services\sync_manager.dart:129:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\services\tts_service.dart:45:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\services\vocabulary_service.dart:377:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\services\vocabulary_service.dart:379:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\services\vocabulary_service.dart:381:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\widgets\quizzes.dart:1724:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\widgets\quizzes.dart:2371:3 - Invalid use of a private type in a public API. Try making the private type public, or making the API that uses the private type also be private. - library_private_types_in_public_api
+   info - lib\widgets\quizzes.dart:2560:5 - Use 'const' for final variables initialized to a constant value. Try replacing 'final' with 'const'. - prefer_const_declarations
+   info - lib\widgets\quizzes_v2.dart:3812:13 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
+   info - lib\widgets\readiness_hud.dart:309:23 - Use 'const' with the constructor to improve performance. Try adding the 'const' keyword to the constructor invocation. - prefer_const_constructors
+   info - lib\widgets\readiness_hud.dart:310:23 - Use 'const' literals as arguments to constructors of '@immutable' classes. Try adding 'const' before the literal. - prefer_const_literals_to_create_immutables
+
+47 issues found.

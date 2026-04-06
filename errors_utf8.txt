@@ -1,0 +1,153 @@
+﻿Resolving dependencies...
+Downloading packages...
+  app_links 6.4.1 (7.0.0 available)
+  async 2.13.0 (2.13.1 available)
+  characters 1.4.0 (1.4.1 available)
+  cupertino_icons 1.0.8 (1.0.9 available)
+  dart_jsonwebtoken 3.3.2 (3.4.0 available)
+  flutter_launcher_icons 0.13.1 (0.14.4 available)
+  flutter_lints 3.0.2 (6.0.0 available)
+  flutter_riverpod 2.6.1 (3.3.1 available)
+  flutter_svg 1.1.6 (2.2.4 available)
+  gotrue 2.18.0 (2.19.0 available)
+  lints 3.0.0 (6.1.0 available)
+  matcher 0.12.17 (0.12.19 available)
+  material_color_utilities 0.11.1 (0.13.0 available)
+  meta 1.17.0 (1.18.2 available)
+  path_provider_android 2.2.22 (2.2.23 available)
+  realtime_client 2.7.0 (2.7.1 available)
+  riverpod 2.6.1 (3.2.1 available)
+  shared_preferences 2.5.4 (2.5.5 available)
+  shared_preferences_android 2.4.21 (2.4.23 available)
+  shared_preferences_platform_interface 2.4.1 (2.4.2 available)
+  storage_client 2.4.1 (2.5.1 available)
+  supabase 2.10.2 (2.10.4 available)
+  supabase_flutter 2.12.0 (2.12.2 available)
+  test_api 0.7.7 (0.7.11 available)
+  url_launcher_android 6.3.28 (6.3.29 available)
+  vector_math 2.2.0 (2.3.0 available)
+Got dependencies!
+26 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing seedling...                                           
+
+   info - Statements in an if should be enclosed in a block - lib\core\app_utils.dart:52:5 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\core\app_utils.dart:54:5 - curly_braces_in_flow_control_structures
+warning - Unused import: 'package:flutter/material.dart' - lib\models\multiplayer.dart:1:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\models\word.dart:139:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\models\word.dart:160:7 - curly_braces_in_flow_control_structures
+  error - The function 'AuthService' isn't defined - lib\providers\app_providers.dart:165:16 - undefined_function
+  error - Undefined name 'SupabaseConfig' - lib\providers\app_providers.dart:169:28 - undefined_identifier
+  error - The function 'debugPrint' isn't defined - lib\providers\app_providers.dart:183:5 - undefined_function
+warning - The value of the local variable 'streak' isn't used - lib\providers\app_providers.dart:286:9 - unused_local_variable
+  error - Undefined name 'XPManager' - lib\providers\multiplayer_provider.dart:150:33 - undefined_identifier
+  error - The method 'DatabaseHelper' isn't defined for the type 'ActiveGameNotifier' - lib\providers\multiplayer_provider.dart:196:11 - undefined_method
+  error - The method 'DatabaseHelper' isn't defined for the type 'ActiveGameNotifier' - lib\providers\multiplayer_provider.dart:197:11 - undefined_method
+  error - Undefined name 'XPManager' - lib\providers\multiplayer_provider.dart:263:25 - undefined_identifier
+  error - Target of URI doesn't exist: '../../services/haptic_service.dart' - lib\screens\home\enhanced_home.dart:15:8 - uri_does_not_exist
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:50:13 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:158:19 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:312:13 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:697:9 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:873:21 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\home\enhanced_home.dart:1023:9 - undefined_identifier
+warning - Unused import: '../screens/settings/subscription_screen.dart' - lib\screens\learning.dart:19:8 - unused_import
+  error - The method 'DatabaseHelper' isn't defined for the type '_LearningSessionScreenState' - lib\screens\learning.dart:353:13 - undefined_method
+  error - The method 'DatabaseHelper' isn't defined for the type '_LearningSessionScreenState' - lib\screens\learning.dart:405:11 - undefined_method
+  error - Target of URI doesn't exist: '../services/haptic_service.dart' - lib\screens\settings.dart:17:8 - uri_does_not_exist
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:135:23 - undefined_identifier
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:140:46 - use_build_context_synchronously
+  error - The named parameter 'currentCode' is required, but there's no corresponding argument - lib\screens\settings.dart:170:27 - missing_required_argument
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:207:23 - undefined_identifier
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:212:46 - use_build_context_synchronously
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:244:23 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:677:11 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:694:9 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:750:7 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:814:9 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\settings.dart:864:9 - undefined_identifier
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:892:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:938:31 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:939:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\settings.dart:977:30 - use_build_context_synchronously
+warning - Unused import: 'duel_lobby_screen.dart' - lib\screens\social\forest_rankings_screen.dart:7:8 - unused_import
+warning - Duplicate import - lib\screens\social\live_duel_screen.dart:13:8 - duplicate_import
+  error - Target of URI doesn't exist: '../../../services/haptic_service.dart' - lib\screens\social\multiplayer\compete_home_screen.dart:18:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../../../widgets/premium_gate_dialog.dart' - lib\screens\social\multiplayer\compete_home_screen.dart:23:8 - uri_does_not_exist
+warning - The value of the local variable 'themeFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:72:11 - unused_local_variable
+warning - The value of the local variable 'modeFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:73:11 - unused_local_variable
+warning - The value of the local variable 'courseFilter' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:74:11 - unused_local_variable
+warning - The value of the local variable 'mySessionAsync' isn't used - lib\screens\social\multiplayer\compete_home_screen.dart:88:11 - unused_local_variable
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:100:15 - undefined_identifier
+warning - The operand can't be 'null', so the condition is always 'true' - lib\screens\social\multiplayer\compete_home_screen.dart:146:61 - unnecessary_null_comparison
+warning - The declaration '_onRefresh' isn't referenced - lib\screens\social\multiplayer\compete_home_screen.dart:156:16 - unused_element
+  error - The getter 'displayName' isn't defined for the type 'Map<String, dynamic>' - lib\screens\social\multiplayer\compete_home_screen.dart:162:34 - undefined_getter
+   info - Use 'const' with the constructor to improve performance - lib\screens\social\multiplayer\compete_home_screen.dart:250:17 - prefer_const_constructors
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:319:15 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:714:21 - undefined_identifier
+  error - The method 'map' isn't defined for the type 'CourseState' - lib\screens\social\multiplayer\compete_home_screen.dart:810:44 - undefined_method
+  error - Undefined class 'Course' - lib\screens\social\multiplayer\compete_home_screen.dart:906:25 - undefined_class
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:909:9 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:952:9 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:1123:27 - undefined_identifier
+  error - The method 'UsageService' isn't defined for the type '_CompeteHomeScreenState' - lib\screens\social\multiplayer\compete_home_screen.dart:1174:55 - undefined_method
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1179:39 - use_build_context_synchronously
+  error - The argument type 'String' can't be assigned to the parameter type 'IconData'.  - lib\screens\social\multiplayer\compete_home_screen.dart:1183:45 - argument_type_not_assignable
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:1189:35 - undefined_identifier
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1195:39 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1210:41 - use_build_context_synchronously
+  error - The argument type 'String' can't be assigned to the parameter type 'IconData'.  - lib\screens\social\multiplayer\compete_home_screen.dart:1214:47 - argument_type_not_assignable
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\social\multiplayer\compete_home_screen.dart:1218:41 - use_build_context_synchronously
+  error - The method 'getFlagForLanguage' isn't defined for the type 'CourseNotifier' - lib\screens\social\multiplayer\compete_home_screen.dart:1381:10 - undefined_method
+  error - The method 'getFlagForLanguage' isn't defined for the type 'CourseNotifier' - lib\screens\social\multiplayer\compete_home_screen.dart:1384:10 - undefined_method
+   info - Use 'const' with the constructor to improve performance - lib\screens\social\multiplayer\compete_home_screen.dart:1700:36 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\screens\social\multiplayer\compete_home_screen.dart:1794:22 - prefer_const_constructors
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:1971:17 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:1982:17 - undefined_identifier
+  error - Undefined name 'HapticService' - lib\screens\social\multiplayer\compete_home_screen.dart:2099:15 - undefined_identifier
+   info - Statements in an if should be enclosed in a block - lib\screens\social\multiplayer\compete_home_screen.dart:2269:25 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\screens\social\multiplayer\compete_home_screen.dart:2274:25 - curly_braces_in_flow_control_structures
+  error - Target of URI doesn't exist: '../../../widgets/premium_gate_dialog.dart' - lib\screens\social\multiplayer\host_setup_screen.dart:15:8 - uri_does_not_exist
+  error - The name 'PremiumGateDialog' isn't a class - lib\screens\social\multiplayer\host_setup_screen.dart:132:41 - creation_with_non_type
+  error - The getter 'isNotEmpty' isn't defined for the type 'CourseState' - lib\screens\social\multiplayer\host_setup_screen.dart:545:48 - undefined_getter
+  error - The method 'firstWhere' isn't defined for the type 'CourseState' - lib\screens\social\multiplayer\host_setup_screen.dart:546:30 - undefined_method
+  error - The getter 'activeCourseId' isn't defined for the type 'CourseNotifier' - lib\screens\social\multiplayer\host_setup_screen.dart:547:58 - undefined_getter
+  error - The getter 'first' isn't defined for the type 'CourseState' - lib\screens\social\multiplayer\host_setup_screen.dart:548:31 - undefined_getter
+  error - The method 'map' isn't defined for the type 'CourseState' - lib\screens\social\multiplayer\host_setup_screen.dart:559:22 - undefined_method
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\social\multiplayer\host_setup_screen.dart:810:9 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\social\multiplayer\host_setup_screen.dart:847:9 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\screens\social\multiplayer\live_quiz_screen.dart:153:13 - curly_braces_in_flow_control_structures
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\screens\social\multiplayer\memory_patch_screen.dart:8:8 - unnecessary_import
+warning - The declaration '_buildSpectatorControls' isn't referenced - lib\screens\social\multiplayer\multiplayer_lobby_screen.dart:1003:10 - unused_element
+  error - The name '_buildSpectatorControls' is already defined - lib\screens\social\multiplayer\multiplayer_lobby_screen.dart:1003:10 - duplicate_definition
+  error - The getter 'outBack' isn't defined for the type 'Curves' - lib\screens\social\multiplayer\multiplayer_lobby_screen.dart:1374:66 - undefined_getter
+  error - The method 'AuthService' isn't defined for the type 'QuizResultsScreen' - lib\screens\social\multiplayer\quiz_results_screen.dart:43:57 - undefined_method
+  error - The getter 'userId' isn't defined for the type 'LivePlayer' - lib\screens\social\multiplayer\quiz_results_screen.dart:47:48 - undefined_getter
+  error - The method 'AuthService' isn't defined for the type 'QuizResultsScreen' - lib\screens\social\multiplayer\quiz_results_screen.dart:48:27 - undefined_method
+  error - The method 'DatabaseHelper' isn't defined for the type 'QuizResultsScreen' - lib\screens\social\multiplayer\quiz_results_screen.dart:55:15 - undefined_method
+  error - The method 'DatabaseHelper' isn't defined for the type 'QuizResultsScreen' - lib\screens\social\multiplayer\quiz_results_screen.dart:56:15 - undefined_method
+  error - Undefined name 'userCompeteStatsProvider' - lib\screens\social\multiplayer\quiz_results_screen.dart:63:24 - undefined_identifier
+  error - Undefined name 'userStatsProvider' - lib\screens\social\multiplayer\quiz_results_screen.dart:64:24 - undefined_identifier
+warning - Duplicate import - lib\services\sync_manager.dart:11:8 - duplicate_import
+   info - Don't invoke 'print' in production code - lib\services\sync_manager.dart:130:9 - avoid_print
+   info - Statements in an if should be enclosed in a block - lib\services\tts_service.dart:45:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\vocabulary_service.dart:377:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\vocabulary_service.dart:379:11 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\vocabulary_service.dart:381:11 - curly_braces_in_flow_control_structures
+  error - Target of URI doesn't exist: '../services/haptic_service.dart' - lib\widgets\buttons.dart:5:8 - uri_does_not_exist
+  error - Undefined name 'HapticService' - lib\widgets\buttons.dart:54:5 - undefined_identifier
+  error - Target of URI doesn't exist: '../services/haptic_service.dart' - lib\widgets\cards.dart:3:8 - uri_does_not_exist
+  error - Undefined name 'HapticService' - lib\widgets\cards.dart:59:23 - undefined_identifier
+  error - Target of URI doesn't exist: '../settings/subscription_screen.dart' - lib\widgets\premium_gate.dart:5:8 - uri_does_not_exist
+  error - The name 'SubscriptionScreen' isn't a class - lib\widgets\premium_gate.dart:86:49 - creation_with_non_type
+   info - Statements in an if should be enclosed in a block - lib\widgets\quizzes.dart:1722:13 - curly_braces_in_flow_control_structures
+   info - The local variable '_imagePoolTypes' starts with an underscore - lib\widgets\quizzes.dart:2564:11 - no_leading_underscores_for_local_identifiers
+  error - Undefined name 'rootPath' - lib\widgets\quizzes_v2.dart:635:23 - undefined_identifier
+  error - Undefined name 'rootPath' - lib\widgets\quizzes_v2.dart:636:23 - undefined_identifier
+  error - Undefined name 'wave' - lib\widgets\quizzes_v2.dart:642:19 - undefined_identifier
+   info - Use 'const' with the constructor to improve performance - lib\widgets\quizzes_v2.dart:3811:13 - prefer_const_constructors
+  error - Undefined name 'highlightPath' - lib\widgets\seed_planting.dart:746:21 - undefined_identifier
+  error - There's no constant named 'selection' in 'HapticType' - lib\widgets\sentence_quizzes.dart:192:56 - undefined_enum_constant
+  error - There's no constant named 'selection' in 'HapticType' - lib\widgets\sentence_quizzes.dart:398:56 - undefined_enum_constant
+  error - There's no constant named 'selection' in 'HapticType' - lib\widgets\sentence_quizzes.dart:628:44 - undefined_enum_constant
+

@@ -41,8 +41,9 @@ class TtsService {
   /// Maps a generic 2-letter language code or locale string to a precise TTS locale.
   /// If no mapping exists, it returns the input as-is, letting the OS resolve it.
   String _mapLanguageCodeToLocale(String languageCode) {
-    if (languageCode.length >= 5)
+    if (languageCode.length >= 5) {
       return languageCode; // Already a locale: e.g. "pt-BR"
+    }
 
     final code = languageCode.toLowerCase().trim();
 

@@ -149,8 +149,9 @@ class _LiveQuizScreenState extends ConsumerState<LiveQuizScreen>
           } else {
             _pulseController.duration = const Duration(milliseconds: 1500);
           }
-          if (!_pulseController.isAnimating)
+          if (!_pulseController.isAnimating) {
             _pulseController.repeat(reverse: true);
+          }
         });
         if (remaining == 0) {
           _onTimeOut();
@@ -319,6 +320,7 @@ class _LiveQuizScreenState extends ConsumerState<LiveQuizScreen>
       ),
     );
   }
+
   void _showTerminatedDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -327,11 +329,15 @@ class _LiveQuizScreenState extends ConsumerState<LiveQuizScreen>
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AlertDialog(
           backgroundColor: SeedlingColors.background,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: Text('Battle Interrupted', style: SeedlingTypography.heading2),
           content: Text(
             'The host has terminated the battle. You will be returned to the garden.',
-            style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+            style: SeedlingTypography.body.copyWith(
+              color: SeedlingColors.textSecondary,
+            ),
           ),
           actions: [
             ElevatedButton(
@@ -341,9 +347,14 @@ class _LiveQuizScreenState extends ConsumerState<LiveQuizScreen>
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: SeedlingColors.seedlingGreen,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: const Text('Back to Home', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Back to Home',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -576,108 +587,164 @@ class _LiveQuizScreenState extends ConsumerState<LiveQuizScreen>
   }
 
   Widget _buildAnimatedLeaderboard(LiveGameSession session) {
+    // Sort players so the local user is drawn last (on top)
+    final sortedPlayers = List<LivePlayer>.from(session.activePlayers);
+    final myId = AuthService().userId;
+    sortedPlayers.sort((a, b) {
+      if (a.id == myId) return 1;
+      if (b.id == myId) return -1;
+      return a.id.compareTo(b.id);
+    });
+
     return Container(
       height: 85,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: session.activePlayers.length,
-        itemBuilder: (context, index) {
-          final player = session.activePlayers[index];
-          final isMe = player.id == AuthService().userId;
-          final status = player.lastAnswerStatus;
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackWidth = constraints.maxWidth;
+          const avatarWidth = 44.0;
+          final maxTravel = trackWidth - avatarWidth;
 
-          Color glowColor = Colors.transparent;
-          if (status == AnswerStatus.correct)
-            glowColor = SeedlingColors.seedlingGreen;
-          if (status == AnswerStatus.incorrect)
-            glowColor = SeedlingColors.hibiscusRed;
-          if (status == AnswerStatus.answered)
-            glowColor = SeedlingColors.autumnGold;
-
-          final progress = (player.score / (session.totalQuestions * 100))
-              .clamp(0.0, 1.0);
-
-          return Container(
-            width: 70,
-            margin: const EdgeInsets.only(right: 12),
-            child: Column(
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Sprouting growth ring
-                    if (progress > 0)
-                      SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 2,
-                          color: SeedlingColors.seedlingGreen.withValues(
-                            alpha: 0.3,
-                          ),
-                          backgroundColor: Colors.transparent,
-                        ),
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.centerLeft,
+            children: [
+              // Track background line
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 34,
+                child: Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: SeedlingColors.water.withValues(alpha: 0.2),
+                        blurRadius: 4,
                       ),
-                    if (glowColor != Colors.transparent)
-                      TweenAnimationBuilder(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(milliseconds: 600),
-                        builder: (context, value, child) => Container(
-                          width: 44 + (value * 12),
-                          height: 44 + (value * 12),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: glowColor.withValues(alpha: 1 - value),
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isMe
-                            ? Colors.white.withValues(alpha: 0.1)
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: isMe
-                              ? SeedlingColors.autumnGold
-                              : Colors.white10,
-                          width: isMe ? 2 : 1,
-                        ),
-                        boxShadow: [
+                    ],
+                  ),
+                ),
+              ),
+              // Finish line marker
+              Positioned(
+                right: 0,
+                bottom: 25,
+                child: Icon(
+                  Icons.flag_circle_rounded,
+                  color: SeedlingColors.autumnGold.withValues(alpha: 0.8),
+                  size: 22,
+                ),
+              ),
+
+              // Players
+              ...sortedPlayers.map((player) {
+                final isMe = player.id == myId;
+                final status = player.lastAnswerStatus;
+
+                Color glowColor = Colors.transparent;
+                if (status == AnswerStatus.correct) {
+                  glowColor = SeedlingColors.seedlingGreen;
+                } else if (status == AnswerStatus.incorrect) {
+                  glowColor = SeedlingColors.hibiscusRed;
+                } else if (status == AnswerStatus.answered) {
+                  glowColor = SeedlingColors.autumnGold;
+                }
+
+                final totalPoints = session.totalQuestions * 100.0;
+                final progress = totalPoints > 0
+                    ? (player.score / totalPoints).clamp(0.0, 1.0)
+                    : 0.0;
+
+                final leftPos = maxTravel * progress;
+
+                return AnimatedPositioned(
+                  key: ValueKey(player.id),
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeOutCubic,
+                  left: leftPos,
+                  bottom: 12,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
                           if (glowColor != Colors.transparent)
-                            BoxShadow(
-                              color: glowColor.withValues(alpha: 0.3),
-                              blurRadius: 10,
+                            TweenAnimationBuilder(
+                              key: ValueKey('${player.id}_$status'),
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 600),
+                              builder: (context, value, child) => Container(
+                                width: avatarWidth + (value * 12),
+                                height: avatarWidth + (value * 12),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: glowColor.withValues(
+                                      alpha: 1 - value,
+                                    ),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
                             ),
+                          Container(
+                            width: avatarWidth,
+                            height: avatarWidth,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isMe
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : Colors.black.withValues(alpha: 0.5),
+                              border: Border.all(
+                                color: isMe
+                                    ? SeedlingColors.autumnGold
+                                    : Colors.white24,
+                                width: isMe ? 2 : 1.5,
+                              ),
+                              boxShadow: [
+                                if (glowColor != Colors.transparent)
+                                  BoxShadow(
+                                    color: glowColor.withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                  ),
+                                if (isMe)
+                                  BoxShadow(
+                                    color: SeedlingColors.autumnGold.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    blurRadius: 8,
+                                  ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              player.avatarEmoji,
+                              style: const TextStyle(fontSize: 24),
+                            ),
+                          ),
                         ],
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        player.avatarEmoji,
-                        style: const TextStyle(fontSize: 24),
+                      const SizedBox(height: 4),
+                      Text(
+                        player.displayName.split(' ')[0].toUpperCase(),
+                        style: SeedlingTypography.caption.copyWith(
+                          color: isMe
+                              ? SeedlingColors.autumnGold
+                              : Colors.white54,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  player.displayName.split(' ')[0].toUpperCase(),
-                  style: SeedlingTypography.caption.copyWith(
-                    color: Colors.white38,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+                );
+              }),
+            ],
           );
         },
       ),

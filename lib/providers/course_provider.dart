@@ -87,6 +87,8 @@ class CourseNotifier extends StateNotifier<CourseState> {
     state = state.copyWith(activeCourseId: id);
     await _persist();
   }
+
+  String? get activeCourseId => state.activeCourseId;
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

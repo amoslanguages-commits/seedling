@@ -13,6 +13,7 @@ class SettingsService {
   static const String _minuteKey = 'reminder_minute';
   static const String _dailyGoalKey = 'daily_word_goal';
   static const String _syncKey = 'cloud_sync_enabled';
+  static const String _nativeLangKey = 'native_language_code';
 
   SharedPreferences? _prefs;
 
@@ -28,8 +29,10 @@ class SettingsService {
   int get reminderMinute => _prefs?.getInt(_minuteKey) ?? 0;
   int get dailyWordGoal => _prefs?.getInt(_dailyGoalKey) ?? 10;
   bool get cloudSyncEnabled => _prefs?.getBool(_syncKey) ?? true;
+  String get nativeLanguageCode => _prefs?.getString(_nativeLangKey) ?? 'en';
 
-  TimeOfDay get reminderTime => TimeOfDay(hour: reminderHour, minute: reminderMinute);
+  TimeOfDay get reminderTime =>
+      TimeOfDay(hour: reminderHour, minute: reminderMinute);
 
   // Setters
   Future<void> setNotificationsEnabled(bool value) async {
@@ -55,5 +58,9 @@ class SettingsService {
 
   Future<void> setCloudSyncEnabled(bool value) async {
     await _prefs?.setBool(_syncKey, value);
+  }
+
+  Future<void> setNativeLanguageCode(String code) async {
+    await _prefs?.setString(_nativeLangKey, code);
   }
 }

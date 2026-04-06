@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/colors.dart';
+import '../services/haptic_service.dart';
 
 class GrowingCard extends StatefulWidget {
   final Widget child;
@@ -53,7 +54,12 @@ class _GrowingCardState extends State<GrowingCard>
           child: Opacity(
             opacity: opacity,
             child: GestureDetector(
-              onTap: widget.onTap,
+              onTap: widget.onTap != null
+                  ? () {
+                      HapticService.lightImpact();
+                      widget.onTap!();
+                    }
+                  : null,
               child: Container(
                 padding: widget.padding,
                 decoration: BoxDecoration(

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
+import 'package:twemoji/twemoji.dart';
 import '../../../core/colors.dart';
 import '../../../core/typography.dart';
 import '../../../models/multiplayer.dart';
 import '../../../providers/multiplayer_provider.dart';
 import '../../../providers/app_providers.dart';
+import '../../../providers/course_provider.dart';
+import '../../../models/taxonomy.dart';
 import '../../../core/page_route.dart';
 import 'multiplayer_lobby_screen.dart';
+import '../../../widgets/premium_gate.dart';
 
 class HostSetupScreen extends ConsumerStatefulWidget {
   const HostSetupScreen({super.key});
@@ -18,26 +22,26 @@ class HostSetupScreen extends ConsumerStatefulWidget {
 
 class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
     with SingleTickerProviderStateMixin {
-  String _selectedTheme = 'Daily Life';
+  String _selectedTheme = 'All';
+  String _selectedSubtheme = 'All';
+  String? _selectedNativeCode;
+  String? _selectedTargetCode;
+
   LiveGameType _gameType = LiveGameType.vocabulary;
   int _questionCount = 10;
   int _timeLimit = 15;
   int _maxPlayers = 5;
   bool _playAsParticipant = true;
+  bool _isSurvival = false;
+  bool _isPrivate = false;
   final TextEditingController _titleController = TextEditingController(
-    text: 'My Forest Quiz',
+    text: 'My Seedling Challenge',
   );
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  final List<String> _themes = [
-    'Daily Life',
-    'Universal Verbs',
-    'Time & Space',
-    'Grammar Functions',
-    'Society & Culture',
-  ];
+  // Removed static _themes list, using CategoryTaxonomy
 
   @override
   void initState() {
@@ -72,7 +76,7 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
               const CircularProgressIndicator(color: SeedlingColors.autumnGold),
               const SizedBox(height: 20),
               Text(
-                'Planting your Arena...',
+                'Preparing your Room...',
                 style: SeedlingTypography.body.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -92,12 +96,15 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
         title: _titleController.text,
         gameType: _gameType,
         theme: _selectedTheme,
-        subtheme: 'General',
+        subtheme: _selectedSubtheme,
         totalQuestions: _questionCount,
         timePerQuestion: _timeLimit,
         maxPlayers: _maxPlayers,
-        languageCode: ref.read(nativeLanguageProvider),
-        targetLanguageCode: ref.read(currentLanguageProvider),
+        languageCode: _selectedNativeCode ?? ref.read(nativeLanguageProvider),
+        targetLanguageCode:
+            _selectedTargetCode ?? ref.read(currentLanguageProvider),
+        isSurvival: _isSurvival,
+        isPrivate: _isPrivate,
       );
 
       await ref.read(activeSessionProvider.notifier).hostGame(session);
@@ -116,11 +123,25 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Close loading
+
+        final errorStr = e.toString();
+        if (errorStr.contains('PREMIUM_LIMIT_HOST')) {
+          showDialog(
+            context: context,
+            builder: (context) => const PremiumGateDialog(
+              title: 'Host a Challenge',
+              message: 'Free users can host 2 games a day.',
+              iconSymbol: '🏆',
+            ),
+          );
+          return;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: SeedlingColors.hibiscusRed,
             content: Text(
-              'Failed to create arena: $e',
+              'Failed to create room: $e',
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -146,12 +167,18 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
                   padding: const EdgeInsets.fromLTRB(24, 10, 24, 40),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildSectionHeader('Arena Identity'),
+                      _buildSectionHeader('Room Identity'),
                       const SizedBox(height: 16),
                       _buildGlassInput(),
 
                       const SizedBox(height: 32),
-                      _buildSectionHeader('Battle Mode'),
+                      _buildSectionHeader('Select Course'),
+                      const SizedBox(height: 16),
+                      _buildCourseSelector(),
+
+                      const SizedBox(height: 32),
+                      _buildSectionHeader('Challenge Mode'),
+
                       const SizedBox(height: 16),
                       _buildModeSelection(),
 
@@ -159,6 +186,13 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
                       _buildSectionHeader('Select Theme'),
                       const SizedBox(height: 16),
                       _buildThemeSelector(),
+
+                      if (_selectedTheme != 'All') ...[
+                        const SizedBox(height: 32),
+                        _buildSectionHeader('Select Subtheme'),
+                        const SizedBox(height: 16),
+                        _buildSubthemeSelector(),
+                      ],
 
                       const SizedBox(height: 32),
                       _buildSectionHeader('Game Parameters'),
@@ -169,6 +203,12 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
                       _buildSectionHeader('Host Preferences'),
                       const SizedBox(height: 16),
                       _buildHostToggle(),
+
+                      const SizedBox(height: 16),
+                      _buildSurvivalToggle(),
+
+                      const SizedBox(height: 16),
+                      _buildPrivateToggle(),
 
                       const SizedBox(height: 48),
                       _buildCreateButton(),
@@ -250,9 +290,10 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 64, bottom: 16),
         title: Text(
-          'Forge New Arena',
+          'Create Challenge Room',
           style: SeedlingTypography.heading2.copyWith(color: Colors.white),
         ),
+
         background: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
@@ -298,7 +339,7 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
         controller: _titleController,
         style: SeedlingTypography.body.copyWith(color: Colors.white),
         decoration: InputDecoration(
-          hintText: 'Enter Arena Legend...',
+          hintText: 'Enter Challenge name...',
           hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
           prefixIcon: const Icon(
             Icons.edit_note_rounded,
@@ -392,16 +433,24 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
   }
 
   Widget _buildThemeSelector() {
+    final rootThemes = [
+      'All',
+      ...CategoryTaxonomy.getRootCategories().map((c) => c.name),
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
       child: Row(
-        children: _themes.map((theme) {
+        children: rootThemes.map((theme) {
           final isSelected = _selectedTheme == theme;
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () => setState(() => _selectedTheme = theme),
+              onTap: () => setState(() {
+                _selectedTheme = theme;
+                _selectedSubtheme = 'All'; // Reset subtheme
+              }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
@@ -430,6 +479,168 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSubthemeSelector() {
+    // Find parent ID
+    final parent = CategoryTaxonomy.getRootCategories().firstWhere(
+      (c) => c.name == _selectedTheme,
+      orElse: () => throw Exception('Theme not found'),
+    );
+
+    final subthemes = [
+      'All',
+      ...CategoryTaxonomy.getSubCategories(parent.id).map((c) => c.name),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: subthemes.map((sub) {
+          final isSelected = _selectedSubtheme == sub;
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedSubtheme = sub),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? SeedlingColors.seedlingGreen
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: isSelected ? Colors.white24 : Colors.white12,
+                  ),
+                ),
+                child: Text(
+                  sub,
+                  style: SeedlingTypography.body.copyWith(
+                    color: isSelected ? Colors.black87 : Colors.white,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCourseSelector() {
+    final courses = ref.watch(courseProvider);
+
+    // Ensure we have a selection
+    if (_selectedNativeCode == null && courses.courses.isNotEmpty) {
+      final active = courses.courses.firstWhere(
+        (c) => c.id == ref.read(courseProvider.notifier).activeCourseId,
+        orElse: () => courses.courses.first,
+      );
+      _selectedNativeCode = active.nativeLanguage.code;
+      _selectedTargetCode = active.targetLanguage.code;
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: [
+          ...courses.courses.map((course) {
+            final isSelected =
+                _selectedNativeCode == course.nativeLanguage.code &&
+                _selectedTargetCode == course.targetLanguage.code;
+            return Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: GestureDetector(
+                onTap: () => setState(() {
+                  _selectedNativeCode = course.nativeLanguage.code;
+                  _selectedTargetCode = course.targetLanguage.code;
+                }),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? SeedlingColors.water.withValues(alpha: 0.2)
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: isSelected ? SeedlingColors.water : Colors.white12,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Twemoji(emoji: course.nativeLanguage.flag, height: 20),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          color: Colors.white30,
+                          size: 14,
+                        ),
+                      ),
+                      Twemoji(emoji: course.targetLanguage.flag, height: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        course.targetLanguage.name,
+                        style: SeedlingTypography.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          // Add Course Button
+          GestureDetector(
+            onTap: () {
+              // Navigation to course management would go here
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Manage your courses in the Vocabulary tab!'),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: Colors.white12,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: SeedlingColors.freshSprout,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text('Add New', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -470,7 +681,8 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
             child: Divider(color: Colors.white10),
           ),
           _buildGlassSlider(
-            label: 'Max Warriors',
+            label: 'Max Players',
+
             value: _maxPlayers.toDouble(),
             min: 2,
             max: 10,
@@ -539,21 +751,100 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
       ),
       child: SwitchListTile(
         title: Text(
-          'Join the Battle?',
+          'Join the Challenge?',
           style: SeedlingTypography.body.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         subtitle: Text(
-          'Enter as a warrior or just observe.',
+          'Enter as a player or just spectate.',
           style: SeedlingTypography.caption.copyWith(color: Colors.white60),
         ),
         value: _playAsParticipant,
         activeThumbColor: SeedlingColors.autumnGold,
         inactiveThumbColor: Colors.white24,
         onChanged: (val) => setState(() => _playAsParticipant = val),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
+
+  Widget _buildSurvivalToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _isSurvival
+            ? SeedlingColors.hibiscusRed.withValues(alpha: 0.1)
+            : Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: _isSurvival
+              ? SeedlingColors.hibiscusRed.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.1),
+        ),
+      ),
+      child: SwitchListTile(
+        title: Row(
+          children: [
+            const Icon(
+              Icons.bolt_rounded,
+              color: SeedlingColors.hibiscusRed,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Survival Mode',
+              style: SeedlingTypography.body.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Text(
+          'Mistakes eliminate players. Time shrinks every round!',
+          style: SeedlingTypography.caption.copyWith(color: Colors.white60),
+        ),
+        value: _isSurvival,
+        activeTrackColor: SeedlingColors.hibiscusRed.withValues(alpha: 0.3),
+        activeThumbColor: SeedlingColors.hibiscusRed,
+        onChanged: (val) => setState(() => _isSurvival = val),
+      ),
+    );
+  }
+
+  Widget _buildPrivateToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: SwitchListTile(
+        title: Row(
+          children: [
+            const Icon(
+              Icons.lock_rounded,
+              color: SeedlingColors.autumnGold,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Private Room',
+              style: SeedlingTypography.body.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Text(
+          'Only users with the Join Code can enter.',
+          style: SeedlingTypography.caption.copyWith(color: Colors.white60),
+        ),
+        value: _isPrivate,
+        activeTrackColor: SeedlingColors.autumnGold.withValues(alpha: 0.3),
+        activeThumbColor: SeedlingColors.autumnGold,
+        onChanged: (val) => setState(() => _isPrivate = val),
       ),
     );
   }
@@ -588,7 +879,7 @@ class _HostSetupScreenState extends ConsumerState<HostSetupScreen>
               const Icon(Icons.bolt_rounded, color: Colors.black, size: 28),
               const SizedBox(width: 12),
               Text(
-                'IGNITE ARENA',
+                'START CHALLENGE',
                 style: SeedlingTypography.heading3.copyWith(
                   color: Colors.black,
                   fontWeight: FontWeight.w900,

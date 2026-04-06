@@ -35,7 +35,7 @@ List<String>? _articlesForLanguage(String langCode) {
 
 class ArticleChoiceQuiz extends StatefulWidget {
   final Word word;
-  final Function(
+  final void Function(
     bool correct,
     int masteryGained, [
     String? chosenWrongTranslation,
@@ -103,9 +103,9 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
       _displayArticles = [];
     }
 
-    // Auto-play TTS so learner hears the word
+    // Auto-play TTS so learner hears the word (without giving away article)
     TtsService.instance.speak(
-      widget.word.ttsWord,
+      widget.word.word,
       widget.word.targetLanguageCode,
     );
   }
@@ -184,6 +184,12 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Botanical visual flair
+                    CustomPaint(
+                      size: Size(isSmall ? 40 : 50, isSmall ? 40 : 50),
+                      painter: BotanicalArticleHeaderPainter(),
+                    ),
+                    SizedBox(height: isSmall ? 8 : 12),
                     Text(
                       'What is the article?',
                       style: SeedlingTypography.caption.copyWith(
@@ -260,6 +266,7 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                         ),
                         TargetWordDisplay(
                           word: widget.word,
+                          hideArticle: true,
                           style: SeedlingTypography.heading1.copyWith(
                             fontSize: isSmall ? 28 : 36,
                           ),
@@ -272,7 +279,7 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
                             size: isSmall ? 20 : 24,
                           ),
                           onPressed: () => TtsService.instance.speak(
-                            widget.word.ttsWord,
+                            widget.word.word,
                             widget.word.targetLanguageCode,
                           ),
                           padding: EdgeInsets.zero,
@@ -432,4 +439,70 @@ class _ArticleChoiceQuizState extends State<ArticleChoiceQuiz>
       ],
     );
   }
+}
+
+class BotanicalArticleHeaderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+
+    // Draw an elegant double leaf pattern
+    final paint = Paint()
+      ..color = SeedlingColors.freshSprout.withValues(alpha: 0.8)
+      ..style = PaintingStyle.fill;
+
+    // Left leaf
+    final pathLeft = Path()
+      ..moveTo(center.dx, center.dy + size.height * 0.3)
+      ..quadraticBezierTo(
+        center.dx - size.width * 0.4,
+        center.dy + size.height * 0.1,
+        center.dx - size.width * 0.3,
+        center.dy - size.height * 0.2,
+      )
+      ..quadraticBezierTo(
+        center.dx - size.width * 0.1,
+        center.dy - size.height * 0.2,
+        center.dx,
+        center.dy + size.height * 0.3,
+      );
+
+    // Right leaf
+    final pathRight = Path()
+      ..moveTo(center.dx, center.dy + size.height * 0.3)
+      ..quadraticBezierTo(
+        center.dx + size.width * 0.4,
+        center.dy + size.height * 0.1,
+        center.dx + size.width * 0.3,
+        center.dy - size.height * 0.3,
+      )
+      ..quadraticBezierTo(
+        center.dx + size.width * 0.1,
+        center.dy - size.height * 0.1,
+        center.dx,
+        center.dy + size.height * 0.3,
+      );
+
+    canvas.drawPath(pathLeft, paint);
+    canvas.drawPath(
+      pathRight,
+      paint..color = SeedlingColors.sunlight.withValues(alpha: 0.9),
+    );
+
+    // Draw small stem
+    final stemPaint = Paint()
+      ..color = SeedlingColors.deepRoot.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(center.dx, center.dy + size.height * 0.3),
+      Offset(center.dx, center.dy + size.height * 0.5),
+      stemPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

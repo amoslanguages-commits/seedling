@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/colors.dart';
 import '../core/typography.dart';
@@ -10,6 +9,8 @@ import '../database/database_helper.dart';
 import '../providers/app_providers.dart';
 import '../services/auth_service.dart';
 import '../services/sync_manager.dart';
+import '../services/usage_service.dart';
+import '../widgets/premium_gate.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  QUIZ MODES
@@ -59,7 +60,8 @@ class SentenceSessionScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SentenceSessionScreen> createState() => _SentenceSessionScreenState();
+  ConsumerState<SentenceSessionScreen> createState() =>
+      _SentenceSessionScreenState();
 }
 
 class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
@@ -79,15 +81,31 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
 
   Future<void> _fetchSentences() async {
     try {
+      final canPlay = await UsageService().canPlaySentence();
+      if (!canPlay) {
+        if (mounted) {
+          PremiumGateDialog.show(
+            context,
+            title: 'Daily Sentence Limit',
+            message:
+                'You\'ve mastered 30 sentences today! Free users can play up to 30 sentences daily. Upgrade for unlimited practice!',
+          );
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
       final response = await SupabaseConfig.client
           .from('sentences')
           .select()
           .eq('native_lang_code', widget.nativeLangCode)
           .eq('target_lang_code', widget.targetLangCode);
-      
-      final items = (response as List).map((e) => SentenceItem.fromJson(e)).toList();
+
+      final items = (response as List)
+          .map((e) => SentenceItem.fromJson(e))
+          .toList();
       items.shuffle();
-      
+
       if (mounted) {
         setState(() {
           _items = items;
@@ -125,8 +143,12 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
 
   // ── Answer handling ────────────────────────────────────────────────────────
 
-  void _onAnswer(bool correct) {
+  Future<void> _onAnswer(bool correct) async {
     if (correct) setState(() => _correct++);
+
+    // Log usage for every sentence played
+    await UsageService().logSentencePlayed();
+
     setState(() {
       if (_currentIndex < _items.length - 1) {
         _currentIndex++;
@@ -143,7 +165,7 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
 
     final userId = AuthService().userId ?? 'guest';
     final db = DatabaseHelper();
-    
+
     await db.saveStudySession({
       'user_id': userId,
       'language_code': widget.targetLangCode,
@@ -153,6 +175,16 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
       'duration_minutes': 5, // Estimated
       'xp_gained': 100, // Balanced XP for sentence sessions
     });
+
+    // New: Log "Mastered" activity if accuracy is >= 80%
+    if (_correct >= _items.length * 0.8) {
+      await db.logActivity(
+        type: 'level_up', // Using existing type for high achievement
+        description:
+            'Mastered ${widget.mode.label} with ${(_correct / _items.length * 100).toInt()}% accuracy!',
+        xp: 150,
+      );
+    }
 
     // Refresh stats provider
     ref.invalidate(userStatsProvider);
@@ -181,18 +213,24 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: Text('Failed to load sentences: $_error', style: SeedlingTypography.body),
+            child: Text(
+              'Failed to load sentences: $_error',
+              style: SeedlingTypography.body,
+            ),
           ),
         ),
       );
     }
-    
+
     if (_items.isEmpty) {
       return Scaffold(
         backgroundColor: SeedlingColors.background,
         appBar: _buildAppBar(0),
         body: Center(
-          child: Text('No sentences available.', style: SeedlingTypography.body),
+          child: Text(
+            'No sentences available.',
+            style: SeedlingTypography.body,
+          ),
         ),
       );
     }
