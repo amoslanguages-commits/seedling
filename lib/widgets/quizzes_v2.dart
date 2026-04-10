@@ -3320,7 +3320,7 @@ class _ImageMatchQuizState extends State<ImageMatchQuiz>
       AudioService.haptic(HapticType.wrong).ignore();
     }
     final onAnswer = widget.onAnswer;
-    final isMounted = () => mounted;
+    bool isMounted() => mounted;
     
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!isMounted()) return;

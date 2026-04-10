@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show TimeOfDay;
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../models/word.dart';
 import '../core/supabase_config.dart';
 import '../database/database_helper.dart';
 import 'auth_service.dart';
@@ -81,6 +82,13 @@ class SyncManager {
             'mastery_level': word.masteryLevel,
             'last_reviewed': word.lastReviewed?.toIso8601String(),
             'streak': word.streak,
+            // Added FSRS state synchronization
+            'fsrs_stability': word.fsrsStability,
+            'fsrs_difficulty': word.fsrsDifficulty,
+            'fsrs_reps': word.fsrsReps,
+            'fsrs_lapses': word.fsrsLapses,
+            'fsrs_state': word.fsrsState,
+            'next_review': word.nextReview?.toIso8601String(),
           },
         )
         .toList();
@@ -171,16 +179,16 @@ class SyncManager {
 
       if (data != null) {
         final settings = SettingsService();
-        await settings.setNotificationsEnabled(data['notifications_enabled']);
-        await settings.setSoundEffectsEnabled(data['sound_effects_enabled']);
-        await settings.setHapticsEnabled(data['haptics_enabled']);
-        await settings.setDailyWordGoal(data['daily_word_goal']);
+        await settings.setNotificationsEnabled(data['notifications_enabled'] == true);
+        await settings.setSoundEffectsEnabled(data['sound_effects_enabled'] == true);
+        await settings.setHapticsEnabled(data['haptics_enabled'] == true);
+        await settings.setDailyWordGoal(int.tryParse(data['daily_word_goal']?.toString() ?? '') ?? 10);
         // Note: TimeOfDay needs careful handling as it's not a primitive
         // We'll trust the integer values from the DB
         await settings.setReminderTime(
           TimeOfDay(
-            hour: data['reminder_hour'],
-            minute: data['reminder_minute'],
+            hour: int.tryParse(data['reminder_hour']?.toString() ?? '') ?? 8,
+            minute: int.tryParse(data['reminder_minute']?.toString() ?? '') ?? 0,
           ),
         );
         await settings.setCloudSyncEnabled(data['cloud_sync_enabled']);
@@ -207,11 +215,12 @@ class SyncManager {
           .eq('user_id', userId!);
 
       for (final cloudWord in cloudWords) {
-        await db.updateWordProgress(
-          cloudWord['word_id'],
-          cloudWord['mastery_level'],
-          cloudWord['streak'],
-        );
+        // Construct a word-like map for FSRS update
+        final wordToUpdate = Word.fromMap({
+          ...cloudWord,
+          'id': cloudWord['word_id'],
+        });
+        await db.updateWordFSRS(wordToUpdate);
       }
 
       // Download user stats
@@ -223,11 +232,11 @@ class SyncManager {
 
       if (cloudStats != null) {
         await db.updateUserStats({
-          'totalWordsLearned': cloudStats['total_words_learned'] ?? 0,
-          'totalXP': cloudStats['total_xp'] ?? 0,
-          'currentStreak': cloudStats['current_streak'] ?? 0,
-          'longestStreak': cloudStats['longest_streak'] ?? 0,
-          'totalStudyMinutes': cloudStats['total_study_minutes'] ?? 0,
+          'totalWordsLearned': int.tryParse(cloudStats['total_words_learned']?.toString() ?? '') ?? 0,
+          'totalXP': int.tryParse(cloudStats['total_xp']?.toString() ?? '') ?? 0,
+          'currentStreak': int.tryParse(cloudStats['current_streak']?.toString() ?? '') ?? 0,
+          'longestStreak': int.tryParse(cloudStats['longest_streak']?.toString() ?? '') ?? 0,
+          'totalStudyMinutes': int.tryParse(cloudStats['total_study_minutes']?.toString() ?? '') ?? 0,
         });
       }
 

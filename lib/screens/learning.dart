@@ -18,6 +18,7 @@ import '../services/usage_service.dart';
 import '../widgets/premium_gate.dart';
 import '../database/database_helper.dart';
 import '../widgets/readiness_hud.dart';
+import '../services/fsrs_service.dart';
 
 // ================================================================
 // SESSION FLOW (the correct SRS-based loop):
@@ -416,10 +417,14 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
     final targetLang = ref.read(currentLanguageProvider);
     final userId = AuthService().userId ?? 'guest';
 
-    // Calculate session duration
+    // Calculate session duration (round up to nearest minute so it's not 0 for quick sessions)
     int durationMins = 0;
     if (_sessionStartTime != null) {
-      durationMins = DateTime.now().difference(_sessionStartTime!).inMinutes;
+      final secs = DateTime.now().difference(_sessionStartTime!).inSeconds;
+      if (secs > 0) {
+        durationMins = (secs / 60).ceil();
+        if (durationMins < 1) durationMins = 1; // minimum 1 min if they did anything
+      }
     }
 
     final totalCorrect = _cumulativeCorrect + _correctAnswers;
@@ -785,10 +790,21 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
 
   // ── SRS Quiz ─────────────────────────────────────────────────────────────
 
-  Future<void> _handleWordAnswered(Word word, bool correct) async {
+  Future<void> _handleWordAnswered(Word word, bool correct, int responseMs) async {
     if (word.id == null) return;
     final db = ref.read(databaseProvider);
-    await db.updateWordMastery(word.id!, correct);
+
+    // ── FSRS Intelligence Engine ──────────────────────────────────────────
+    // The "Ultra-Smart" heart: we calculate the new memory state
+    // based on speed and accuracy.
+    final updatedWord = FSRSService.instance.calculateReview(
+      word,
+      correct,
+      Duration(milliseconds: responseMs),
+    );
+
+    // Save back to DB (this also handles the botanical stage derivation)
+    await db.updateWordFSRS(updatedWord);
   }
 
   Widget _buildQuizPhase() {

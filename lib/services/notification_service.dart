@@ -1,6 +1,9 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'settings_service.dart';
 
@@ -21,6 +24,14 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+
+    tz.initializeTimeZones();
+    try {
+      var currentTimeZone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(currentTimeZone.toString()));
+    } catch (_) {
+      // Fallback
+    }
 
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -67,13 +78,15 @@ class NotificationService {
 
   // ── Show a generic daily reminder notification ────────────────────────────
 
-  Future<void> scheduleDailyReminder() async {
+  Future<void> scheduleDailyReminder({int hour = 20, int minute = 0}) async {
     if (!_initialized) await initialize();
     if (!_settings.notificationsEnabled) return;
-    await _showNotification(
+    await _scheduleNotification(
       id: _kDailyReminderId,
       title: 'Your seedlings are waiting 🌿',
       body: 'Plant a new word today — just 5 minutes keeps your streak alive!',
+      hour: hour,
+      minute: minute,
     );
   }
 
@@ -111,36 +124,42 @@ class NotificationService {
 
     if (dueCount > 0) {
       // 🌊 Urgent watering reminder
-      await _showNotification(
+      await _scheduleNotification(
         id: _kWateringReminderId,
         title: '$dueCount plant${dueCount > 1 ? 's' : ''} need watering 💧',
         body: dueCount == 1
             ? 'One word is fading from memory — quick review to save it!'
             : '$dueCount words are due for review. Don\'t let your garden wilt!',
+        hour: hour ?? 20,
+        minute: minute ?? 0,
       );
       debugPrint(
-        '[NotificationService] Watering reminder sent ($dueCount due).',
+        '[NotificationService] Watering reminder scheduled ($dueCount due).',
       );
     } else {
       // 🌱 Gentle daily nudge
-      await _showNotification(
+      await _scheduleNotification(
         id: _kDailyReminderId,
         title: 'Your garden is thriving 🌿',
         body:
             'All caught up! Plant something new to keep growing your vocabulary.',
+        hour: hour ?? 20,
+        minute: minute ?? 0,
       );
       debugPrint(
-        '[NotificationService] Daily nudge sent (0 due, not practiced).',
+        '[NotificationService] Daily nudge scheduled (0 due, not practiced).',
       );
     }
   }
 
   // ── Internal helper ───────────────────────────────────────────────────────
 
-  Future<void> _showNotification({
+  Future<void> _scheduleNotification({
     required int id,
     required String title,
     required String body,
+    required int hour,
+    required int minute,
   }) async {
     const androidDetails = AndroidNotificationDetails(
       'seedling_reminders',
@@ -163,11 +182,28 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _plugin.show(
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    await _plugin.zonedSchedule(
       id: id,
       title: title,
       body: body,
+      scheduledDate: scheduledDate,
       notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 

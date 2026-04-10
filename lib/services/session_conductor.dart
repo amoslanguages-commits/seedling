@@ -288,60 +288,70 @@ class SessionConductor {
     final hasExample =
         word.exampleSentence != null && word.exampleSentence!.isNotEmpty;
 
-    // ── Milestone checks (Every 6th interaction) ─────────────────────────
-    if (turnCount > 0 && turnCount % 6 == 0 && !isNewWord && !isRelearn) {
-      const milestones = ['buildTree', 'rootNetwork', 'memoryFlip'];
-      final mType = milestones[r.nextInt(milestones.length)];
-      if (excludedTypes == null || !excludedTypes.contains(mType)) {
-        return mType;
+    // Helper functions
+    bool canUse(String type) => !(excludedTypes?.contains(type) ?? false);
+    String choose(List<String> types, String fallback) {
+      final valid = types.where(canUse).toList();
+      return valid.isNotEmpty ? valid[r.nextInt(valid.length)] : fallback;
+    }
+
+    // 1-5: Intro Mode (New words or Re-learning)
+    final isIntroMode = isNewWord || isRelearn;
+    if (isIntroMode) {
+      if (step == 0) return choose(['growWord', if (hasImage) 'picturePick'], 'growWord');
+      if (step == 1) return choose(['swipeNourish', 'seedSort'], 'swipeNourish');
+      if (step == 2) return choose(['catchLeaf', 'deepRoot'], 'deepRoot');
+      if (step >= 3) return choose(['engraveRoot', 'leafLetter'], 'engraveRoot');
+    }
+
+    // 6: Milestone turn
+    if (turnCount > 0 && turnCount % 6 == 0) {
+      if (canUse('buildTree') || canUse('rootNetwork')) {
+        return choose(['buildTree', 'rootNetwork'], 'deepRoot');
       }
     }
 
-    // ── Build Universal Pool for single-word queries ─────────────────────
-    final List<String> pool = [
+    // 7: Target Article Challenge
+    if (word.hasTargetArticle && word.primaryPOS == PartOfSpeech.noun && word.fsrsStability >= 5.0) {
+      if (canUse('articleChallenge') && r.nextDouble() < 0.40) return 'articleChallenge';
+    }
+
+    // 8: Image Mastery
+    if (hasImage && word.fsrsStability >= 1.0) {
+      if (r.nextDouble() < 0.45) return choose(['imageMatch', 'whatWordIsThis'], 'deepRoot');
+    }
+
+    // 9: Context/Example Sentence
+    if (hasExample && word.fsrsStability >= 10.0) {
+      if (canUse('forestCloze') && r.nextDouble() < 0.70) return 'forestCloze';
+    }
+
+    // 10: Reinforcement for low stability
+    if (word.fsrsStability <= 3.0) {
+      if (canUse('wordRain') && r.nextDouble() < 0.25) return 'wordRain';
+    }
+
+    // 11: Weakest type from IntelligenceService
+    if (dbWeakestType != null && canUse(dbWeakestType)) {
+      if (r.nextDouble() < 0.70) return dbWeakestType;
+    }
+
+    // 12: High-stability challenge
+    if (word.fsrsStability >= 15.0) {
+      if (r.nextDouble() < 0.50) {
+        return choose(['leafLetter', if (hasExample) 'forestCloze'], 'deepRoot');
+      }
+    }
+
+    // 13: Shuffled pool fallback
+    final pool = [
       'growWord', 'swipeNourish', 'catchLeaf', 'deepRoot', 
-      'bloomOrWilt', 'seedSort', 'gardenSort', 'wordRain',
-      'engraveRoot',
-    ];
+      'bloomOrWilt', 'seedSort', 'gardenSort', 'engraveRoot',
+    ].where(canUse).toList();
 
-    // UVLS: Spelling is high-effort, add it rarely (12% chance) and only if eligible
-    final spellingExcl = excludedTypes?.contains('leafLetter') ?? false;
-    final canSpell = step >= 2 || word.masteryLevel >= 2;
-    if (!spellingExcl && canSpell && r.nextDouble() < 0.12) {
-      pool.add('leafLetter');
-    }
+    if (pool.isNotEmpty) return pool[r.nextInt(pool.length)];
 
-    // Add conditional types based on word properties
-    if (hasImage) {
-      pool.addAll(['picturePick', 'whatWordIsThis', 'imageMatch']);
-    }
-
-    if (word.hasTargetArticle && word.primaryPOS == PartOfSpeech.noun) {
-      if (!(excludedTypes?.contains('articleChallenge') ?? false)) {
-        pool.add('articleChallenge');
-      }
-    }
-
-    // Filter out ANY explicitly excluded types (from user skips)
-    if (excludedTypes != null) {
-      pool.removeWhere((type) => excludedTypes.contains(type));
-    }
-
-    // Fallback if pool is empty after exclusions
-    if (pool.isEmpty) return 'growWord';
-
-    // Special weighting: 
-    // If it's a NEW word at step 0 (absolute first sighting), 
-    // we lean 70% towards "Intro" types while still allowing the full pool 30% of the time.
-    if (isNewWord && step == 0 && r.nextDouble() < 0.70) {
-      final introPool = ['growWord', 'bloomOrWilt', if (hasImage) 'picturePick'];
-      final filteredIntro = introPool.where((t) => !(excludedTypes?.contains(t) ?? false)).toList();
-      if (filteredIntro.isNotEmpty) {
-        return filteredIntro[r.nextInt(filteredIntro.length)];
-      }
-    }
-
-    // Otherwise, pick randomly from the entire pool!
-    return pool[r.nextInt(pool.length)];
+    // 14: Last resort default
+    return 'deepRoot';
   }
 }

@@ -579,21 +579,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [SeedlingColors.sunlight, SeedlingColors.seedlingGreen],
+          colors: [Color(0xFF0D3320), Color(0xFF1B5C35)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: SeedlingColors.sunlight.withValues(alpha: 0.3),
-            blurRadius: 15,
+            color: SeedlingColors.deepRoot.withValues(alpha: 0.4),
+            blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
+        border: Border.all(
+          color: SeedlingColors.autumnGold.withValues(alpha: 0.25),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.star, color: SeedlingColors.background, size: 40),
-          const SizedBox(width: 20),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: SeedlingColors.autumnGold.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.auto_awesome, color: SeedlingColors.autumnGold, size: 28),
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,13 +614,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 Text(
                   'Upgrade to Premium',
                   style: SeedlingTypography.heading3.copyWith(
-                    color: SeedlingColors.background,
+                    color: SeedlingColors.autumnGold,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
                   'Unlock all languages, cloud backups, and remove ads.',
                   style: SeedlingTypography.caption.copyWith(
-                    color: SeedlingColors.background.withValues(alpha: 0.8),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -757,11 +771,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     required String currentCode,
   }) {
     if (isTarget) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Use the Course Switcher on Home to change target language.',
+      // #13 — Replace dead snackbar with actionable dialog
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: SeedlingColors.cardBackground,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              const Icon(Icons.language, color: SeedlingColors.seedlingGreen),
+              const SizedBox(width: 10),
+              Text('Change Target Language', style: SeedlingTypography.heading3),
+            ],
           ),
+          content: Text(
+            'To switch your learning language, use the Course Switcher on the Home screen.\n\nTap the active course banner at the top of the Grow tab to change or add a language.',
+            style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it', style: TextStyle(color: SeedlingColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // close settings → back to Home
+              },
+              child: const Text(
+                'Go to Home',
+                style: TextStyle(
+                  color: SeedlingColors.seedlingGreen,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       );
       return;

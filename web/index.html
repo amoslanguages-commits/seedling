@@ -12,10 +12,11 @@
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
 </head>
 <body>
+
 
   <!-- ═══════════════════════════════════════ NAVBAR ═══ -->
   <nav class="navbar" id="navbar">
@@ -52,12 +53,12 @@
     <div class="hero-content">
       <div class="hero-badge reveal">
         <span class="badge-dot"></span>
-        The Living Forest Engine — Now Available
+        The Seedling Engine — Now Available
       </div>
       <h1 class="hero-title reveal">
         Grow Your<br/>
         <span class="gradient-text">Vocabulary</span><br/>
-        Like a Forest
+        Like a Seedling
       </h1>
       <p class="hero-subtitle reveal">
         Seedling uses your brain's natural growth cycle — planting new words,
@@ -77,30 +78,36 @@
       <div class="hero-stats reveal">
         <div class="stat-pill">
           <span class="stat-num" data-target="47283">0</span>
-          <span class="stat-label">Words Planted Today</span>
+        <div class="stat-pill">
+          <span class="stat-num" data-stat="users" data-target="8920">0</span>
+          <span class="stat-label">Global Gardeners</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-pill">
-          <span class="stat-num" data-target="12">0</span>
-          <span class="stat-label">Languages Supported</span>
+          <span class="stat-num" id="liveGrowing">124</span>
+          <span class="stat-label">Growing Now</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-pill">
-          <span class="stat-num" data-target="98">0</span>
-          <span class="stat-label">% Retention Rate</span>
+          <span class="stat-num" data-stat="langs" data-target="40">0</span>
+          <span class="stat-label">Languages</span>
         </div>
       </div>
     </div>
     <div class="hero-visual">
       <div class="mascot-container">
+        <div class="bubble-container" id="mascotBubble">
+            <div class="bubble-content">"The community just planted its 100,000th word! Keep growing! 🌱"</div>
+        </div>
         <div class="mascot-glow"></div>
-        <img src="assets/hero_mascot.png" alt="Seedling Mascot" class="mascot-img reveal" id="mascotImg"/>
+        <!-- mascot image removed upon request -->
         <div class="mascot-orbit">
           <div class="orbit-badge ob1">🌱 New word!</div>
-          <div class="orbit-badge ob2">⭐ +10 XP</div>
+          <div class="orbit-badge ob2">🌸 +10 Growth Points</div>
           <div class="orbit-badge ob3">🔥 Day 7</div>
         </div>
       </div>
+      <canvas id="heroCanvas"></canvas>
     </div>
     <div class="hero-scroll-hint">
       <span>Scroll to explore</span>
@@ -111,7 +118,7 @@
   <!-- ═══════════════════════════════════ TRUST BAR ═══ -->
   <div class="trust-bar">
     <div class="trust-inner">
-      <span class="trust-label">Available on</span>
+      <span class="trust-label">Planted in every ecosystem:</span>
       <div class="trust-platforms">
         <div class="platform-badge">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.42c1.39.08 2.36.74 3.21.78 1.22-.22 2.39-.91 3.68-.84 1.57.1 2.76.75 3.54 1.89-3.25 1.95-2.72 5.83.57 7.03-.65 1.77-1.5 3.52-3 5zm-2.98-17.5c.07 2.14-1.85 3.94-3.95 3.83-.31-1.95 1.72-3.99 3.95-3.83z"/></svg>
@@ -130,6 +137,33 @@
           Web
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════ GLOBAL GARDEN PROGRESS ═══ -->
+  <section class="garden-progress">
+    <div class="gp-inner reveal">
+      <div class="gp-header">
+        <h3>Shared Garden Growth</h3>
+        <p id="gardenStage">Community Status: Seedling Sprout</p>
+      </div>
+      <div class="gp-bar-wrap">
+        <div class="gp-bar"><div class="gp-fill" id="gardenFill" style="width: 45%"></div></div>
+        <div class="gp-stages">
+          <span class="active">Seedling</span>
+          <span>Sprout</span>
+          <span>Sapling</span>
+          <span>Canopy</span>
+          <span>Universal</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════ LIVE TICKER ══════════ -->
+  <div class="activity-ticker">
+    <div class="ticker-content" id="liveTicker">
+      <span>🌸 Loading live bloomings...</span>
     </div>
   </div>
 
@@ -154,7 +188,7 @@
           </div>
           <div class="srs-bar-group">
             <div class="srs-label">Learning</div>
-            <div class="srs-track"><div class="srs-fill" style="width:35%; --c:#FFD54F"></div></div>
+            <div class="srs-track"><div class="srs-fill" style="width:35%; --c:#4FC3F7"></div></div>
           </div>
           <div class="srs-bar-group">
             <div class="srs-label">Reviewing</div>
@@ -168,17 +202,16 @@
       </div>
 
       <div class="feature-card reveal">
-        <div class="feature-icon-wrap" style="--icon-color: #FFD54F">
+        <div class="feature-icon-wrap" style="--icon-color: #81C784">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="m12 2 2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17 5.8 21.3l2.4-7.4L2 9.4h7.6z"/></svg>
         </div>
         <h3>Active Recall Quizzes</h3>
-        <p>Five unique quiz types — from root-matching to drag-and-drop — keep your brain actively retrieving words, not passively recognizing them.</p>
+        <p>Four unique quiz types — from root-matching to drag-and-drop — keep your brain actively retrieving words, not passively recognizing them.</p>
         <div class="quiz-type-pills">
-          <span class="qt-pill">🌳 Deep Root</span>
-          <span class="qt-pill">🌸 Bloom or Wilt</span>
-          <span class="qt-pill">🌱 Seed Sort</span>
-          <span class="qt-pill">🔗 Root Network</span>
-          <span class="qt-pill">🍃 Leaf Letter</span>
+          <span class="qt-pill">🌱 Grow the Word</span>
+          <span class="qt-pill">🌸 Swipe to Nourish</span>
+          <span class="qt-pill">🍃 Catch the Leaf</span>
+          <span class="qt-pill">🔗 Build the Tree</span>
         </div>
       </div>
 
@@ -202,33 +235,33 @@
         <div class="feature-icon-wrap" style="--icon-color: #81C784">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         </div>
-        <h3>Multiplayer Forest</h3>
+        <h3>Community Garden</h3>
         <p>Challenge friends to live vocabulary duels, collaborate in study circles, or compete on global leaderboards. Learning is always more fun together.</p>
         <div class="leaderboard-preview">
           <div class="lb-row">
-            <span class="lb-rank">🥇</span>
+            <span class="lb-rank">🌳</span>
             <span class="lb-name">Carlos M.</span>
-            <span class="lb-score">3,847 pts</span>
+            <span class="lb-score">3,847 Growth Points</span>
           </div>
           <div class="lb-row">
-            <span class="lb-rank">🥈</span>
+            <span class="lb-rank">🌿</span>
             <span class="lb-name">Yuki T.</span>
-            <span class="lb-score">3,210 pts</span>
+            <span class="lb-score">3,210 Growth Points</span>
           </div>
           <div class="lb-row lb-you">
-            <span class="lb-rank">🌟</span>
+            <span class="lb-rank">🌸</span>
             <span class="lb-name">You</span>
-            <span class="lb-score">2,940 pts</span>
+            <span class="lb-score">2,940 Growth Points</span>
           </div>
         </div>
       </div>
 
       <div class="feature-card reveal">
-        <div class="feature-icon-wrap" style="--icon-color: #FFB74D">
+        <div class="feature-icon-wrap" style="--icon-color: #4FC3F7">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
         </div>
         <h3>Smart Course Paths</h3>
-        <p>Choose from curated thematic courses — Travel, Business, Medical — or build your custom vocabulary forest from any domain you care about.</p>
+        <p>Choose from curated thematic courses — Travel, Business, Medical — or build your custom vocabulary garden from any domain you care about.</p>
       </div>
     </div>
   </section>
@@ -237,7 +270,7 @@
   <section class="how-it-works" id="how-it-works">
     <div class="section-header reveal">
       <span class="section-tag">The Method</span>
-      <h2>How the Living<br/>Forest grows</h2>
+      <h2>How your Seedling<br/>Garden grows</h2>
     </div>
     <div class="steps-container">
       <div class="step reveal">
@@ -246,7 +279,7 @@
         <div class="step-content">
           <div class="step-icon">🌱</div>
           <h3>Plant Your Seeds</h3>
-          <p>Choose a language and topic. Seedling plants 3 foundation words for new learners — your starter forest. Each word is presented with pronunciation, definition, and an example sentence.</p>
+          <p>Choose a language and topic. Seedling plants 3 foundation words for new learners — your starter garden. Each word is presented with pronunciation, definition, and an example sentence.</p>
         </div>
       </div>
       <div class="step reveal">
@@ -273,7 +306,7 @@
         <div class="step-content">
           <div class="step-icon">🏆</div>
           <h3>Harvest & Share</h3>
-          <p>Export vocabulary sets, challenge friends in live duels, and showcase your growing Forest to the world. Your garden is your proof of mastery.</p>
+          <p>Export vocabulary sets, challenge friends in live duels, and showcase your growing Garden to the world. Your garden is your proof of mastery.</p>
         </div>
       </div>
     </div>
@@ -306,27 +339,15 @@
   <!-- ══════════════════════════════ LANGUAGE CAROUSEL ═══ -->
   <section class="languages-section" id="languages">
     <div class="section-header reveal">
-      <span class="section-tag">12 Languages</span>
+      <span class="section-tag">121 Languages</span>
       <h2>One word.<br/>A world of meaning.</h2>
       <p>Watch the same concept bloom across the languages Seedling supports.</p>
     </div>
     <div class="lang-showcase reveal">
       <div class="lang-center-word" id="langCenterWord">Hello</div>
-      <div class="lang-cards-track" id="langTrack"></div>
     </div>
-    <div class="lang-list reveal">
-      <span class="lang-chip active" data-word="Hello">🇺🇸 English</span>
-      <span class="lang-chip" data-word="Bonjour">🇫🇷 French</span>
-      <span class="lang-chip" data-word="Hola">🇪🇸 Spanish</span>
-      <span class="lang-chip" data-word="Ciao">🇮🇹 Italian</span>
-      <span class="lang-chip" data-word="Hallo">🇩🇪 German</span>
-      <span class="lang-chip" data-word="Olá">🇵🇹 Portuguese</span>
-      <span class="lang-chip" data-word="こんにちは">🇯🇵 Japanese</span>
-      <span class="lang-chip" data-word="안녕하세요">🇰🇷 Korean</span>
-      <span class="lang-chip" data-word="Merhaba">🇹🇷 Turkish</span>
-      <span class="lang-chip" data-word="Привет">🇷🇺 Russian</span>
-      <span class="lang-chip" data-word="你好">🇨🇳 Chinese</span>
-      <span class="lang-chip" data-word="مرحبا">🇸🇦 Arabic</span>
+    <div class="lang-list reveal" id="langList">
+      <!-- Populated by main.js from ALL_LANGUAGES -->
     </div>
   </section>
 
@@ -336,23 +357,23 @@
       <div class="preview-text reveal">
         <span class="section-tag">App Preview</span>
         <h2>Beautiful on every screen.</h2>
-        <p>The Living Forest aesthetic isn't just pretty — every visual element has a purpose. The deep canvas background reduces eye strain. The organic animations signal progress. The gold rewards trigger genuine dopamine hits.</p>
+        <p>The Seedling aesthetic isn't just pretty — every visual element has a purpose. The deep canvas background reduces eye strain. The organic animations signal progress. The blooming visual rewards trigger genuine dopamine hits.</p>
         <ul class="preview-bullets">
           <li>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#4BAE4F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            Dark forest theme — easy on the eyes
+            Deep garden theme — easy on the eyes
           </li>
           <li>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#4BAE4F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            Fully responsive across all devices
+            Beautifully adaptive on all your devices
           </li>
           <li>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#4BAE4F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            60fps custom canvas animations
+            Silky-smooth blooming animations
           </li>
           <li>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="#4BAE4F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-            Haptic feedback on mobile
+            Tactile growth feel on mobile
           </li>
         </ul>
         <a href="#download" class="btn-primary">Download the App</a>
@@ -370,25 +391,60 @@
   <section class="social-proof">
     <div class="section-header reveal">
       <span class="section-tag">Community</span>
-      <h2>The forest is growing.</h2>
+      <h2>The garden is blooming.</h2>
     </div>
     <div class="proof-grid">
       <div class="proof-stat reveal">
-        <div class="proof-num" data-target="124500">0</div>
-        <div class="proof-label">🌱 Words Planted This Month</div>
+        <div class="proof-num" data-stat="words" data-target="124500">0</div>
+        <div class="proof-label">🌱 Words Planted</div>
       </div>
       <div class="proof-stat reveal">
-        <div class="proof-num" data-target="8920">0</div>
-        <div class="proof-label">🌳 Ancient Oaks Achieved</div>
+        <div class="proof-num" data-stat="users" data-target="8920">0</div>
+        <div class="proof-label">👩‍🌾 Global Gardeners</div>
       </div>
       <div class="proof-stat reveal">
-        <div class="proof-num" data-target="340">0</div>
-        <div class="proof-label">🏆 Top Streak (days)</div>
+        <div class="proof-num" data-stat="langs" data-target="340">0</div>
+        <div class="proof-label">🌍 Growing Cultures</div>
       </div>
       <div class="proof-stat reveal">
-        <div class="proof-num" data-target="4">0</div>
-        <div class="proof-label">⭐ Average Rating</div>
+        <div class="proof-num" data-target="4.9">0</div>
+        <div class="proof-label">🌸 Garden Score</div>
       </div>
+    </div>
+    
+    <div class="achievement-showcase reveal">
+      <h3>Growth Badges to Earn</h3>
+      <div class="badge-grid">
+        <div class="badge-card">
+          <div class="badge-icon">🌱</div>
+          <h4>First Steps</h4>
+          <p>Learn 10 words</p>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon">🔥</div>
+          <h4>Week Warrior</h4>
+          <p>7-day streak</p>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon">🌍</div>
+          <h4>Polyglot</h4>
+          <p>5,000 Growth Points</p>
+        </div>
+        <div class="badge-card">
+          <div class="badge-icon">🏆</div>
+          <h4>Ancient Oak</h4>
+          <p>Reach Level 10</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════ GARDEN RANKINGS ════════ -->
+    <div class="rankings-showcase reveal">
+      <h3>Top Master Gardeners</h3>
+      <div class="rankings-table" id="rankingsTable">
+        <div class="rank-loading">🌸 Cultivating your seedlings...</div>
+      </div>
+      <p class="rank-cta">Join them in the garden - <a href="#download">Get Seedling</a></p>
     </div>
     <div class="testimonials reveal">
       <div class="testimonial">
@@ -409,70 +465,96 @@
   <!-- ══════════════════════════════════ PRICING ═══ -->
   <section class="pricing-section" id="pricing">
     <div class="section-header reveal">
-      <span class="section-tag">Growth Plans</span>
-      <h2>Find your<br/>natural pace</h2>
-      <p>Every plan includes the core Seedling engine. Upgrade when your forest is ready to grow wilder.</p>
+      <div class="premium-star">🌸</div>
+      <span class="section-tag">Premium Growth</span>
+      <h2>Grow Faster.</h2>
+      <p>Unlock your full language potential with Seedling Premium.</p>
     </div>
-    <div class="pricing-grid" id="download">
-      <div class="pricing-card reveal">
-        <div class="plan-icon">🌱</div>
-        <div class="plan-name">Sprout</div>
-        <div class="plan-price">
-          <span class="price-val">Free</span>
-          <span class="price-period">forever</span>
+
+    <div class="pricing-grid-app" id="download">
+      <!-- Monthly Plan -->
+      <div class="plan-card-app reveal">
+        <div class="plan-name">Monthly Plan</div>
+        <div class="plan-price-large">$9.99</div>
+        <div class="price-period">per month</div>
+        
+        <div class="feature-list-app">
+          <div class="feature-item-app">
+            <div class="feature-icon-box">☁️</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Cloud Sync</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Access your data across all devices</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">📵</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Offline Mode</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Learn anywhere without restrictions</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">📊</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Advanced Stats</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Track your progress beautifully</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">♾️</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Unlimited Challenges</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Join any community arena instantly</div>
+            </div>
+          </div>
         </div>
-        <ul class="plan-features">
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#66BB6A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Core SRS engine</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#66BB6A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 1 language</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#66BB6A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 3 quiz types</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#66BB6A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> 500 words max</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#66BB6A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Daily streaks</li>
-          <li class="plan-feat-off"><svg width="16" height="16" viewBox="0 0 24 24" fill="#555"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg> Multiplayer</li>
-          <li class="plan-feat-off"><svg width="16" height="16" viewBox="0 0 24 24" fill="#555"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg> Advanced analytics</li>
-        </ul>
-        <a href="#" class="plan-cta plan-cta-free">Download Free</a>
+
+        <a href="#" class="btn-secondary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">SELECT PLAN</a>
       </div>
 
-      <div class="pricing-card pricing-featured reveal">
-        <div class="plan-badge">Most Popular</div>
-        <div class="plan-icon">🌲</div>
-        <div class="plan-name">Sapling</div>
-        <div class="plan-price">
-          <span class="price-val">$7.99</span>
-          <span class="price-period">/ month</span>
+      <!-- Annual Plan -->
+      <div class="plan-card-app featured reveal">
+        <div class="best-value-badge">SAVE 16%</div>
+        <div class="plan-name">Annual Plan</div>
+        <div class="plan-price-large">$99.99</div>
+        <div class="price-period">per year</div>
+        
+        <div class="feature-list-app">
+          <div class="feature-item-app">
+            <div class="feature-icon-box" style="background: var(--water); color: #000;">✨</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Full Garden Access</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Grow unlimited seedlings in all languages</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">☁️</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Cloud Sync</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Access your data across all devices</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">📵</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Offline Mode</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Learn anywhere without restrictions</div>
+            </div>
+          </div>
+          <div class="feature-item-app">
+            <div class="feature-icon-box">📊</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Advanced Stats</div>
+              <div style="font-size: 0.75rem; color: var(--text-sec);">Track your progress beautifully</div>
+            </div>
+          </div>
         </div>
-        <ul class="plan-features">
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Everything in Sprout</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> All 12 languages</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> All 5 quiz types</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Unlimited words</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Multiplayer duels</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Advanced analytics</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#FFD54F"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Themed course packs</li>
-        </ul>
-        <a href="#" class="plan-cta plan-cta-featured">Start Growing</a>
-      </div>
 
-      <div class="pricing-card reveal">
-        <div class="plan-icon">🌳</div>
-        <div class="plan-name">Ancient Oak</div>
-        <div class="plan-price">
-          <span class="price-val">$59.99</span>
-          <span class="price-period">lifetime</span>
-        </div>
-        <ul class="plan-features">
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Everything in Sapling</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Lifetime access</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Priority support</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Exclusive mascot skins</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Beta feature access</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> All future languages</li>
-          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="#A5D6A7"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Founding member badge</li>
-        </ul>
-        <a href="#" class="plan-cta plan-cta-oak">Claim Lifetime</a>
+        <a href="#" class="btn-primary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">START GROWING</a>
       </div>
     </div>
   </section>
+  <!-- ═══════════════════════════════════════ FAQ ═══ -->
 
   <!-- ═══════════════════════════════════════ FAQ ═══ -->
   <section class="faq-section" id="faq">
@@ -505,7 +587,7 @@
           <span class="faq-icon">+</span>
         </button>
         <div class="faq-a">
-          <p>Yes! With a Sapling or Ancient Oak plan, you can maintain active forests in multiple languages simultaneously. Each language has its own garden, streak, and mastery progress.</p>
+          <p>Yes! With a <strong>Seedling Premium</strong> plan, you can maintain active gardens in multiple languages simultaneously. Each language has its own garden, streak, and mastery progress.</p>
         </div>
       </div>
       <div class="faq-item reveal">
@@ -514,7 +596,7 @@
           <span class="faq-icon">+</span>
         </button>
         <div class="faq-a">
-          <p>Yes. The full quiz engine works offline. Your progress syncs automatically when you reconnect. Perfect for travel, commutes, or forest hikes.</p>
+          <p>Yes. The full quiz engine works offline. Your progress syncs automatically when you reconnect. Perfect for travel, commutes, or garden walks.</p>
         </div>
       </div>
       <div class="faq-item reveal">
@@ -569,7 +651,7 @@
           </svg>
           <span class="logo-text">Seedling</span>
         </a>
-        <p class="footer-tagline">Grow your vocabulary like a forest —<br/>word by word, day by day.</p>
+        <p class="footer-tagline">Grow your vocabulary like a garden —<br/>word by word, day by day.</p>
         <div class="footer-socials">
           <a href="#" class="social-link" aria-label="Twitter/X">𝕏</a>
           <a href="#" class="social-link" aria-label="Instagram">📸</a>
@@ -590,7 +672,7 @@
           <a href="#">French</a>
           <a href="#">Japanese</a>
           <a href="#">German</a>
-          <a href="#">All 12 →</a>
+          <a href="#languages">All 121 →</a>
         </div>
         <div class="footer-col">
           <h4>Company</h4>
@@ -604,11 +686,15 @@
     </div>
     <div class="footer-bottom">
       <span>© 2025 Seedling. Made with 🌿 and science.</span>
-      <span class="footer-version">v2.0 — Living Forest Edition</span>
+      <span class="footer-version">v2.0 — Seedling Edition</span>
     </div>
   </footer>
 
-  <script src="js/main.js"></script>
-  <script src="js/demo.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+
+  <script src="js/main.js?v=8"></script>
+  <script src="js/demo.js?v=6"></script>
 </body>
 </html>

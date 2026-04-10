@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../learning.dart';
-import '../social/multiplayer/compete_home_screen.dart';
+import '../grammar/grammar_screen.dart';
 import '../../providers/app_providers.dart';
 import '../profile_screen.dart';
 import '../../models/taxonomy.dart';
@@ -24,53 +24,44 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
 
   final List<Widget> _tabs = [
     const _HomeTab(),
-    const CompeteHomeScreen(),
+    const GrammarScreen(),
     const ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _tabs[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: SeedlingColors.deepRoot.withValues(alpha: 0.15),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            HapticService.selectionClick();
-            setState(() => _selectedIndex = index);
-          },
-          backgroundColor: SeedlingColors.background,
-          selectedItemColor: SeedlingColors.seedlingGreen,
-          unselectedItemColor: SeedlingColors.textSecondary,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Grow',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events_outlined),
-              activeIcon: Icon(Icons.emoji_events),
-              label: 'Compete',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Roots',
-            ),
-          ],
-        ),
+      body: IndexedStack(index: _selectedIndex, children: _tabs),
+      // #1 — Material 3 NavigationBar with animated pill indicator
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          HapticService.selectionClick();
+          setState(() => _selectedIndex = index);
+        },
+        backgroundColor: SeedlingColors.background,
+        indicatorColor: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: SeedlingColors.deepRoot.withValues(alpha: 0.2),
+        elevation: 8,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: SeedlingColors.seedlingGreen),
+            label: 'Grow',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_florist_outlined),
+            selectedIcon: Icon(Icons.local_florist, color: SeedlingColors.seedlingGreen),
+            label: 'Grammar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: SeedlingColors.seedlingGreen),
+            label: 'Roots',
+          ),
+        ],
       ),
     );
   }
@@ -83,15 +74,44 @@ class _HomeTab extends ConsumerStatefulWidget {
   ConsumerState<_HomeTab> createState() => _HomeTabState();
 }
 
-class _HomeTabState extends ConsumerState<_HomeTab> {
+// #8 — _HomeTabState gains staggered entrance animations
+class _HomeTabState extends ConsumerState<_HomeTab>
+    with SingleTickerProviderStateMixin {
   int _selectedTab = 0; // 0 = Topics, 1 = Sentences
+  late AnimationController _entranceController;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..forward();
+    _fadeAnim = CurvedAnimation(parent: _entranceController, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(userStatsProvider);
     final categoryStatsAsync = ref.watch(categoryStatsProvider);
 
-    return SafeArea(
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: SafeArea(
       child: CustomScrollView(
         slivers: [
           // Header: active course + sync icon
@@ -131,8 +151,19 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                 ),
               ),
             ),
-            loading: () =>
-                const SliverToBoxAdapter(child: LinearProgressIndicator()),
+            // #2 — Shimmer skeleton replaces raw LinearProgressIndicator
+            loading: () => SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Row(
+                  children: [
+                    Expanded(child: _ShimmerStatCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _ShimmerStatCard()),
+                  ],
+                ),
+              ),
+            ),
             error: (_, __) =>
                 const SliverToBoxAdapter(child: SizedBox.shrink()),
           ),
@@ -240,6 +271,8 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
+      ),
+    ),
       ),
     );
   }
@@ -655,7 +688,8 @@ class _StatMiniCard extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
+// #3 — StatefulWidget so we can track press state for scale animation
+class _CategoryCard extends StatefulWidget {
   final String title;
   final int learnedCount;
   final int totalCount;
@@ -686,24 +720,62 @@ class _CategoryCard extends StatelessWidget {
        );
 
   @override
+  State<_CategoryCard> createState() => _CategoryCardState();
+}
+
+class _CategoryCardState extends State<_CategoryCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 180),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final resolvedIconColor = iconColor ?? color;
-    final progress = totalCount > 0 ? learnedCount / totalCount : 0.0;
+    final resolvedIconColor = widget.iconColor ?? widget.color;
+    final progress = widget.totalCount > 0 ? widget.learnedCount / widget.totalCount : 0.0;
 
     return GestureDetector(
-      onTap: () {
+      onTapDown: (_) => _pressController.forward(),
+      onTapUp: (_) async {
+        await _pressController.reverse();
+        if (!context.mounted) return;
         HapticService.lightImpact();
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => LearningSessionScreen(
-              categoryId: categoryId,
-              domain: domain,
-              subDomain: subDomain,
+              categoryId: widget.categoryId,
+              domain: widget.domain,
+              subDomain: widget.subDomain,
             ),
           ),
         );
       },
-      child: Container(
+      onTapCancel: () => _pressController.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnim,
+        builder: (_, child) => Transform.scale(
+          scale: _scaleAnim.value,
+          child: child,
+        ),
+        child: Container(
         decoration: BoxDecoration(
           color: SeedlingColors.cardBackground,
           gradient: LinearGradient(
@@ -738,7 +810,7 @@ class _CategoryCard extends StatelessWidget {
               child: Opacity(
                 opacity: 0.06,
                 child: Text(
-                  emojiIcon ?? '🌿',
+                  widget.emojiIcon ?? '🌿',
                   style: const TextStyle(fontSize: 84),
                 ),
               ),
@@ -771,9 +843,9 @@ class _CategoryCard extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: emojiIcon != null
-                        ? Text(emojiIcon!, style: const TextStyle(fontSize: 24))
-                        : Icon(iconData!, color: resolvedIconColor, size: 24),
+                    child: widget.emojiIcon != null
+                        ? Text(widget.emojiIcon!, style: const TextStyle(fontSize: 24))
+                        : Icon(widget.iconData!, color: resolvedIconColor, size: 24),
                   ),
                   const SizedBox(width: 14),
                   // Content
@@ -783,7 +855,7 @@ class _CategoryCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          title,
+                          widget.title,
                           style: SeedlingTypography.heading3.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -841,7 +913,7 @@ class _CategoryCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              '$learnedCount/$totalCount',
+                              '${widget.learnedCount}/${widget.totalCount}',
                               style: SeedlingTypography.caption.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
@@ -874,10 +946,10 @@ class _CategoryCard extends StatelessWidget {
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (context) => WordLibraryBottomSheet(
-                        title: title,
-                        categoryId: categoryId,
-                        domain: domain,
-                        subDomain: subDomain,
+                        title: widget.title,
+                        categoryId: widget.categoryId,
+                        domain: widget.domain,
+                        subDomain: widget.subDomain,
                         themeColor: resolvedIconColor,
                       ),
                     );
@@ -904,6 +976,7 @@ class _CategoryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1162,6 +1235,95 @@ class _Badge extends StatelessWidget {
           letterSpacing: 0.8,
         ),
       ),
+    );
+  }
+}
+
+// #2 — Shimmer skeleton widget for stat cards
+class _ShimmerStatCard extends StatefulWidget {
+  @override
+  State<_ShimmerStatCard> createState() => _ShimmerStatCardState();
+}
+
+class _ShimmerStatCardState extends State<_ShimmerStatCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Color?> _colorAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    
+    _colorAnim = ColorTween(
+      begin: SeedlingColors.cardBackground.withValues(alpha: 0.5),
+      end: SeedlingColors.deepRoot.withValues(alpha: 0.1),
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _colorAnim,
+      builder: (_, __) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          decoration: BoxDecoration(
+            color: _colorAnim.value,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: SeedlingColors.textSecondary.withValues(alpha: 0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

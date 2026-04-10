@@ -21,7 +21,7 @@ class DatabaseHelper {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
     return await openDatabase(
       dbPath,
-      version: 12,
+      version: 13,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -62,7 +62,14 @@ class DatabaseHelper {
         frequency TEXT,
         category TEXT, -- kept for backward compatibility if needed
         image_id TEXT,
-        part_of_speech_raw TEXT
+        part_of_speech_raw TEXT,
+        fsrs_stability REAL DEFAULT 0.0,
+        fsrs_difficulty REAL DEFAULT 0.0,
+        fsrs_elapsed_days INTEGER DEFAULT 0,
+        fsrs_scheduled_days INTEGER DEFAULT 0,
+        fsrs_reps INTEGER DEFAULT 0,
+        fsrs_lapses INTEGER DEFAULT 0,
+        fsrs_state INTEGER DEFAULT 0
       )
     ''');
 
@@ -320,6 +327,42 @@ class DatabaseHelper {
         );
       } catch (_) {}
     }
+
+    if (oldVersion < 13) {
+      // Add FSRS columns to existing database
+      try {
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_stability REAL DEFAULT 0.0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_difficulty REAL DEFAULT 0.0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_elapsed_days INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_scheduled_days INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_reps INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_lapses INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE words ADD COLUMN fsrs_state INTEGER DEFAULT 0');
+        
+        // Migrate existing mastery progress to FSRS states
+        // We use a heuristic mapping: Mastery Level -> Stability
+        await db.execute('''
+          UPDATE words SET 
+            fsrs_state = (CASE WHEN mastery_level >= 3 THEN 2 ELSE 1 END),
+            fsrs_stability = (CASE mastery_level
+              WHEN 1 THEN 1.0
+              WHEN 2 THEN 3.0
+              WHEN 3 THEN 7.0
+              WHEN 4 THEN 14.0
+              WHEN 5 THEN 30.0
+              ELSE 0.0 END),
+            fsrs_difficulty = (CASE mastery_level
+              WHEN 1 THEN 5.0
+              WHEN 2 THEN 4.5
+              WHEN 3 THEN 3.5
+              WHEN 4 THEN 2.5
+              WHEN 5 THEN 2.0
+              ELSE 5.0 END),
+            fsrs_reps = (CASE WHEN mastery_level > 0 THEN mastery_level ELSE 0 END)
+          WHERE mastery_level > 0
+        ''');
+      } catch (_) {}
+    }
   }
 
   // Word operations
@@ -369,37 +412,43 @@ class DatabaseHelper {
     return maps.map((m) => Word.fromMap(m)).toList();
   }
 
-  Future<void> updateWordMastery(int wordId, bool correct) async {
+
+
+  Future<void> updateWordFSRS(Word word) async {
     final db = await database;
-    final word = await db.query('words', where: 'id = ?', whereArgs: [wordId]);
 
-    if (word.isNotEmpty) {
-      final current = Word.fromMap(word.first);
-      final newStreak = correct ? current.streak + 1 : 0;
-      final newMastery = correct
-          ? math.min(current.masteryLevel + 1, 5)
-          : math.max(current.masteryLevel - 1, 0);
-      final newTimesCorrect = correct
-          ? current.timesCorrect + 1
-          : current.timesCorrect;
-
-      await db.update(
-        'words',
-        {
-          'mastery_level': newMastery,
-          'streak': newStreak,
-          'total_reviews': current.totalReviews + 1,
-          'times_correct': newTimesCorrect,
-          'last_reviewed': DateTime.now().toIso8601String(),
-          'next_review': _calculateNextReview(
-            newMastery,
-            current.frequency,
-          ).toIso8601String(),
-        },
-        where: 'id = ?',
-        whereArgs: [wordId],
-      );
+    // Derived mastery level for legacy UI support
+    int mastery = 1;
+    if (word.fsrsStability >= 90) {
+      mastery = 5;
+    } else if (word.fsrsStability >= 30) {
+      mastery = 4;
+    } else if (word.fsrsStability >= 10) {
+      mastery = 3;
+    } else if (word.fsrsStability >= 2) {
+      mastery = 2;
     }
+
+    await db.update(
+      'words',
+      {
+        'fsrs_stability': word.fsrsStability,
+        'fsrs_difficulty': word.fsrsDifficulty,
+        'fsrs_elapsed_days': word.fsrsElapsedDays,
+        'fsrs_scheduled_days': word.fsrsScheduledDays,
+        'fsrs_reps': word.fsrsReps,
+        'fsrs_lapses': word.fsrsLapses,
+        'fsrs_state': word.fsrsState,
+        'mastery_level': mastery,
+        'last_reviewed': word.lastReviewed?.toIso8601String(),
+        'next_review': word.nextReview?.toIso8601String(),
+        'streak': word.streak,
+        'total_reviews': word.totalReviews,
+        'times_correct': word.timesCorrect,
+      },
+      where: 'id = ?',
+      whereArgs: [word.id],
+    );
   }
 
   /// Calculates next review date using SM-2-style intervals, weighted by word frequency.

@@ -358,8 +358,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Widget _buildGlowAvatar(bool isAuthenticated, User? user, int level) {
+    // #4 — Use display_name initial, fall back to email, never raw email[0]
     final letter = isAuthenticated
-        ? (user?.email?[0] ?? '?').toUpperCase()
+        ? ((user?.userMetadata?['display_name'] as String? ??
+                user?.email ??
+                '?')[0])
+            .toUpperCase()
         : '👤';
 
     return AnimatedBuilder(
@@ -685,7 +689,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends ConsumerWidget {
   final UserProfileData data;
   final AnimationController shimmerController;
   final AnimationController countUpController;
@@ -699,7 +703,27 @@ class _OverviewTab extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // #11 — Wire sparklines to real weekly data
+    final weeklyAsync = ref.watch(weeklyStudyStatsProvider);
+
+    return weeklyAsync.when(
+      loading: () => _buildContent(context, null, null),
+      error: (_, __) => _buildContent(context, null, null),
+      data: (weekly) => _buildContent(
+        context,
+        (weekly['words'] ?? []).map((v) => (v as num).toDouble()).toList(),
+        (weekly['minutes'] ?? []).map((v) => (v as num).toDouble()).toList(),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, List<double>? wordData, List<double>? minuteData) {
+    // Fall back to zeros if no data yet (new user)
+    final wordsSparkline = wordData ?? List<double>.filled(7, 0);
+    final minutesSparkline = minuteData ?? List<double>.filled(7, 0);
+    const badgesSparkline = <double>[1, 1, 2, 2, 2, 3, 3];
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -715,7 +739,7 @@ class _OverviewTab extends StatelessWidget {
                 data.totalWords,
                 'Words',
                 SeedlingColors.seedlingGreen,
-                [40, 60, 50, 80, 70, 90, 100],
+                wordsSparkline,
               ),
             ),
             const SizedBox(width: 12),
@@ -725,7 +749,7 @@ class _OverviewTab extends StatelessWidget {
                 data.totalMinutes,
                 'Minutes',
                 SeedlingColors.water,
-                [30, 45, 55, 40, 70, 60, 80],
+                minutesSparkline,
               ),
             ),
             const SizedBox(width: 12),
@@ -735,7 +759,7 @@ class _OverviewTab extends StatelessWidget {
                 data.achievementsUnlocked,
                 'Badges',
                 SeedlingColors.autumnGold,
-                [1, 1, 2, 2, 2, 3, 3],
+                badgesSparkline,
               ),
             ),
           ],

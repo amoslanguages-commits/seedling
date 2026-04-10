@@ -572,9 +572,9 @@ class GrowingPlantPainter extends CustomPainter {
 
   void _drawPot(Canvas canvas, double cx, double ground) {
     // Pot body (trapezoid)
-    final potW  = 44.0;
-    final potH  = 28.0;
-    final rimW  = potW + 10.0;
+    const potW  = 44.0;
+    const potH  = 28.0;
+    const rimW  = potW + 10.0;
 
     final potPaint = Paint()
       ..color = SeedlingColors.soil
@@ -1138,9 +1138,9 @@ class NourishPlantPainter extends CustomPainter {
   }
 
   void _drawPot(Canvas canvas, double cx, double ground) {
-    final potW = 44.0;
-    final potH = 28.0;
-    final rimW = potW + 10.0;
+    const potW = 44.0;
+    const potH = 28.0;
+    const rimW = potW + 10.0;
     final potPaint = Paint()..color = SeedlingColors.soil;
     final rimPaint = Paint()..color = SeedlingColors.deepRoot.withValues(alpha: 0.4);
 
@@ -2299,7 +2299,7 @@ class QuizManager extends StatefulWidget {
   final List<Word> pendingNewWords;
   final Future<void> Function(Word)? onWordPlanted;
   final void Function(int totalCorrect, int totalQuestions) onProgressUpdate;
-  final void Function(Word word, bool correct)? onWordAnswered;
+  final void Function(Word word, bool correct, int responseMs)? onWordAnswered;
   final VoidCallback onSessionComplete;
   final VoidCallback? onQueueDepleted; // Signal for more words
   final DatabaseHelper? db;
@@ -3091,7 +3091,7 @@ class QuizManagerState extends State<QuizManager> {
             .add(_currentQuizType);
       }
       if (currentCard != null) {
-        widget.onWordAnswered?.call(currentCard.word, correct);
+        widget.onWordAnswered?.call(currentCard.word, correct, elapsedMs);
 
         // ── Record quiz performance (adaptive quiz type tracking) ──────────
         if (widget.db != null && currentCard.word.id != null) {

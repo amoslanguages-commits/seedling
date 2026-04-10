@@ -41,6 +41,15 @@ class Word {
   // Image illustration
   final String? imageId; // e.g. 'Img_42' → assets/images/words/Img_42.jpg
 
+  // FSRS (Free Spaced Repetition Scheduler) state fields
+  double fsrsStability;
+  double fsrsDifficulty;
+  int fsrsElapsedDays;
+  int fsrsScheduledDays;
+  int fsrsReps;
+  int fsrsLapses;
+  int fsrsState; // 0: New, 1: Learning, 2: Review, 3: Relearning
+
   // Language-specific
   final String? frequency;
   final Map<String, dynamic> languageSpecific;
@@ -78,6 +87,13 @@ class Word {
     this.timesCorrect = 0,
     this.languageSpecific = const {},
     this.imageId,
+    this.fsrsStability = 0.0,
+    this.fsrsDifficulty = 0.0,
+    this.fsrsElapsedDays = 0,
+    this.fsrsScheduledDays = 0,
+    this.fsrsReps = 0,
+    this.fsrsLapses = 0,
+    this.fsrsState = 0,
   });
 
   // Compatibility getter for old 'category' field
@@ -151,6 +167,24 @@ class Word {
     return art.isNotEmpty ? '$art $word' : word;
   }
 
+  // ── Botanical Growth Logic (Stability-Driven) ──────────────────────────
+  
+  String get botanicalRank {
+    if (fsrsStability >= 90) return 'Great Bloom';
+    if (fsrsStability >= 30) return 'Oak';
+    if (fsrsStability >= 10) return 'Sapling';
+    if (fsrsStability >= 2) return 'Sprout';
+    return 'Seedling';
+  }
+
+  String get rankEmoji {
+    if (fsrsStability >= 90) return '🌸';
+    if (fsrsStability >= 30) return '🌳';
+    if (fsrsStability >= 10) return '🌲';
+    if (fsrsStability >= 2) return '🌿';
+    return '🌱';
+  }
+
   // Quiz Helpers for Multiplayer Arena
   List<String>? _customOptions;
   void setOptions(List<String> opt) => _customOptions = opt;
@@ -207,6 +241,13 @@ class Word {
       'language_specific': languageSpecific.isNotEmpty
           ? jsonEncode(languageSpecific)
           : null,
+      'fsrs_stability': fsrsStability,
+      'fsrs_difficulty': fsrsDifficulty,
+      'fsrs_elapsed_days': fsrsElapsedDays,
+      'fsrs_scheduled_days': fsrsScheduledDays,
+      'fsrs_reps': fsrsReps,
+      'fsrs_lapses': fsrsLapses,
+      'fsrs_state': fsrsState,
     };
   }
 
@@ -228,11 +269,11 @@ class Word {
           difficultyInt = 1;
       }
     } else {
-      difficultyInt = map['difficulty'] ?? 1;
+      difficultyInt = int.tryParse(map['difficulty']?.toString() ?? '') ?? 1;
     }
 
     return Word(
-      id: map['vocabulary_id'] ?? map['id'],
+      id: int.tryParse(map['vocabulary_id']?.toString() ?? map['id']?.toString() ?? '') ,
       word: map['word'] ?? '',
       translation:
           map['translation'] ??
@@ -280,16 +321,16 @@ class Word {
           .toList(),
       difficulty: difficultyInt,
       frequency: map['frequency'],
-      masteryLevel: map['mastery_level'] ?? 0,
+      masteryLevel: int.tryParse(map['mastery_level']?.toString() ?? '') ?? 0,
       lastReviewed: map['last_reviewed'] != null
           ? DateTime.parse(map['last_reviewed'])
           : null,
       nextReview: map['next_review'] != null
           ? DateTime.parse(map['next_review'])
           : null,
-      streak: map['streak'] ?? 0,
-      totalReviews: map['total_reviews'] ?? 0,
-      timesCorrect: map['times_correct'] ?? 0,
+      streak: int.tryParse(map['streak']?.toString() ?? '') ?? 0,
+      totalReviews: int.tryParse(map['total_reviews']?.toString() ?? '') ?? 0,
+      timesCorrect: int.tryParse(map['times_correct']?.toString() ?? '') ?? 0,
       imageId: map['image_id'],
       languageSpecific: map['language_specific'] != null
           ? (map['language_specific'] is String
@@ -297,6 +338,13 @@ class Word {
                 : map['language_specific'])
           : {},
       article: map['article'],
+      fsrsStability: (map['fsrs_stability'] as num?)?.toDouble() ?? 0.0,
+      fsrsDifficulty: (map['fsrs_difficulty'] as num?)?.toDouble() ?? 0.0,
+      fsrsElapsedDays: int.tryParse(map['fsrs_elapsed_days']?.toString() ?? '') ?? 0,
+      fsrsScheduledDays: int.tryParse(map['fsrs_scheduled_days']?.toString() ?? '') ?? 0,
+      fsrsReps: int.tryParse(map['fsrs_reps']?.toString() ?? '') ?? 0,
+      fsrsLapses: int.tryParse(map['fsrs_lapses']?.toString() ?? '') ?? 0,
+      fsrsState: int.tryParse(map['fsrs_state']?.toString() ?? '') ?? 0,
     );
   }
 }

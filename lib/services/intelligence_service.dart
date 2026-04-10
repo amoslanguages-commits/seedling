@@ -53,11 +53,20 @@ class IntelligenceService {
 
   /// Higher score = easier / more familiar = goes first in the warm-up ramp.
   double _warmUpScore(Word w) {
-    double score = 0;
-    score += w.masteryLevel * 20.0; // mastered words feel familiar
-    score += w.streak * 5.0; // on a streak = confident
-    score -= w.difficulty * 10.0; // hard words go toward the end
-    score += _rng.nextDouble() * 5.0; // small noise to avoid rigid ordering
+    // We use FSRS Retrievability (R) as the primary ease metric.
+    // Higher R means the user is more likely to remember it right now.
+    // R = exp(ln(0.9) * (elapsed_days / stability))
+    
+    double stability = w.fsrsStability;
+    if (stability <= 0) return 0.0; // New words go last in warm-up
+
+    double elapsed = w.fsrsElapsedDays.toDouble();
+    double retrievability = math.exp(math.log(0.9) * (elapsed / stability));
+
+    double score = retrievability * 100.0;
+    score += w.fsrsReps * 2.0; // More reps = more familiarity
+    score += _rng.nextDouble() * 5.0; // small noise
+    
     return score;
   }
 

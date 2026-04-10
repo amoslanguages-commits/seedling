@@ -20,6 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   bool _isSignUp = false;
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage = '';
 
   Future<void> _handleAuth() async {
@@ -98,12 +99,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _passwordController,
-                    label: 'Password',
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                  ),
+                  _buildPasswordField(),
                   if (_errorMessage != null && _errorMessage!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
@@ -184,14 +180,74 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  // #12 — Password field with show/hide toggle
+  Widget _buildPasswordField() {
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        labelText: 'Password',
+        prefixIcon: const Icon(Icons.lock_outline, color: SeedlingColors.seedlingGreen),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            color: SeedlingColors.textSecondary,
+            size: 20,
+          ),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
+        filled: true,
+        fillColor: SeedlingColors.cardBackground.withValues(alpha: 0.8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSocialButtons() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _socialIcon(Icons.g_mobiledata, () => AuthService().signInWithGoogle()),
+        _googleSocialButton(() => AuthService().signInWithGoogle()),
         const SizedBox(width: 24),
         _socialIcon(Icons.apple, () => AuthService().signInWithApple()),
       ],
+    );
+  }
+
+  // #6 — Proper Google-branded button (no SVG package needed)
+  Widget _googleSocialButton(VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(50),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: SeedlingColors.cardBackground,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: SeedlingColors.deepRoot.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: RichText(
+          text: const TextSpan(
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'sans-serif'),
+            children: [
+              TextSpan(text: 'G', style: TextStyle(color: Color(0xFF4285F4))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
