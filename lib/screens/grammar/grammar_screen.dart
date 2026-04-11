@@ -2,10 +2,12 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:twemoji/twemoji.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../models/grammar_model.dart';
 import '../../providers/grammar_provider.dart';
+import '../../providers/course_provider.dart';
 import '../../services/haptic_service.dart';
 import 'concept_detail_screen.dart';
 
@@ -20,6 +22,9 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
     with TickerProviderStateMixin {
   late AnimationController _ambientController;
   late AnimationController _pulseController;
+  late AnimationController _entranceController;
+  late Animation<double> _entranceFade;
+  late Animation<Offset> _entranceSlide;
   late ScrollController _scrollController;
 
   // Node layout constants
@@ -55,6 +60,15 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+    _entranceFade = CurvedAnimation(parent: _entranceController, curve: Curves.easeIn);
+    _entranceSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic));
     _scrollController = ScrollController();
   }
 
@@ -109,6 +123,7 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
   void dispose() {
     _ambientController.dispose();
     _pulseController.dispose();
+    _entranceController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -153,27 +168,33 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
 
           // ── Main content ─────────────────────────────────────────────────
           SafeArea(
-            child: Column(
-              children: [
-                // Sticky header
-                _buildHeader(statsAsync),
+            child: FadeTransition(
+              opacity: _entranceFade,
+              child: SlideTransition(
+                position: _entranceSlide,
+                child: Column(
+                  children: [
+                    // Sticky header
+                    _buildHeader(statsAsync),
 
-                // Scrollable roadmap
-                Expanded(
-                  child: progressAsync.when(
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(
-                        color: SeedlingColors.seedlingGreen,
+                    // Scrollable roadmap
+                    Expanded(
+                      child: progressAsync.when(
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(
+                            color: SeedlingColors.seedlingGreen,
+                          ),
+                        ),
+                        error: (e, _) => Center(
+                          child: Text('Error: $e',
+                              style: const TextStyle(color: SeedlingColors.error)),
+                        ),
+                        data: (progressMap) => _buildRoadmap(progressMap),
                       ),
                     ),
-                    error: (e, _) => Center(
-                      child: Text('Error: $e',
-                          style: const TextStyle(color: SeedlingColors.error)),
-                    ),
-                    data: (progressMap) => _buildRoadmap(progressMap),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -190,24 +211,28 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
         final t = _ambientController.value;
         return Stack(
           children: [
+            // Layer 1: Deep Distant Orbs
             Positioned(
-              top: -80 + math.sin(t * math.pi * 2) * 30,
-              right: -60 + math.cos(t * math.pi * 2) * 20,
-              child: _orb(380, SeedlingColors.seedlingGreen, 0.12),
+              top: -100 + math.sin(t * math.pi * 2) * 40,
+              right: -80 + math.cos(t * math.pi * 2) * 30,
+              child: _orb(400, SeedlingColors.seedlingGreen, 0.08),
             ),
+            // Layer 2: Midground Atmosphere
             Positioned(
-              top: 300 + math.cos(t * math.pi * 2) * 40,
-              left: -100 + math.sin(t * math.pi * 2) * 25,
-              child: _orb(460, const Color(0xFF26A69A), 0.07),
+              top: 350 + math.cos(t * math.pi * 2) * 50,
+              left: -120 + math.sin(t * math.pi * 2) * 35,
+              child: _orb(480, const Color(0xFF1B5E20), 0.05),
             ),
+            // Layer 3: Accent Glows
             Positioned(
-              bottom: 100 + math.sin(t * math.pi) * 20,
-              right: -80,
-              child: _orb(340, SeedlingColors.sunlight, 0.06),
+              bottom: 120 + math.sin(t * math.pi) * 25,
+              right: -100,
+              child: _orb(360, SeedlingColors.sunlight, 0.04),
             ),
+            // Layer 4: Frosted Blur Overlay
             Positioned.fill(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
                 child: Container(color: Colors.transparent),
               ),
             ),
@@ -240,49 +265,70 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
   }
 
   Widget _buildHeaderShell(GrammarStats? stats) {
+    final activeCourse = ref.watch(courseProvider).activeCourse;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       decoration: BoxDecoration(
-        color: SeedlingColors.background.withValues(alpha: 0.85),
+        color: SeedlingColors.background.withValues(alpha: 0.65),
         border: Border(
           bottom: BorderSide(
-            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12),
+            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
+            width: 0.5,
           ),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Level badge
-              _LevelBadge(level: stats?.currentLevel ?? GrammarLevel.a0),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _ShimmerTitle('Grammar Conservatory'),
-                    Text(
-                      stats != null
-                          ? '${stats.masteredConcepts} mastered · ${stats.inProgressConcepts} growing · ${stats.dueCount} due'
-                          : 'Loading your garden…',
-                      style: SeedlingTypography.caption.copyWith(
-                        color: SeedlingColors.textSecondary,
-                        fontSize: 11,
-                      ),
+              Row(
+                children: [
+                  // Level badge
+                  _LevelBadge(level: stats?.currentLevel ?? GrammarLevel.a0),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const _ShimmerTitle('Grammar Conservatory'),
+                            const SizedBox(width: 8),
+                            if (activeCourse != null)
+                              Twemoji(
+                                emoji: activeCourse.targetLanguage.flag,
+                                height: 16,
+                                width: 16,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          stats != null
+                              ? '${stats.masteredConcepts} mastered · ${stats.inProgressConcepts} growing · ${stats.dueCount} due'
+                              : 'Loading your garden…',
+                          style: SeedlingTypography.caption.copyWith(
+                            color: SeedlingColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  if (stats != null && stats.dueCount > 0)
+                    _ReviewBadge(count: stats.dueCount),
+                ],
               ),
-              if (stats != null && stats.dueCount > 0)
-                _ReviewBadge(count: stats.dueCount),
+              const SizedBox(height: 16),
+              // Overall mastery bar
+              if (stats != null) _OverallMasteryBar(mastery: stats.overallMastery),
             ],
           ),
-          const SizedBox(height: 12),
-          // Overall mastery bar
-          if (stats != null) _OverallMasteryBar(mastery: stats.overallMastery),
-        ],
+        ),
       ),
     );
   }
@@ -448,6 +494,7 @@ class BotanicalRoadmapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     _drawSky(canvas, size);
+    _drawGodRays(canvas, size);
     _drawSoil(canvas, size);
     _drawRoots(canvas, size);
     _drawMainStem(canvas, size);
@@ -455,6 +502,30 @@ class BotanicalRoadmapPainter extends CustomPainter {
     _drawLevelZoneHalos(canvas, size);
     _drawNodeBackgrounds(canvas, size);
     _drawParticles(canvas, size);
+  }
+
+  // ── God Rays ──────────────────────────────────────────────────────────────
+
+  void _drawGodRays(Canvas canvas, Size size) {
+    final rayPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Colors.white.withValues(alpha: 0.03 + (0.02 * math.sin(ambientValue * math.pi * 2))),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.7],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.5));
+
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width * 0.4, 0)
+      ..lineTo(size.width * 0.8, size.height * 0.6)
+      ..lineTo(size.width * 0.2, size.height * 0.6)
+      ..close();
+
+    canvas.drawPath(path, rayPaint);
   }
 
   // ── Sky gradient ──────────────────────────────────────────────────────────
@@ -799,11 +870,34 @@ class BotanicalRoadmapPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..shader = RadialGradient(
         colors: [
-          color.withValues(alpha: 0.30),
+          color.withValues(alpha: 0.35),
           const Color(0xFF14261A),
         ],
       ).createShader(Rect.fromCircle(center: pos, radius: nodeRadius));
     canvas.drawCircle(pos, nodeRadius, bgPaint);
+
+    // Mastery Bloom (Petals)
+    if (state == ConceptNodeState.mastered) {
+      final petalPaint = Paint()
+        ..style = PaintingStyle.fill
+        ..color = color.withValues(alpha: 0.25 + (0.1 * pulseValue));
+      
+      for (int i = 0; i < 5; i++) {
+        final angle = (i * 72) * math.pi / 180;
+        canvas.save();
+        canvas.translate(pos.dx, pos.dy);
+        canvas.rotate(angle + (pulseValue * 0.1));
+        
+        final petalPath = Path()
+          ..moveTo(0, -nodeRadius - 2)
+          ..quadraticBezierTo(8, -nodeRadius - 10, 0, -nodeRadius - 18)
+          ..quadraticBezierTo(-8, -nodeRadius - 10, 0, -nodeRadius - 2)
+          ..close();
+        
+        canvas.drawPath(petalPath, petalPaint);
+        canvas.restore();
+      }
+    }
 
     // Progress arc
     if (state == ConceptNodeState.inProgress || state == ConceptNodeState.mastered) {
@@ -906,7 +1000,7 @@ class BotanicalRoadmapPainter extends CustomPainter {
 
 // ─── CONCEPT NODE WIDGET (Tappable overlay) ───────────────────────────────────
 
-class _ConceptNodeWidget extends StatelessWidget {
+class _ConceptNodeWidget extends StatefulWidget {
   final GrammarConcept concept;
   final ConceptProgress progress;
   final double nodeRadius;
@@ -922,48 +1016,108 @@ class _ConceptNodeWidget extends StatelessWidget {
   });
 
   @override
+  State<_ConceptNodeWidget> createState() => _ConceptNodeWidgetState();
+}
+
+class _ConceptNodeWidgetState extends State<_ConceptNodeWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final state = progress.nodeState;
-    final size = (nodeRadius + 8) * 2;
+    final state = widget.progress.nodeState;
+    final color = widget.concept.level.color;
+    final isLocked = state == ConceptNodeState.locked;
 
     return GestureDetector(
-      onTap: onTap,
+      onTapDown: (_) => _pressController.forward(),
+      onTapUp: (_) {
+        _pressController.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _pressController.reverse(),
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Emoji / icon bubble
-          SizedBox(
-            width: size,
-            height: size,
-            child: Center(
-              child: Opacity(
-                opacity: state == ConceptNodeState.locked ? 0.35 : 1.0,
-                child: Text(
-                  concept.emoji,
-                  style: const TextStyle(fontSize: 18),
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon Vessel (Rounded Square)
+            Container(
+              width: widget.nodeRadius * 2,
+              height: widget.nodeRadius * 2,
+              decoration: BoxDecoration(
+                color: SeedlingColors.cardBackground.withValues(
+                  alpha: isLocked ? 0.4 : 0.85,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isLocked
+                      ? Colors.white12
+                      : color.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+                boxShadow: isLocked
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: color.withValues(
+                            alpha: 0.15 + (0.1 * widget.pulseValue),
+                          ),
+                          blurRadius: 12 + (8 * widget.pulseValue),
+                          spreadRadius: 1,
+                        ),
+                      ],
+              ),
+              child: Center(
+                child: Opacity(
+                  opacity: isLocked ? 0.35 : 1.0,
+                  child: Text(
+                    widget.concept.emoji,
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          // Branch title text below the node
-          Text(
-            concept.displayName.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: SeedlingTypography.caption.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: state == ConceptNodeState.locked
-                  ? Colors.white30
-                  : Colors.white70,
-              shadows: const [
-                Shadow(blurRadius: 4.0, color: Colors.black87)
-              ],
+            const SizedBox(height: 8),
+            // Title text
+            Text(
+              widget.concept.displayName.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: SeedlingTypography.caption.copyWith(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                color: isLocked ? Colors.white24 : Colors.white70,
+                shadows: [
+                  Shadow(
+                    blurRadius: 4.0,
+                    color: Colors.black.withValues(alpha: 0.5),
+                  )
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
