@@ -1,0 +1,44 @@
+{
+  "version": "curriculum-v1",
+  "concepts": [
+    {
+      "concept_id": 1,
+      "language_code": "en",
+      "level": "A0",
+      "prerequisites": [],
+      "learning_objective": "Recognize and produce greeting patterns from listening and reading cues.",
+      "explanations": {
+        "quick": "Use a short greeting phrase for first contact.",
+        "clear": "A greeting opens interaction and sets politeness level.",
+        "deep": "Choose greeting form by context, time, and relationship."
+      },
+      "examples": [
+        "Hello!",
+        "Good morning."
+      ],
+      "common_errors": [
+        "Using no greeting in formal contexts"
+      ],
+      "contrast_with": [
+        "farewell_basic"
+      ],
+      "exercise_templates": [
+        {
+          "id": "greet_transform_1",
+          "type": "transform",
+          "prompt_style": "Rewrite informal to formal",
+          "expected_output": "formal greeting sentence"
+        }
+      ],
+      "assessment_items": [
+        "Pick the best greeting for a teacher.",
+        "Produce a greeting sentence from audio cue."
+      ],
+      "review_schedule_rules": {
+        "target_retention": 0.88,
+        "min_reviews_per_week": 2
+      },
+      "local_exceptions": []
+    }
+  ]
+}

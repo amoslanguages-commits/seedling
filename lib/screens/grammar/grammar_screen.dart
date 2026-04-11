@@ -1,15 +1,23 @@
-import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fsrs/fsrs.dart' as fsrs;
 import 'package:twemoji/twemoji.dart';
+
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../models/grammar_model.dart';
-import '../../providers/grammar_provider.dart';
 import '../../providers/course_provider.dart';
+import '../../providers/grammar_provider.dart';
+import '../../services/grammar_calibration_service.dart';
+import '../../services/grammar_curriculum_service.dart';
+import '../../services/grammar_observability_service.dart';
+import '../../services/grammar_parser_service.dart';
+import '../../services/grammar_service.dart';
+import '../../services/grammar_rule_engine.dart';
 import '../../services/haptic_service.dart';
 import 'concept_detail_screen.dart';
+
+enum _StudioMode { learn, practice, repair, master }
 
 class GrammarScreen extends ConsumerStatefulWidget {
   const GrammarScreen({super.key});
@@ -18,182 +26,478 @@ class GrammarScreen extends ConsumerStatefulWidget {
   ConsumerState<GrammarScreen> createState() => _GrammarScreenState();
 }
 
-class _GrammarScreenState extends ConsumerState<GrammarScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _ambientController;
-  late AnimationController _pulseController;
-  late AnimationController _entranceController;
-  late Animation<double> _entranceFade;
-  late Animation<Offset> _entranceSlide;
-  late ScrollController _scrollController;
-
-  // Node layout constants
-  static const double _nodeSpacing = 82.0;
-  static const double _levelPadding = 52.0;
-  static const double _soilHeight = 200.0;
-  static const double _topPadding = 160.0;
-  static const double _branchOffset = 108.0;
-  static const double _nodeRadius = 28.0;
-
-  // Level transition indices (concept index after which extra spacing applies)
-  static const Map<int, GrammarLevel> _levelStartIndex = {
-    0: GrammarLevel.a0,   // index 0  = concept 1
-    19: GrammarLevel.a1,  // index 19 = concept 20
-    48: GrammarLevel.a2,  // index 48 = concept 49
-    72: GrammarLevel.b1,  // index 72 = concept 73
-    90: GrammarLevel.b2,  // index 90 = concept 91
-    108: GrammarLevel.c1, // index 108 = concept 109
-  };
-
-  late List<Offset> _nodePositions;
-  late double _canvasHeight;
-  late double _canvasWidth;
-
-  @override
-  void initState() {
-    super.initState();
-    _ambientController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-    _entranceFade = CurvedAnimation(parent: _entranceController, curve: Curves.easeIn);
-    _entranceSlide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic));
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _computeLayout(MediaQuery.of(context).size.width);
-  }
-
-  void _computeLayout(double screenWidth) {
-    _canvasWidth = screenWidth;
-    final centerX = screenWidth / 2;
-
-    // Calculate accumulated level extra spacing at each index
-    double extraY = 0;
-    final positions = <Offset>[];
-
-    for (int i = 0; i < GrammarConcept.allConcepts.length; i++) {
-      if (i > 0 && _levelStartIndex.containsKey(i)) {
-        extraY += _levelPadding;
-      }
-
-      final y = _topPadding + (i * _nodeSpacing) + extraY;
-
-      double x;
-      if (i == 0) {
-        x = centerX; // seed at center
-      } else if (i % 2 == 0) {
-        x = centerX - _branchOffset;
-      } else {
-        x = centerX + _branchOffset;
-      }
-
-      positions.add(Offset(x, y));
-    }
-
-    _nodePositions = positions;
-    // Canvas grows top→bottom, but conceptually soil is at bottom.
-    // We flip: index 0 = bottom, index 120 = top.
-    // To flip, invert Y:
-    final maxY = positions.last.dy + _nodeSpacing;
-    _canvasHeight = maxY + _soilHeight;
-
-    // Re-map all positions so index 0 is near the bottom
-    for (int i = 0; i < _nodePositions.length; i++) {
-      final flipped = _canvasHeight - _soilHeight - _nodePositions[i].dy;
-      _nodePositions[i] = Offset(_nodePositions[i].dx, flipped);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ambientController.dispose();
-    _pulseController.dispose();
-    _entranceController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  // ─── SCROLL TO FRONTIER ────────────────────────────────────────────────────
-
-  void _scrollToFrontier(int frontierConceptId) {
-    final conceptIndex = GrammarConcept.allConcepts
-        .indexWhere((c) => c.conceptId == frontierConceptId);
-    if (conceptIndex < 0 || conceptIndex >= _nodePositions.length) return;
-
-    final nodeY = _nodePositions[conceptIndex].dy;
-    final screenH = MediaQuery.of(context).size.height;
-    // Scroll so the frontier node is ~60% up the screen
-    final targetScroll = (nodeY - screenH * 0.6).clamp(0.0, _canvasHeight);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          targetScroll,
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeInOutCubic,
-        );
-      }
-    });
-  }
+class _GrammarScreenState extends ConsumerState<GrammarScreen> {
+  _StudioMode _mode = _StudioMode.learn;
 
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(grammarStatsProvider);
     final progressAsync = ref.watch(allConceptProgressProvider);
     final frontierAsync = ref.watch(frontierConceptIdProvider);
-
-    frontierAsync.whenData((id) => _scrollToFrontier(id));
+    final levelProgressAsync = ref.watch(levelProgressProvider);
+    final activeCourse = ref.watch(courseProvider).activeCourse;
 
     return Scaffold(
       backgroundColor: SeedlingColors.background,
-      body: Stack(
-        children: [
-          // ── Ambient background orbs ──────────────────────────────────────
-          _buildAmbientBackground(),
-
-          // ── Main content ─────────────────────────────────────────────────
-          SafeArea(
-            child: FadeTransition(
-              opacity: _entranceFade,
-              child: SlideTransition(
-                position: _entranceSlide,
-                child: Column(
-                  children: [
-                    // Sticky header
-                    _buildHeader(statsAsync),
-
-                    // Scrollable roadmap
-                    Expanded(
-                      child: progressAsync.when(
-                        loading: () => const Center(
-                          child: CircularProgressIndicator(
-                            color: SeedlingColors.seedlingGreen,
-                          ),
-                        ),
-                        error: (e, _) => Center(
-                          child: Text('Error: $e',
-                              style: const TextStyle(color: SeedlingColors.error)),
-                        ),
-                        data: (progressMap) => _buildRoadmap(progressMap),
-                      ),
-                    ),
-                  ],
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+                child: _StudioHeader(
+                  statsAsync: statsAsync,
+                  flagEmoji: activeCourse?.targetLanguage.flag,
                 ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                child: _ModeSelector(
+                  selected: _mode,
+                  onSelect: (mode) {
+                    HapticService.selectionClick();
+                    setState(() => _mode = mode);
+                  },
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: _StudioInsightBar(
+                  mode: _mode,
+                  statsAsync: statsAsync,
+                  frontierAsync: frontierAsync,
+                ),
+              ),
+            ),
+            ..._buildModeSlivers(
+              context,
+              progressAsync,
+              frontierAsync,
+              levelProgressAsync,
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildModeSlivers(
+    BuildContext context,
+    AsyncValue<Map<int, ConceptProgress>> progressAsync,
+    AsyncValue<int> frontierAsync,
+    AsyncValue<Map<GrammarLevel, double>> levelProgressAsync,
+  ) {
+    switch (_mode) {
+      case _StudioMode.learn:
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _SectionLabel(
+                title: 'Focused learning flow',
+                subtitle: 'Context → pattern notice → transform → produce',
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _DailyMissionCard(frontierAsync: frontierAsync),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _SentenceWorkbenchCard(frontierAsync: frontierAsync),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: _LevelRailCard(levelProgressAsync: levelProgressAsync),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: _LiteracyBridgeCard(frontierAsync: frontierAsync),
+            ),
+          ),
+          _conceptSliver(
+            progressAsync: progressAsync,
+            filter: (concept, progress) => progress.isUnlocked || concept.conceptId <= 3,
+            emptyText: 'No learning concepts available yet.',
+          ),
+        ];
+      case _StudioMode.practice:
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _SectionLabel(
+                title: 'Practical drill engine',
+                subtitle: 'Fast transformations, contrast drills, and production tasks',
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _PracticeDeck(frontierAsync: frontierAsync),
+            ),
+          ),
+          _conceptSliver(
+            progressAsync: progressAsync,
+            filter: (concept, progress) =>
+                progress.isUnlocked && progress.nodeState != ConceptNodeState.mastered,
+            emptyText: 'No active practice concepts yet. Unlock your first concept in Learn mode.',
+          ),
+        ];
+      case _StudioMode.repair:
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _SectionLabel(
+                title: 'Error clinic',
+                subtitle: 'Personalized remediation based on weak grammar patterns',
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: const _RepairMethodCard(),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _ErrorTaxonomyCard(),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _AdaptiveRepairPlanCard(),
+            ),
+          ),
+          _conceptSliver(
+            progressAsync: progressAsync,
+            filter: (concept, progress) =>
+                progress.isUnlocked && progress.mastery > 0 && progress.mastery < 0.75,
+            emptyText: 'No weak concepts found. Great work — keep reviewing to maintain accuracy.',
+          ),
+        ];
+      case _StudioMode.master:
+        return [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: _SectionLabel(
+                title: 'Advanced mastery lab',
+                subtitle: 'Nuance, register, precision, and high-level grammar control',
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: const _MasterLabCard(),
+            ),
+          ),
+          _conceptSliver(
+            progressAsync: progressAsync,
+            filter: (concept, progress) =>
+                concept.level.index >= GrammarLevel.b2.index && progress.isUnlocked,
+            emptyText: 'Unlock B2+ concepts to start advanced mastery work.',
+          ),
+        ];
+    }
+  }
+
+  Widget _conceptSliver({
+    required AsyncValue<Map<int, ConceptProgress>> progressAsync,
+    required bool Function(GrammarConcept concept, ConceptProgress progress) filter,
+    required String emptyText,
+  }) {
+    return progressAsync.when(
+      loading: () => const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: CircularProgressIndicator(color: SeedlingColors.seedlingGreen),
+          ),
+        ),
+      ),
+      error: (e, _) => SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'Could not load concepts: $e',
+            style: SeedlingTypography.body.copyWith(color: SeedlingColors.error),
+          ),
+        ),
+      ),
+      data: (progressMap) {
+        final entries = GrammarConcept.allConcepts.where((concept) {
+          final progress = progressMap[concept.conceptId] ??
+              ConceptProgress.empty(concept.conceptId);
+          return filter(concept, progress);
+        }).toList();
+
+        if (entries.isEmpty) {
+          return SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: _EmptyStateCard(text: emptyText),
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+          sliver: SliverList.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final concept = entries[index];
+              final progress = progressMap[concept.conceptId] ??
+                  ConceptProgress.empty(concept.conceptId);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _StudioConceptTile(
+                  concept: concept,
+                  progress: progress,
+                  onTap: () => _openConceptDetail(context, concept, progress),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _openConceptDetail(
+    BuildContext context,
+    GrammarConcept concept,
+    ConceptProgress progress,
+  ) {
+    if (!progress.isUnlocked) {
+      HapticService.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Master earlier concepts to unlock ${concept.displayName}.',
+            style: SeedlingTypography.body.copyWith(color: Colors.white),
+          ),
+          backgroundColor: SeedlingColors.soil,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    HapticService.mediumImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ConceptDetailScreen(
+          concept: concept,
+          initialProgress: progress,
+        ),
+      ),
+    );
+  }
+}
+
+class _StudioHeader extends StatelessWidget {
+  const _StudioHeader({required this.statsAsync, required this.flagEmoji});
+
+  final AsyncValue<GrammarStats> statsAsync;
+  final String? flagEmoji;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF102A1F), Color(0xFF122D3F)],
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Grammar Studio',
+                style: SeedlingTypography.title.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (flagEmoji != null) Twemoji(emoji: flagEmoji!, width: 18, height: 18),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'From reading foundations to advanced grammar precision.',
+            style: SeedlingTypography.body.copyWith(
+              color: Colors.white.withValues(alpha: 0.86),
+            ),
+          ),
+          const SizedBox(height: 12),
+          statsAsync.when(
+            loading: () => const LinearProgressIndicator(minHeight: 6),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (stats) => Row(
+              children: [
+                _HeaderMetric(label: 'Mastered', value: '${stats.masteredConcepts}'),
+                _HeaderMetric(label: 'Due', value: '${stats.dueCount}'),
+                _HeaderMetric(label: 'Level', value: stats.currentLevel.label),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderMetric extends StatelessWidget {
+  const _HeaderMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: SeedlingTypography.body.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              label,
+              style: SeedlingTypography.caption.copyWith(
+                color: Colors.white.withValues(alpha: 0.74),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({required this.selected, required this.onSelect});
+
+  final _StudioMode selected;
+  final ValueChanged<_StudioMode> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: SeedlingColors.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: _StudioMode.values.map((mode) {
+          final isSelected = mode == selected;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(mode),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: isSelected
+                      ? SeedlingColors.seedlingGreen.withValues(alpha: 0.17)
+                      : Colors.transparent,
+                ),
+                child: Text(
+                  switch (mode) {
+                    _StudioMode.learn => 'Learn',
+                    _StudioMode.practice => 'Practice',
+                    _StudioMode.repair => 'Repair',
+                    _StudioMode.master => 'Master',
+                  },
+                  textAlign: TextAlign.center,
+                  style: SeedlingTypography.caption.copyWith(
+                    color: isSelected
+                        ? SeedlingColors.seedlingGreen
+                        : SeedlingColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _StudioInsightBar extends StatelessWidget {
+  const _StudioInsightBar({
+    required this.mode,
+    required this.statsAsync,
+    required this.frontierAsync,
+  });
+
+  final _StudioMode mode;
+  final AsyncValue<GrammarStats> statsAsync;
+  final AsyncValue<int> frontierAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: SeedlingColors.cardBackground.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          Icon(_iconForMode(mode), size: 18, color: SeedlingColors.seedlingGreen),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _textForMode(mode, statsAsync, frontierAsync),
+              style: SeedlingTypography.caption.copyWith(
+                color: SeedlingColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -202,1154 +506,968 @@ class _GrammarScreenState extends ConsumerState<GrammarScreen>
     );
   }
 
-  // ─── AMBIENT BACKGROUND ───────────────────────────────────────────────────
+  IconData _iconForMode(_StudioMode mode) {
+    switch (mode) {
+      case _StudioMode.learn:
+        return Icons.school;
+      case _StudioMode.practice:
+        return Icons.bolt;
+      case _StudioMode.repair:
+        return Icons.healing;
+      case _StudioMode.master:
+        return Icons.auto_awesome;
+    }
+  }
 
-  Widget _buildAmbientBackground() {
-    return AnimatedBuilder(
-      animation: _ambientController,
-      builder: (_, __) {
-        final t = _ambientController.value;
-        return Stack(
+  String _textForMode(
+    _StudioMode mode,
+    AsyncValue<GrammarStats> statsAsync,
+    AsyncValue<int> frontierAsync,
+  ) {
+    final due = statsAsync.asData?.value.dueCount ?? 0;
+    final frontier = frontierAsync.asData?.value;
+    switch (mode) {
+      case _StudioMode.learn:
+        return frontier == null
+            ? 'Continue your guided concept sequence.'
+            : 'Your guided next step is concept #$frontier.';
+      case _StudioMode.practice:
+        return 'Run rapid transformations and production drills (${due} reviews due).';
+      case _StudioMode.repair:
+        return 'Target weak patterns with adaptive hints and contrast explanations.';
+      case _StudioMode.master:
+        return 'Train high-level grammar nuance across advanced contexts.';
+    }
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyMissionCard extends StatelessWidget {
+  _DailyMissionCard({required this.frontierAsync});
+
+  final AsyncValue<int> frontierAsync;
+  final GrammarCurriculumService _curriculum = GrammarCurriculumService();
+
+  @override
+  Widget build(BuildContext context) {
+    final conceptId = frontierAsync.asData?.value ?? 1;
+    final concept = GrammarConcept.byId(conceptId);
+    final stage = _curriculum.stageForLevel(concept?.level ?? GrammarLevel.a0);
+    final mission = _curriculum.missionForStage(stage);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: SeedlingColors.cardBackground,
+        border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Today\'s mission · ${stage.label}',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            mission.title,
+            style: SeedlingTypography.caption.copyWith(
+              color: SeedlingColors.seedlingGreen,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...mission.tasks.map(
+            (task) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '• $task',
+                style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '~${mission.estimatedMinutes} min',
+            style: SeedlingTypography.caption.copyWith(
+              color: SeedlingColors.textSecondary.withValues(alpha: 0.9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SentenceWorkbenchCard extends ConsumerStatefulWidget {
+  const _SentenceWorkbenchCard({required this.frontierAsync});
+
+  final AsyncValue<int> frontierAsync;
+
+  @override
+  ConsumerState<_SentenceWorkbenchCard> createState() => _SentenceWorkbenchCardState();
+}
+
+class _SentenceWorkbenchCardState extends ConsumerState<_SentenceWorkbenchCard> {
+  final TextEditingController _answerController = TextEditingController();
+  final fsrs.Scheduler _scheduler = fsrs.Scheduler();
+  final GrammarParserService _parser = GrammarParserService(engine: const GrammarRuleEngine());
+  final GrammarCalibrationService _calibration = const GrammarCalibrationService();
+  int _coachDepth = 0;
+  String? _feedback;
+  String? _errorType;
+  bool _looksCorrect = false;
+  bool _isSaving = false;
+
+  @override
+  void dispose() {
+    _answerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final conceptId = widget.frontierAsync.asData?.value ?? 1;
+    final sentencesAsync = ref.watch(conceptSentencesProvider(conceptId));
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: SeedlingColors.cardBackground,
+        border: Border.all(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Sentence Workbench',
+                style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const Spacer(),
+              Text(
+                'Concept #$conceptId',
+                style: SeedlingTypography.caption.copyWith(
+                  color: SeedlingColors.seedlingGreen,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          sentencesAsync.when(
+            loading: () => const LinearProgressIndicator(minHeight: 6),
+            error: (e, _) => Text(
+              'Unable to load sentence: $e',
+              style: SeedlingTypography.caption.copyWith(color: SeedlingColors.error),
+            ),
+            data: (sentences) {
+              final prompt = sentences.isEmpty ? null : sentences.first;
+              return _workbenchContent(prompt);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workbenchContent(GrammarSentence? prompt) {
+    final baseSentence = prompt?.sentence ?? 'No sentence data yet for this concept.';
+    final promptNotes =
+        prompt?.notes ?? 'Rewrite the sentence using the target grammar naturally.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Prompt',
+          style: SeedlingTypography.caption.copyWith(
+            color: SeedlingColors.textSecondary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '“$baseSentence”',
+          style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Task: $promptNotes',
+          style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _answerController,
+          minLines: 2,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Type your transformed sentence...',
+            hintStyle: SeedlingTypography.caption.copyWith(
+              color: SeedlingColors.textSecondary.withValues(alpha: 0.8),
+            ),
+            filled: true,
+            fillColor: SeedlingColors.deepRoot.withValues(alpha: 0.25),
+            contentPadding: const EdgeInsets.all(12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
           children: [
-            // Layer 1: Deep Distant Orbs
-            Positioned(
-              top: -100 + math.sin(t * math.pi * 2) * 40,
-              right: -80 + math.cos(t * math.pi * 2) * 30,
-              child: _orb(400, SeedlingColors.seedlingGreen, 0.08),
+            Expanded(
+              child: FilledButton(
+                onPressed: prompt == null || _isSaving ? null : () => _evaluate(prompt),
+                style: FilledButton.styleFrom(
+                  backgroundColor: SeedlingColors.seedlingGreen,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(_isSaving ? 'Saving...' : 'Check answer'),
+              ),
             ),
-            // Layer 2: Midground Atmosphere
-            Positioned(
-              top: 350 + math.cos(t * math.pi * 2) * 50,
-              left: -120 + math.sin(t * math.pi * 2) * 35,
-              child: _orb(480, const Color(0xFF1B5E20), 0.05),
-            ),
-            // Layer 3: Accent Glows
-            Positioned(
-              bottom: 120 + math.sin(t * math.pi) * 25,
-              right: -100,
-              child: _orb(360, SeedlingColors.sunlight, 0.04),
-            ),
-            // Layer 4: Frosted Blur Overlay
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: Container(color: Colors.transparent),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: _nextCoachDepth,
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.4)),
+                foregroundColor: SeedlingColors.seedlingGreen,
+              ),
+              child: Text(
+                switch (_coachDepth) {
+                  0 => 'Hint',
+                  1 => 'Explain',
+                  _ => 'Deep Dive',
+                },
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 10),
+        _CoachPanel(depth: _coachDepth, note: promptNotes),
+        if (_errorType != null) ...[
+          const SizedBox(height: 8),
+          _DiagnosticTag(label: _errorType!),
+        ],
+        if (_feedback != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: _looksCorrect
+                  ? Colors.green.withValues(alpha: 0.12)
+                  : Colors.orange.withValues(alpha: 0.12),
+            ),
+            child: Text(
+              _feedback!,
+              style: SeedlingTypography.caption.copyWith(
+                color: _looksCorrect ? Colors.green.shade300 : Colors.orange.shade300,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _nextCoachDepth() {
+    HapticService.selectionClick();
+    setState(() => _coachDepth = (_coachDepth + 1).clamp(0, 2).toInt());
+  }
+
+  Future<void> _evaluate(GrammarSentence prompt) async {
+    final input = _answerController.text.trim();
+    if (input.isEmpty) {
+      setState(() {
+        _looksCorrect = false;
+        _errorType = 'Missing answer';
+        _feedback = 'Write a full sentence first, then check again.';
+      });
+      return;
+    }
+
+    final analysis = _parser.evaluate(
+      promptSentence: prompt.sentence,
+      answer: input,
+      langCode: prompt.langCode,
+    );
+    final threshold = _calibration.thresholdFor(
+      langCode: prompt.langCode,
+      level: prompt.level,
+    );
+    final isCorrect = analysis.score >= threshold;
+
+    setState(() {
+      _looksCorrect = isCorrect;
+      _errorType = analysis.errorType;
+      _isSaving = true;
+      _feedback =
+          '${analysis.feedback} [ref: ${analysis.explanationId}] [conf: ${analysis.confidence.toStringAsFixed(2)}]';
+    });
+    GrammarObservabilityService.instance.logEvaluation(
+      langCode: prompt.langCode,
+      errorType: analysis.errorType,
+      score: analysis.score,
+      threshold: threshold,
+      confidence: analysis.confidence,
+    );
+
+    try {
+      final previous = await GrammarService.instance.getSentenceProgress(
+        prompt.sentenceId,
+        prompt.langCode,
+      );
+      final baseCard = fsrs.Card(
+        cardId: prompt.sentenceId,
+        due: previous?.dueDate ?? DateTime.now().toUtc(),
+        stability: (previous?.stability ?? 0) > 0 ? previous?.stability : null,
+        difficulty: (previous?.difficulty ?? 0) > 0 ? previous?.difficulty : null,
+        lastReview: previous?.lastReview,
+      );
+      final rating = isCorrect ? fsrs.Rating.good : fsrs.Rating.again;
+      final result = _scheduler.reviewCard(
+        baseCard,
+        rating,
+        reviewDateTime: DateTime.now().toUtc(),
+        reviewDuration: const Duration(seconds: 2).inMilliseconds,
+      );
+      final updatedCard = result.card;
+      final mastery = rating == fsrs.Rating.again
+          ? (analysis.score * 0.35).clamp(0.0, 0.35)
+          : (analysis.score * ((updatedCard.stability ?? 1.0) / 10.0)).clamp(0.0, 1.0);
+
+      await GrammarService.instance.recordReview(
+        sentenceId: prompt.sentenceId,
+        conceptId: prompt.conceptId,
+        langCode: prompt.langCode,
+        mastery: mastery,
+        stability: updatedCard.stability ?? 1.0,
+        difficulty: updatedCard.difficulty ?? 5.0,
+        reps: (previous?.reps ?? 0) + 1,
+        dueDate: updatedCard.due,
+        errorType: analysis.errorType,
+        evaluationScore: analysis.score,
+        subErrorCode: analysis.subErrorCode,
+        explanationId: analysis.explanationId,
+        attemptedText: input,
+        confidence: analysis.confidence,
+        modelVersion: analysis.modelVersion,
+        featureScoresJson: analysis.featureScoresJson(),
+        fixedFlag: analysis.errorType == 'Strong response',
+      );
+      ref.invalidate(allConceptProgressProvider);
+      ref.invalidate(grammarStatsProvider);
+      ref.invalidate(frontierConceptIdProvider);
+    } catch (_) {
+      setState(() {
+        _feedback = '${_feedback ?? ''} Progress save failed. Please retry.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+}
+
+class _LiteracyBridgeCard extends StatelessWidget {
+  const _LiteracyBridgeCard({required this.frontierAsync});
+
+  final AsyncValue<int> frontierAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: SeedlingColors.cardBackground,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Reading-zero bridge',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Before complex grammar: train script, decoding, and pronunciation patterns.',
+            style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          frontierAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (id) => Text(
+              'Suggested literacy checkpoint before concept #$id.',
+              style: SeedlingTypography.caption.copyWith(
+                color: SeedlingColors.seedlingGreen,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorTaxonomyCard extends ConsumerWidget {
+  const _ErrorTaxonomyCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final langCode = ref.watch(grammarLangCodeProvider);
+    return FutureBuilder<Map<String, int>>(
+      future: GrammarService.instance.getErrorTaxonomy(langCode),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const LinearProgressIndicator(minHeight: 6);
+        }
+        final data = snapshot.data ?? const <String, int>{};
+        if (data.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: SeedlingColors.cardBackground,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your recurring grammar errors',
+                style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: data.entries
+                    .map(
+                      (e) => _DiagnosticTag(label: '${e.key} (${e.value})'),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
         );
       },
     );
   }
+}
 
-  Widget _orb(double size, Color color, double alpha) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: [
-            color.withValues(alpha: alpha),
-            Colors.transparent,
-          ]),
-        ),
-      );
+class _AdaptiveRepairPlanCard extends ConsumerWidget {
+  const _AdaptiveRepairPlanCard();
 
-  // ─── HEADER ───────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(AsyncValue<GrammarStats> statsAsync) {
-    return statsAsync.when(
-      loading: () => _buildHeaderShell(null),
-      error: (_, __) => _buildHeaderShell(null),
-      data: _buildHeaderShell,
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final langCode = ref.watch(grammarLangCodeProvider);
+    return FutureBuilder<List<Map<String, Object>>>(
+      future: GrammarService.instance.getAdaptiveRepairPlan(langCode, limit: 3),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final items = snapshot.data ?? const <Map<String, Object>>[];
+        if (items.isEmpty) return const SizedBox.shrink();
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: SeedlingColors.cardBackground,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Adaptive repair queue',
+                style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              ...items.map(
+                (i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• ${i['code']}  priority ${(i['priority'] as num).toStringAsFixed(2)}',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
+}
 
-  Widget _buildHeaderShell(GrammarStats? stats) {
-    final activeCourse = ref.watch(courseProvider).activeCourse;
+class _DiagnosticTag extends StatelessWidget {
+  const _DiagnosticTag({required this.label});
 
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isStrong = label == 'Strong response';
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: SeedlingColors.background.withValues(alpha: 0.65),
-        border: Border(
-          bottom: BorderSide(
-            color: SeedlingColors.seedlingGreen.withValues(alpha: 0.15),
-            width: 0.5,
-          ),
+        borderRadius: BorderRadius.circular(999),
+        color: (isStrong ? Colors.green : Colors.orange).withValues(alpha: 0.18),
+      ),
+      child: Text(
+        'Diagnosis: $label',
+        style: SeedlingTypography.caption.copyWith(
+          color: isStrong ? Colors.green.shade300 : Colors.orange.shade300,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
         ),
       ),
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+    );
+  }
+}
+
+class _CoachPanel extends StatelessWidget {
+  const _CoachPanel({required this.depth, required this.note});
+
+  final int depth;
+  final String note;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = switch (depth) {
+      0 => 'Hint',
+      1 => 'Explain',
+      _ => 'Deep Dive',
+    };
+    final content = switch (depth) {
+      0 => 'Focus on the verb form and time marker first.',
+      1 => note,
+      _ =>
+        '$note Also compare subject-verb agreement and word order before submitting.',
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SeedlingColors.deepRoot.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: SeedlingTypography.caption.copyWith(
+              color: SeedlingColors.seedlingGreen,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            content,
+            style: SeedlingTypography.caption.copyWith(
+              color: SeedlingColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LevelRailCard extends StatelessWidget {
+  const _LevelRailCard({required this.levelProgressAsync});
+
+  final AsyncValue<Map<GrammarLevel, double>> levelProgressAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: SeedlingColors.cardBackground,
+      ),
+      child: levelProgressAsync.when(
+        loading: () => const LinearProgressIndicator(minHeight: 8),
+        error: (e, _) => Text(
+          'Unable to load level rail: $e',
+          style: SeedlingTypography.caption.copyWith(color: SeedlingColors.error),
+        ),
+        data: (levelMap) => Column(
+          children: GrammarLevel.values.map((level) {
+            final value = (levelMap[level] ?? 0).clamp(0.0, 1.0);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 42,
+                    child: Text(
+                      level.label,
+                      style: SeedlingTypography.caption.copyWith(
+                        color: level.color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: value,
+                      minHeight: 7,
+                      borderRadius: BorderRadius.circular(99),
+                      valueColor: AlwaysStoppedAnimation(level.color),
+                      backgroundColor: SeedlingColors.deepRoot.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${(value * 100).round()}%',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _PracticeDeck extends StatelessWidget {
+  const _PracticeDeck({required this.frontierAsync});
+
+  final AsyncValue<int> frontierAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: SeedlingColors.cardBackground,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Drill Pack',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          const _DrillRow(title: 'Transform', subtitle: 'Rewrite tense/aspect/register'),
+          const _DrillRow(title: 'Contrast', subtitle: 'Choose X vs Y and explain why'),
+          const _DrillRow(title: 'Produce', subtitle: 'Write your own target sentence'),
+          const SizedBox(height: 8),
+          frontierAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (id) => Text(
+              'Start with concept #$id for highest impact today.',
+              style: SeedlingTypography.caption.copyWith(
+                color: SeedlingColors.seedlingGreen,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrillRow extends StatelessWidget {
+  const _DrillRow({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: SeedlingColors.seedlingGreen,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$title: ',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: subtitle,
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RepairMethodCard extends StatelessWidget {
+  const _RepairMethodCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: SeedlingColors.cardBackground,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Adaptive repair method',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '1) Detect error pattern  2) Give minimal hint  3) Contrast correction  4) Retest with new sentence',
+            style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MasterLabCard extends StatelessWidget {
+  const _MasterLabCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: SeedlingColors.cardBackground,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Mastery dimensions',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Register shifts · Rhetorical control · Precision rewriting · Advanced clause fluency',
+            style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudioConceptTile extends StatelessWidget {
+  const _StudioConceptTile({
+    required this.concept,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final GrammarConcept concept;
+  final ConceptProgress progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = progress.nodeState;
+    final label = switch (state) {
+      ConceptNodeState.locked => 'Locked',
+      ConceptNodeState.available => 'Ready',
+      ConceptNodeState.inProgress => 'In Progress',
+      ConceptNodeState.mastered => 'Mastered',
+    };
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: SeedlingColors.cardBackground,
+            border: Border.all(
+              color: concept.level.color.withValues(alpha: progress.isUnlocked ? 0.25 : 0.1),
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  // Level badge
-                  _LevelBadge(level: stats?.currentLevel ?? GrammarLevel.a0),
-                  const SizedBox(width: 14),
+                  Text(concept.emoji, style: const TextStyle(fontSize: 19)),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const _ShimmerTitle('Grammar Conservatory'),
-                            const SizedBox(width: 8),
-                            if (activeCourse != null)
-                              Twemoji(
-                                emoji: activeCourse.targetLanguage.flag,
-                                height: 16,
-                                width: 16,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          stats != null
-                              ? '${stats.masteredConcepts} mastered · ${stats.inProgressConcepts} growing · ${stats.dueCount} due'
-                              : 'Loading your garden…',
-                          style: SeedlingTypography.caption.copyWith(
-                            color: SeedlingColors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      concept.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  if (stats != null && stats.dueCount > 0)
-                    _ReviewBadge(count: stats.dueCount),
+                  _Badge(text: label, color: concept.level.color),
                 ],
               ),
-              const SizedBox(height: 16),
-              // Overall mastery bar
-              if (stats != null) _OverallMasteryBar(mastery: stats.overallMastery),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    '${concept.level.label} · #${concept.conceptId}',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: concept.level.color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${progress.completedSentences}/${progress.totalSentences}',
+                    style: SeedlingTypography.caption.copyWith(
+                      color: SeedlingColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: progress.mastery.clamp(0.0, 1.0),
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(999),
+                valueColor: AlwaysStoppedAnimation(concept.level.color),
+                backgroundColor: SeedlingColors.deepRoot.withValues(alpha: 0.3),
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  // ─── ROADMAP ──────────────────────────────────────────────────────────────
-
-  Widget _buildRoadmap(Map<int, ConceptProgress> progressMap) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      physics: const BouncingScrollPhysics(),
-      child: SizedBox(
-        width: _canvasWidth,
-        height: _canvasHeight,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // ── Botanical painter (background) ──────────────────────────
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: Listenable.merge(
-                    [_ambientController, _pulseController]),
-                builder: (_, __) => RepaintBoundary(
-                  child: CustomPaint(
-                    painter: BotanicalRoadmapPainter(
-                      nodePositions: _nodePositions,
-                      concepts: GrammarConcept.allConcepts,
-                      progressMap: progressMap,
-                      ambientValue: _ambientController.value,
-                      pulseValue: _pulseController.value,
-                      canvasHeight: _canvasHeight,
-                      soilHeight: _soilHeight,
-                      nodeRadius: _nodeRadius,
-                      branchOffset: _branchOffset,
-                    ),
-                    size: Size(_canvasWidth, _canvasHeight),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Level zone labels ──────────────────────────────────────
-            ..._buildLevelLabels(progressMap),
-
-            // ── Concept nodes (tappable widgets) ───────────────────────
-            ..._buildConceptNodes(progressMap),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildLevelLabels(Map<int, ConceptProgress> progressMap) {
-    final labels = <Widget>[];
-    for (final entry in _levelStartIndex.entries) {
-      final idx = entry.key;
-      final level = entry.value;
-      if (idx >= _nodePositions.length) continue;
-
-      final nodeY = _nodePositions[idx].dy;
-      final labelY = nodeY + _nodeRadius + 8;
-
-      labels.add(
-        Positioned(
-          left: 0,
-          right: 0,
-          top: labelY,
-          child: _LevelZoneLabel(level: level),
-        ),
-      );
-    }
-    return labels;
-  }
-
-  List<Widget> _buildConceptNodes(Map<int, ConceptProgress> progressMap) {
-    final nodes = <Widget>[];
-    for (int i = 0; i < GrammarConcept.allConcepts.length; i++) {
-      final concept = GrammarConcept.allConcepts[i];
-      final pos = _nodePositions[i];
-      final progress = progressMap[concept.conceptId] ??
-          ConceptProgress.empty(concept.conceptId);
-
-      nodes.add(
-        Positioned(
-          left: pos.dx - 80, // Expand width to 160 to prevent text wrapping too early
-          top: pos.dy - _nodeRadius - 8,
-          width: 160,
-          child: _ConceptNodeWidget(
-            concept: concept,
-            progress: progress,
-            nodeRadius: _nodeRadius,
-            pulseValue: _pulseController.value,
-            onTap: () => _openConceptDetail(concept, progress),
-          ),
-        ),
-      );
-    }
-    return nodes;
-  }
-
-  void _openConceptDetail(GrammarConcept concept, ConceptProgress progress) {
-    if (!progress.isUnlocked) {
-      HapticService.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Master earlier concepts to unlock ${concept.displayName}',
-            style: SeedlingTypography.body.copyWith(color: Colors.white),
-          ),
-          backgroundColor: SeedlingColors.soil,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
-    HapticService.mediumImpact();
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-            ConceptDetailScreen(concept: concept, initialProgress: progress),
-        transitionsBuilder: (_, anim, __, child) => FadeTransition(
-          opacity: anim,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.08),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-            child: child,
-          ),
-        ),
-        transitionDuration: const Duration(milliseconds: 380),
-      ),
-    );
-  }
 }
 
-// ─── BOTANICAL ROADMAP PAINTER ────────────────────────────────────────────────
+class _Badge extends StatelessWidget {
+  const _Badge({required this.text, required this.color});
 
-class BotanicalRoadmapPainter extends CustomPainter {
-  final List<Offset> nodePositions;
-  final List<GrammarConcept> concepts;
-  final Map<int, ConceptProgress> progressMap;
-  final double ambientValue;
-  final double pulseValue;
-  final double canvasHeight;
-  final double soilHeight;
-  final double nodeRadius;
-  final double branchOffset;
-
-  BotanicalRoadmapPainter({
-    required this.nodePositions,
-    required this.concepts,
-    required this.progressMap,
-    required this.ambientValue,
-    required this.pulseValue,
-    required this.canvasHeight,
-    required this.soilHeight,
-    required this.nodeRadius,
-    required this.branchOffset,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _drawSky(canvas, size);
-    _drawGodRays(canvas, size);
-    _drawSoil(canvas, size);
-    _drawRoots(canvas, size);
-    _drawMainStem(canvas, size);
-    _drawBranches(canvas, size);
-    _drawLevelZoneHalos(canvas, size);
-    _drawNodeBackgrounds(canvas, size);
-    _drawParticles(canvas, size);
-  }
-
-  // ── God Rays ──────────────────────────────────────────────────────────────
-
-  void _drawGodRays(Canvas canvas, Size size) {
-    final rayPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withValues(alpha: 0.03 + (0.02 * math.sin(ambientValue * math.pi * 2))),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.7],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.5));
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * 0.4, 0)
-      ..lineTo(size.width * 0.8, size.height * 0.6)
-      ..lineTo(size.width * 0.2, size.height * 0.6)
-      ..close();
-
-    canvas.drawPath(path, rayPaint);
-  }
-
-  // ── Sky gradient ──────────────────────────────────────────────────────────
-
-  void _drawSky(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF0A1F12), // deep canopy night
-          Color(0xFF0B1910), // mid forest
-          Color(0xFF0C1A10), // near soil
-        ],
-        stops: [0.0, 0.6, 1.0],
-      ).createShader(rect);
-    canvas.drawRect(rect, paint);
-  }
-
-  // ── Soil layer ────────────────────────────────────────────────────────────
-
-  void _drawSoil(Canvas canvas, Size size) {
-    final soilTop = canvasHeight - soilHeight;
-    final soilRect = Rect.fromLTWH(0, soilTop, size.width, soilHeight);
-
-    // Rich soil gradient
-    final soilPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFF1A0E08).withValues(alpha: 0.0),
-          const Color(0xFF2E1A0F),
-          const Color(0xFF3E2010),
-          const Color(0xFF1C0E07),
-        ],
-        stops: const [0.0, 0.3, 0.7, 1.0],
-      ).createShader(soilRect);
-    // Soil surface organic curves
-    final surfaceY = soilTop;
-    final surfacePath = Path()
-      ..moveTo(0, surfaceY + 15)
-      ..quadraticBezierTo(size.width * 0.25, surfaceY - 15, size.width * 0.5, surfaceY + 5)
-      ..quadraticBezierTo(size.width * 0.75, surfaceY + 25, size.width, surfaceY - 10)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-      
-    canvas.drawPath(surfacePath, soilPaint);
-
-    final surfaceLinePaint = Paint()
-      ..color = const Color(0xFF6D4C41)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-    
-    // Draw only the top curve of the soil as the surface line
-    final topCurve = Path()
-      ..moveTo(0, surfaceY + 15)
-      ..quadraticBezierTo(size.width * 0.25, surfaceY - 15, size.width * 0.5, surfaceY + 5)
-      ..quadraticBezierTo(size.width * 0.75, surfaceY + 25, size.width, surfaceY - 10);
-    canvas.drawPath(topCurve, surfaceLinePaint);
-
-    // Soil pebble texture dots
-    final rand = math.Random(42);
-    final pebblePaint = Paint()..style = PaintingStyle.fill;
-    for (int i = 0; i < 60; i++) {
-      final px = rand.nextDouble() * size.width;
-      final py = soilTop + 8 + rand.nextDouble() * (soilHeight - 20);
-      final pr = 1.5 + rand.nextDouble() * 2.5;
-      final alpha = 0.08 + rand.nextDouble() * 0.12;
-      pebblePaint.color = const Color(0xFF8D6E63).withValues(alpha: alpha);
-      canvas.drawCircle(Offset(px, py), pr, pebblePaint);
-    }
-  }
-
-  // ── Root network ──────────────────────────────────────────────────────────
-
-  void _drawRoots(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
-    final soilTop = canvasHeight - soilHeight;
-    final rootPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFF4E342E).withValues(alpha: 0.75);
-
-    void drawTaperedRoot(Offset start, Offset control, Offset end, double startWidth, double endWidth) {
-       final path = Path()..moveTo(start.dx, start.dy)..quadraticBezierTo(control.dx, control.dy, end.dx, end.dy);
-       final metrics = path.computeMetrics().first;
-       final length = metrics.length;
-       for (double d = 0; d < length; d += 2.0) {
-         final t = d / length;
-         final width = lerpDouble(startWidth, endWidth, t)!;
-         final segment = metrics.extractPath(d, d + 2.0);
-         rootPaint.strokeWidth = width;
-         canvas.drawPath(segment, rootPaint);
-       }
-    }
-
-    // Left main taproot + secondary
-    drawTaperedRoot(Offset(centerX, soilTop + 10), Offset(centerX - 60, soilTop + 60), Offset(centerX - 120, soilTop + 140), 5.0, 0.5);
-    drawTaperedRoot(Offset(centerX - 40, soilTop + 45), Offset(centerX - 90, soilTop + 80), Offset(centerX - 80, soilTop + 150), 3.0, 0.5);
-    drawTaperedRoot(Offset(centerX - 70, soilTop + 80), Offset(centerX - 130, soilTop + 90), Offset(centerX - 150, soilTop + 160), 2.0, 0.2);
-
-    // Right main taproot + secondary
-    drawTaperedRoot(Offset(centerX, soilTop + 10), Offset(centerX + 60, soilTop + 65), Offset(centerX + 110, soilTop + 150), 6.0, 0.5);
-    drawTaperedRoot(Offset(centerX + 40, soilTop + 45), Offset(centerX + 100, soilTop + 100), Offset(centerX + 80, soilTop + 180), 3.5, 0.5);
-    drawTaperedRoot(Offset(centerX + 80, soilTop + 90), Offset(centerX + 140, soilTop + 110), Offset(centerX + 160, soilTop + 160), 1.8, 0.2);
-
-    // Center deep root
-    drawTaperedRoot(Offset(centerX, soilTop + 10), Offset(centerX + 15, soilTop + 80), Offset(centerX - 10, soilTop + 200), 5.5, 0.5);
-    drawTaperedRoot(Offset(centerX + 5, soilTop + 60), Offset(centerX - 20, soilTop + 110), Offset(centerX - 50, soilTop + 180), 2.5, 0.3);
-  }
-
-  // ── Main stem ─────────────────────────────────────────────────────────────
-
-  void _drawMainStem(Canvas canvas, Size size) {
-    if (nodePositions.isEmpty) return;
-    final centerX = size.width / 2;
-    final soilSurface = canvasHeight - soilHeight;
-    final stemTop = nodePositions.last.dy;
-
-    // Build organic stem path with slight sinusoidal wiggle
-    final stemPoints = <Offset>[];
-    const segments = 40;
-    for (int i = 0; i <= segments; i++) {
-      final t = i / segments;
-      final y = soilSurface - t * (soilSurface - stemTop);
-      final wiggle = math.sin(t * math.pi * 3.5) * 5.0;
-      stemPoints.add(Offset(centerX + wiggle, y));
-    }
-
-    // Draw the stem in tapered segments
-    int numSegments = stemPoints.length - 1;
-    for (int i = 0; i < numSegments; i++) {
-      final t = i / numSegments;
-      final strokeW = lerpDouble(11.0, 2.5, t)!;
-      final alpha = lerpDouble(0.85, 0.5, t)!;
-
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = strokeW
-        ..color = const Color(0xFF2E7D32).withValues(alpha: alpha);
-
-      canvas.drawLine(stemPoints[i], stemPoints[i + 1], paint);
-    }
-
-    // Stem highlight (right edge)
-    for (int i = 0; i < numSegments; i++) {
-      final t = i / numSegments;
-      final strokeW = lerpDouble(3.0, 0.8, t)!;
-      final alpha = lerpDouble(0.25, 0.08, t)!;
-      final offset = lerpDouble(3.0, 1.0, t)!;
-
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = strokeW
-        ..color = const Color(0xFF81C784).withValues(alpha: alpha);
-
-      canvas.drawLine(
-        Offset(stemPoints[i].dx + offset, stemPoints[i].dy),
-        Offset(stemPoints[i + 1].dx + offset, stemPoints[i + 1].dy),
-        paint,
-      );
-    }
-
-    // Realistic bark texture lines
-    final barkRand = math.Random(88);
-    for (int bark = 0; bark < 5; bark++) {
-      final offsetX = (barkRand.nextDouble() - 0.5); // -0.5 to 0.5
-      final path = Path();
-      for (int i = 0; i < numSegments; i++) {
-        final t = i / numSegments;
-        final w = lerpDouble(11.0, 2.5, t)! * 0.7; // Keep texture inside the stem
-        final barkX = stemPoints[i].dx + (offsetX * w);
-        if (i == 0) {
-          path.moveTo(barkX, stemPoints[i].dy);
-        } else {
-          path.lineTo(barkX, stemPoints[i].dy);
-        }
-      }
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0 + barkRand.nextDouble()
-        ..color = const Color(0xFF143015).withValues(alpha: 0.3 + barkRand.nextDouble() * 0.2);
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  // ── Branch connections ────────────────────────────────────────────────────
-
-  void _drawBranches(Canvas canvas, Size size) {
-    final centerX = size.width / 2;
-
-    for (int i = 1; i < nodePositions.length; i++) {
-      final nodePos = nodePositions[i];
-      final concept = concepts[i];
-      final progress = progressMap[concept.conceptId];
-      final isUnlocked = progress?.isUnlocked ?? false;
-
-      // Branch origin point on the stem (same Y as the node, but at centerX with wiggle)
-      final t = (i / nodePositions.length);
-      final stemWiggle = math.sin(t * math.pi * 3.5) * 5.0;
-      final stemX = centerX + stemWiggle;
-      final originY = nodePos.dy;
-
-      final isLeft = nodePos.dx < centerX;
-      final controlX = isLeft ? stemX - 40 : stemX + 40;
-
-      final branchPath = Path()
-        ..moveTo(stemX, originY)
-        ..quadraticBezierTo(controlX, originY, nodePos.dx, nodePos.dy);
-
-      final branchColor = isUnlocked
-          ? _nodeColor(progress, concept.level).withValues(alpha: 0.5)
-          : const Color(0xFF3E4F3E).withValues(alpha: 0.3);
-
-      final branchPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..color = branchColor;
-
-      // Draw tapered branch
-      final metrics = branchPath.computeMetrics().first;
-      final length = metrics.length;
-      for (double d = 0; d < length; d += 2.0) {
-         final segment = metrics.extractPath(d, d + 2.0);
-         // Thicker near stem (3.5 or 2.5 locked), thinner near node (1.2)
-         final startWidth = isUnlocked ? 3.5 : 2.5;
-         branchPaint.strokeWidth = lerpDouble(startWidth, 1.2, d / length)!;
-         canvas.drawPath(segment, branchPaint);
-      }
-
-      // Small leaf decoration along the branch midpoint
-      if (isUnlocked && i % 3 == 0) {
-        final midX = (stemX + nodePos.dx) / 2;
-        final midY = (originY + nodePos.dy) / 2;
-        _drawLeaf(canvas, Offset(midX, midY), isLeft, concept.level, 0.4);
-      }
-    }
-  }
-
-  // ── Level zone halos ──────────────────────────────────────────────────────
-
-  void _drawLevelZoneHalos(Canvas canvas, Size size) {
-    final levelBoundaries = {
-      0: GrammarLevel.a0,
-      19: GrammarLevel.a1,
-      48: GrammarLevel.a2,
-      72: GrammarLevel.b1,
-      90: GrammarLevel.b2,
-      108: GrammarLevel.c1,
-    };
-
-    for (final entry in levelBoundaries.entries) {
-      final idx = entry.key;
-      final level = entry.value;
-      if (idx >= nodePositions.length) continue;
-
-      final y = nodePositions[idx].dy;
-      final glowPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            Colors.transparent,
-            level.glowColor.withValues(alpha: 0.06 + 0.03 * pulseValue),
-            level.glowColor.withValues(alpha: 0.10 + 0.04 * pulseValue),
-            level.glowColor.withValues(alpha: 0.06 + 0.03 * pulseValue),
-            Colors.transparent,
-          ],
-        ).createShader(Rect.fromLTWH(0, y - 30, size.width, 60));
-
-      canvas.drawRect(
-        Rect.fromLTWH(0, y - 30, size.width, 60),
-        glowPaint,
-      );
-    }
-  }
-
-  // ── Node backgrounds ──────────────────────────────────────────────────────
-
-  void _drawNodeBackgrounds(Canvas canvas, Size size) {
-    for (int i = 0; i < nodePositions.length; i++) {
-      final pos = nodePositions[i];
-      final concept = concepts[i];
-      final progress = progressMap[concept.conceptId];
-      final state = progress?.nodeState ?? ConceptNodeState.locked;
-      final isUnlocked = progress?.isUnlocked ?? false;
-
-      if (!isUnlocked) {
-        _drawLockedNode(canvas, pos, concept);
-      } else {
-        _drawActiveNode(canvas, pos, concept, state, progress?.mastery ?? 0.0);
-      }
-    }
-  }
-
-  void _drawLockedNode(Canvas canvas, Offset pos, GrammarConcept concept) {
-    // Faint outer ring
-    final ringPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = const Color(0xFF2E3A2E).withValues(alpha: 0.5);
-    canvas.drawCircle(pos, nodeRadius, ringPaint);
-
-    // Dark fill
-    final fillPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color(0xFF111E13).withValues(alpha: 0.8);
-    canvas.drawCircle(pos, nodeRadius - 2, fillPaint);
-  }
-
-  void _drawActiveNode(
-    Canvas canvas,
-    Offset pos,
-    GrammarConcept concept,
-    ConceptNodeState state,
-    double mastery,
-  ) {
-    final color = _nodeColor(
-        progressMap[concept.conceptId], concept.level);
-
-    // Outer glow
-    final glowAlpha = state == ConceptNodeState.available
-        ? 0.25 + 0.15 * pulseValue
-        : state == ConceptNodeState.mastered
-            ? 0.35 + 0.15 * pulseValue
-            : 0.20;
-
-    final glowPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14)
-      ..color = color.withValues(alpha: glowAlpha);
-    canvas.drawCircle(pos, nodeRadius + 8, glowPaint);
-
-    // Background circle
-    final bgPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..shader = RadialGradient(
-        colors: [
-          color.withValues(alpha: 0.35),
-          const Color(0xFF14261A),
-        ],
-      ).createShader(Rect.fromCircle(center: pos, radius: nodeRadius));
-    canvas.drawCircle(pos, nodeRadius, bgPaint);
-
-    // Mastery Bloom (Petals)
-    if (state == ConceptNodeState.mastered) {
-      final petalPaint = Paint()
-        ..style = PaintingStyle.fill
-        ..color = color.withValues(alpha: 0.25 + (0.1 * pulseValue));
-      
-      for (int i = 0; i < 5; i++) {
-        final angle = (i * 72) * math.pi / 180;
-        canvas.save();
-        canvas.translate(pos.dx, pos.dy);
-        canvas.rotate(angle + (pulseValue * 0.1));
-        
-        final petalPath = Path()
-          ..moveTo(0, -nodeRadius - 2)
-          ..quadraticBezierTo(8, -nodeRadius - 10, 0, -nodeRadius - 18)
-          ..quadraticBezierTo(-8, -nodeRadius - 10, 0, -nodeRadius - 2)
-          ..close();
-        
-        canvas.drawPath(petalPath, petalPaint);
-        canvas.restore();
-      }
-    }
-
-    // Progress arc
-    if (state == ConceptNodeState.inProgress || state == ConceptNodeState.mastered) {
-      final arcRect =
-          Rect.fromCircle(center: pos, radius: nodeRadius - 3);
-      final arcPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.round
-        ..color = color.withValues(alpha: 0.85);
-      canvas.drawArc(
-        arcRect,
-        -math.pi / 2,
-        mastery * 2 * math.pi,
-        false,
-        arcPaint,
-      );
-    }
-
-    // Border ring
-    final borderAlpha = state == ConceptNodeState.mastered ? 0.95 : 0.65;
-    final borderPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = state == ConceptNodeState.mastered ? 2.5 : 1.8
-      ..color = color.withValues(alpha: borderAlpha);
-    canvas.drawCircle(pos, nodeRadius, borderPaint);
-
-    // Mastered shimmer inner ring
-    if (state == ConceptNodeState.mastered) {
-      final shimmerPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0
-        ..color = Colors.white.withValues(
-            alpha: 0.15 + 0.15 * pulseValue);
-      canvas.drawCircle(pos, nodeRadius - 6, shimmerPaint);
-    }
-  }
-
-  // ── Decorative leaf ───────────────────────────────────────────────────────
-
-  void _drawLeaf(
-      Canvas canvas, Offset pos, bool facingLeft, GrammarLevel level, double alpha) {
-    final color = level.color.withValues(alpha: alpha);
-    final leafPaint = Paint()..color = color..style = PaintingStyle.fill;
-
-    canvas.save();
-    canvas.translate(pos.dx, pos.dy);
-    if (!facingLeft) canvas.scale(-1, 1);
-    canvas.rotate(-math.pi / 6);
-
-    final leafPath = Path()
-      ..moveTo(0, 0)
-      ..quadraticBezierTo(-8, -10, 0, -20)
-      ..quadraticBezierTo(8, -10, 0, 0);
-    canvas.drawPath(leafPath, leafPaint);
-    canvas.restore();
-  }
-
-  // ── Floating particles ────────────────────────────────────────────────────
-
-  void _drawParticles(Canvas canvas, Size size) {
-    final rand = math.Random(99);
-    final particlePaint = Paint()..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 28; i++) {
-      final baseX = rand.nextDouble() * size.width;
-      final baseY = rand.nextDouble() * canvasHeight;
-      final floatOffset = math.sin((ambientValue + i * 0.23) * math.pi * 2) * 12;
-      final opacity = 0.04 + rand.nextDouble() * 0.1;
-      final radius = 1.0 + rand.nextDouble() * 2.0;
-
-      particlePaint.color = SeedlingColors.seedlingGreen.withValues(alpha: opacity);
-      canvas.drawCircle(Offset(baseX, baseY + floatOffset), radius, particlePaint);
-    }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  Color _nodeColor(ConceptProgress? progress, GrammarLevel level) {
-    if (progress == null) return const Color(0xFF2E3A2E);
-    switch (progress.nodeState) {
-      case ConceptNodeState.locked:
-        return const Color(0xFF2E3A2E);
-      case ConceptNodeState.available:
-        return level.color;
-      case ConceptNodeState.inProgress:
-        return level.color;
-      case ConceptNodeState.mastered:
-        return SeedlingColors.sunlight;
-    }
-  }
-
-  @override
-  bool shouldRepaint(BotanicalRoadmapPainter oldDelegate) {
-    return oldDelegate.ambientValue != ambientValue ||
-        oldDelegate.pulseValue != pulseValue ||
-        oldDelegate.progressMap != progressMap;
-  }
-}
-
-// ─── CONCEPT NODE WIDGET (Tappable overlay) ───────────────────────────────────
-
-class _ConceptNodeWidget extends StatefulWidget {
-  final GrammarConcept concept;
-  final ConceptProgress progress;
-  final double nodeRadius;
-  final double pulseValue;
-  final VoidCallback onTap;
-
-  const _ConceptNodeWidget({
-    required this.concept,
-    required this.progress,
-    required this.nodeRadius,
-    required this.pulseValue,
-    required this.onTap,
-  });
-
-  @override
-  State<_ConceptNodeWidget> createState() => _ConceptNodeWidgetState();
-}
-
-class _ConceptNodeWidgetState extends State<_ConceptNodeWidget>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressController;
-  late Animation<double> _scaleAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 0.92).animate(
-      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pressController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final state = widget.progress.nodeState;
-    final color = widget.concept.level.color;
-    final isLocked = state == ConceptNodeState.locked;
-
-    return GestureDetector(
-      onTapDown: (_) => _pressController.forward(),
-      onTapUp: (_) {
-        _pressController.reverse();
-        widget.onTap();
-      },
-      onTapCancel: () => _pressController.reverse(),
-      behavior: HitTestBehavior.opaque,
-      child: ScaleTransition(
-        scale: _scaleAnim,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Icon Vessel (Rounded Square)
-            Container(
-              width: widget.nodeRadius * 2,
-              height: widget.nodeRadius * 2,
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground.withValues(
-                  alpha: isLocked ? 0.4 : 0.85,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isLocked
-                      ? Colors.white12
-                      : color.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
-                boxShadow: isLocked
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: color.withValues(
-                            alpha: 0.15 + (0.1 * widget.pulseValue),
-                          ),
-                          blurRadius: 12 + (8 * widget.pulseValue),
-                          spreadRadius: 1,
-                        ),
-                      ],
-              ),
-              child: Center(
-                child: Opacity(
-                  opacity: isLocked ? 0.35 : 1.0,
-                  child: Text(
-                    widget.concept.emoji,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Title text
-            Text(
-              widget.concept.displayName.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: SeedlingTypography.caption.copyWith(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
-                color: isLocked ? Colors.white24 : Colors.white70,
-                shadows: [
-                  Shadow(
-                    blurRadius: 4.0,
-                    color: Colors.black.withValues(alpha: 0.5),
-                  )
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── LEVEL ZONE LABEL ────────────────────────────────────────────────────────
-
-class _LevelZoneLabel extends StatelessWidget {
-  final GrammarLevel level;
-  const _LevelZoneLabel({required this.level});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-        decoration: BoxDecoration(
-          color: level.color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: level.color.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(level.emoji, style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 6),
-            Text(
-              level.fullLabel.toUpperCase(),
-              style: SeedlingTypography.caption.copyWith(
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.6,
-                color: level.color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── SHIMMER TITLE ────────────────────────────────────────────────────────────
-
-class _ShimmerTitle extends StatefulWidget {
   final String text;
-  const _ShimmerTitle(this.text);
-
-  @override
-  State<_ShimmerTitle> createState() => _ShimmerTitleState();
-}
-
-class _ShimmerTitleState extends State<_ShimmerTitle>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) => ShaderMask(
-        shaderCallback: (bounds) => LinearGradient(
-          colors: const [
-            Color(0xFFF5F5DC),
-            SeedlingColors.freshSprout,
-            Color(0xFFF5F5DC),
-          ],
-          stops: [
-            (_ctrl.value - 0.35).clamp(0.0, 1.0),
-            _ctrl.value.clamp(0.0, 1.0),
-            (_ctrl.value + 0.35).clamp(0.0, 1.0),
-          ],
-        ).createShader(bounds),
-        child: Text(
-          widget.text,
-          style: SeedlingTypography.heading3.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.14),
+      ),
+      child: Text(
+        text,
+        style: SeedlingTypography.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 10,
         ),
       ),
     );
   }
 }
 
-// ─── LEVEL BADGE ──────────────────────────────────────────────────────────────
+class _EmptyStateCard extends StatelessWidget {
+  const _EmptyStateCard({required this.text});
 
-class _LevelBadge extends StatelessWidget {
-  final GrammarLevel level;
-  const _LevelBadge({required this.level});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [
-          level.color.withValues(alpha: 0.25),
-          level.color.withValues(alpha: 0.08),
-        ]),
-        border: Border.all(color: level.color.withValues(alpha: 0.45), width: 1.8),
-      ),
-      child: Center(
-        child: Text(level.emoji, style: const TextStyle(fontSize: 22)),
-      ),
-    );
-  }
-}
-
-// ─── REVIEW BADGE ─────────────────────────────────────────────────────────────
-
-class _ReviewBadge extends StatelessWidget {
-  final int count;
-  const _ReviewBadge({required this.count});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: SeedlingColors.water.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(14),
-        border:
-            Border.all(color: SeedlingColors.water.withValues(alpha: 0.35)),
+        color: SeedlingColors.cardBackground,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.water_drop_rounded,
-              color: SeedlingColors.water, size: 13),
-          const SizedBox(width: 4),
-          Text(
-            '$count due',
-            style: SeedlingTypography.caption.copyWith(
-              color: SeedlingColors.water,
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: SeedlingTypography.caption.copyWith(
+          color: SeedlingColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-    );
-  }
-}
-
-// ─── OVERALL MASTERY BAR ──────────────────────────────────────────────────────
-
-class _OverallMasteryBar extends StatelessWidget {
-  final double mastery;
-  const _OverallMasteryBar({required this.mastery});
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = (mastery * 100).toStringAsFixed(1);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'OVERALL MASTERY',
-              style: SeedlingTypography.caption.copyWith(
-                fontSize: 9,
-                letterSpacing: 1.4,
-                fontWeight: FontWeight.w800,
-                color: SeedlingColors.textSecondary,
-              ),
-            ),
-            Text(
-              '$pct%',
-              style: SeedlingTypography.caption.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: SeedlingColors.seedlingGreen,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Stack(
-          children: [
-            Container(
-              height: 6,
-              decoration: BoxDecoration(
-                color: SeedlingColors.cardBackground,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            FractionallySizedBox(
-              widthFactor: mastery.clamp(0.0, 1.0),
-              child: Container(
-                height: 6,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(3),
-                  gradient: const LinearGradient(
-                    colors: [
-                      SeedlingColors.seedlingGreen,
-                      SeedlingColors.sunlight,
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          SeedlingColors.seedlingGreen.withValues(alpha: 0.4),
-                      blurRadius: 6,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

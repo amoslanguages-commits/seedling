@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/grammar_model.dart';
+import 'grammar_content_validator.dart';
 
 /// Manages all grammar data: sentence loading, progress tracking, unlocking.
 class GrammarService {
@@ -27,8 +28,9 @@ class GrammarService {
     final path = p.join(dir.path, 'grammar.db');
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: _createTables,
+      onUpgrade: _onUpgrade,
     );
     return _db!;
   }
@@ -46,9 +48,57 @@ class GrammarService {
         reps            INTEGER DEFAULT 0,
         last_review     TEXT,
         due_date        TEXT,
+        error_type      TEXT,
+        evaluation_score REAL DEFAULT 0.0,
+        sub_error_code  TEXT,
+        explanation_id  TEXT,
+        attempted_text  TEXT,
+        confidence      REAL DEFAULT 0.0,
+        model_version   TEXT DEFAULT 'rule-engine-v1',
+        feature_scores_json TEXT,
+        fixed_flag      INTEGER DEFAULT 0,
         UNIQUE(sentence_id, lang_code)
       )
     ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _addColumnIfMissing(db, 'sentence_progress', 'error_type', 'TEXT');
+      await _addColumnIfMissing(
+        db,
+        'sentence_progress',
+        'evaluation_score',
+        'REAL DEFAULT 0.0',
+      );
+    }
+    if (oldVersion < 3) {
+      await _addColumnIfMissing(db, 'sentence_progress', 'sub_error_code', 'TEXT');
+      await _addColumnIfMissing(db, 'sentence_progress', 'explanation_id', 'TEXT');
+      await _addColumnIfMissing(db, 'sentence_progress', 'attempted_text', 'TEXT');
+      await _addColumnIfMissing(db, 'sentence_progress', 'confidence', 'REAL DEFAULT 0.0');
+      await _addColumnIfMissing(
+        db,
+        'sentence_progress',
+        'model_version',
+        "TEXT DEFAULT 'rule-engine-v1'",
+      );
+      await _addColumnIfMissing(db, 'sentence_progress', 'feature_scores_json', 'TEXT');
+      await _addColumnIfMissing(db, 'sentence_progress', 'fixed_flag', 'INTEGER DEFAULT 0');
+    }
+  }
+
+  Future<void> _addColumnIfMissing(
+    Database db,
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    final hasColumn = info.any((row) => row['name'] == column);
+    if (!hasColumn) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
   }
 
   // ─── SENTENCE LOADING ─────────────────────────────────────────────────────
@@ -117,6 +167,10 @@ class GrammarService {
     if (rows.length < 2) return [];
 
     final headers = rows.first.map((e) => e.trim().toLowerCase()).toList();
+    final headerIssues = GrammarContentValidator().validateHeaders(headers);
+    if (headerIssues.isNotEmpty) {
+      return [];
+    }
     final sentences = <GrammarSentence>[];
 
     // Find indices
@@ -267,6 +321,31 @@ class GrammarService {
         .toList();
   }
 
+  /// Get prior review state for a single sentence in a language.
+  Future<SentenceProgress?> getSentenceProgress(int sentenceId, String langCode) async {
+    final db = await database;
+    final rows = await db.query(
+      'sentence_progress',
+      where: 'sentence_id = ? AND lang_code = ?',
+      whereArgs: [sentenceId, langCode],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return SentenceProgress(
+      sentenceId: row['sentence_id'] as int,
+      conceptId: row['concept_id'] as int,
+      langCode: langCode,
+      mastery: (row['mastery'] as num?)?.toDouble() ?? 0.0,
+      dueDate: row['due_date'] != null ? DateTime.tryParse(row['due_date'] as String) : null,
+      lastReview:
+          row['last_review'] != null ? DateTime.tryParse(row['last_review'] as String) : null,
+      stability: (row['stability'] as num?)?.toDouble() ?? 1.0,
+      difficulty: (row['difficulty'] as num?)?.toDouble() ?? 5.0,
+      reps: row['reps'] as int? ?? 0,
+    );
+  }
+
   // ─── PROGRESS UPDATES ────────────────────────────────────────────────────
 
   /// Record a review for a sentence. [mastery] is the new 0.0–1.0 score.
@@ -279,6 +358,15 @@ class GrammarService {
     required double difficulty,
     required int reps,
     required DateTime dueDate,
+    String? errorType,
+    double? evaluationScore,
+    String? subErrorCode,
+    String? explanationId,
+    String? attemptedText,
+    double? confidence,
+    String? modelVersion,
+    String? featureScoresJson,
+    bool fixedFlag = false,
   }) async {
     final db = await database;
     await db.insert(
@@ -293,9 +381,78 @@ class GrammarService {
         'reps': reps,
         'last_review': DateTime.now().toIso8601String(),
         'due_date': dueDate.toIso8601String(),
+        'error_type': errorType,
+        'evaluation_score': evaluationScore ?? 0.0,
+        'sub_error_code': subErrorCode,
+        'explanation_id': explanationId,
+        'attempted_text': attemptedText,
+        'confidence': confidence ?? 0.0,
+        'model_version': modelVersion ?? 'rule-engine-v1',
+        'feature_scores_json': featureScoresJson,
+        'fixed_flag': fixedFlag ? 1 : 0,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+  }
+
+  /// Returns top recent grammar error categories for personalization.
+  Future<Map<String, int>> getErrorTaxonomy(String langCode, {int limit = 5}) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT error_type, COUNT(*) AS cnt
+      FROM sentence_progress
+      WHERE lang_code = ? AND error_type IS NOT NULL AND error_type != ''
+      GROUP BY error_type
+      ORDER BY cnt DESC
+      LIMIT ?
+      ''',
+      [langCode, limit],
+    );
+    final out = <String, int>{};
+    for (final row in rows) {
+      final key = (row['error_type'] as String?) ?? '';
+      if (key.isEmpty) continue;
+      out[key] = (row['cnt'] as int?) ?? int.tryParse('${row['cnt']}') ?? 0;
+    }
+    return out;
+  }
+
+  /// Returns prioritized remediation plan from unresolved recurring errors.
+  Future<List<Map<String, Object>>> getAdaptiveRepairPlan(
+    String langCode, {
+    int limit = 10,
+  }) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT
+        COALESCE(sub_error_code, error_type, 'unknown') AS code,
+        COUNT(*) AS attempts,
+        SUM(CASE WHEN fixed_flag = 1 THEN 1 ELSE 0 END) AS fixed_count,
+        AVG(COALESCE(evaluation_score, 0.0)) AS avg_score
+      FROM sentence_progress
+      WHERE lang_code = ?
+      GROUP BY code
+      ORDER BY attempts DESC, avg_score ASC
+      LIMIT ?
+      ''',
+      [langCode, limit],
+    );
+
+    return rows.map((row) {
+      final attempts = (row['attempts'] as int?) ?? int.tryParse('${row['attempts']}') ?? 0;
+      final fixed = (row['fixed_count'] as int?) ?? int.tryParse('${row['fixed_count']}') ?? 0;
+      final avgScore = (row['avg_score'] as num?)?.toDouble() ?? 0.0;
+      final unresolvedRate = attempts == 0 ? 1.0 : ((attempts - fixed) / attempts).clamp(0.0, 1.0);
+      return {
+        'code': (row['code'] as String?) ?? 'unknown',
+        'attempts': attempts,
+        'fixed': fixed,
+        'avg_score': avgScore,
+        'priority': (unresolvedRate * (1.0 - avgScore)).clamp(0.0, 1.0),
+      };
+    }).toList();
   }
 
   /// Sentences due for review (due_date ≤ now) for a given lang.
