@@ -309,6 +309,7 @@ enum FocusMode { watering, resume, discover }
 class FocusState {
   final FocusMode mode;
   final int dueCount;
+  final int totalLearned;
   final String? lastDomain;
   final String? lastSubDomain;
   final String? displayName;
@@ -316,6 +317,7 @@ class FocusState {
   const FocusState({
     required this.mode,
     this.dueCount = 0,
+    this.totalLearned = 0,
     this.lastDomain,
     this.lastSubDomain,
     this.displayName,
@@ -329,8 +331,14 @@ final smartFocusProvider = FutureProvider<FocusState>((ref) async {
 
   // Priority 1: SRS review due?
   final dueCount = await db.getDueCount(nativeLang, targetLang);
+  final totalLearned = await db.getTotalWordsLearned(targetLang);
+
   if (dueCount > 0) {
-    return FocusState(mode: FocusMode.watering, dueCount: dueCount);
+    return FocusState(
+      mode: FocusMode.watering, 
+      dueCount: dueCount,
+      totalLearned: totalLearned,
+    );
   }
 
   // Priority 2: Resume last active sub-theme
@@ -350,14 +358,16 @@ final smartFocusProvider = FutureProvider<FocusState>((ref) async {
       lastDomain: lastSubTheme['domain'],
       lastSubDomain: rawSub,
       displayName: displayName,
+      totalLearned: totalLearned,
     );
   }
 
-  return const FocusState(
+  return FocusState(
     mode: FocusMode.discover,
     lastDomain: 'people',
     lastSubDomain: 'identity',
     displayName: 'People & Identity',
+    totalLearned: totalLearned,
   );
 });
 

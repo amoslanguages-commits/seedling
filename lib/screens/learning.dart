@@ -94,6 +94,11 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   int _sessionBudgetMins = 10; // default 10 min goal
   bool _budgetReached = false;
 
+  // Thematic Progress Tracking
+  int _themeLearnedCount = 0;
+  int _themeTotalCount = 0;
+  bool _isIsolatedSession = false;
+
   // Use a key to talk to the QuizManager for dynamic refills
   final GlobalKey<QuizManagerState> _quizKey = GlobalKey<QuizManagerState>();
 
@@ -121,9 +126,20 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
       // ── Domain Coverage Heatmap (loaded once per session) ───────────────
       _coverageGaps = await db.getDomainCoverageGaps(nativeLang, targetLang);
 
-      // Check if user has learned any words yet
-      final totalLearned = await db.getTotalWordsLearned(targetLang);
-      final isBrandNew = totalLearned == 0;
+      // ── Sub-theme Isolation Logic ───────────────────────────────────
+      _isIsolatedSession = widget.subDomain != null && widget.subDomain!.isNotEmpty;
+      
+      final int totalLearnedOverall = await db.getTotalWordsLearned(targetLang);
+      _themeLearnedCount = await db.getTotalWordsLearned(
+        targetLang,
+        subDomain: widget.subDomain,
+      );
+      _themeTotalCount = _isIsolatedSession
+          ? await db.getTotalWordsInSubDomain(targetLang, widget.subDomain!)
+          : 0;
+
+      // If in an isolated theme session, we treat it as brand new if the theme is empty
+      final isBrandNew = _isIsolatedSession ? (_themeLearnedCount == 0) : (totalLearnedOverall == 0);
 
       final bool canPlant = await UsageService().canPlantWord();
       final int wordsToFetch = isBrandNew ? 3 : (canPlant ? 1 : 0);
@@ -164,24 +180,28 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
         nativeLang,
         targetLang,
         limit: 3,
+        subDomain: widget.subDomain, // Strict theme filter
       );
 
       final due = await db.getSRSDueWords(
         nativeLang,
         targetLang,
         limit: 15,
-        categoryId: null,
+        categoryId: widget.categoryId, // Ensure category matches if provided
+        subDomain: widget.subDomain, // Strict theme filter
         partOfSpeech: widget.partOfSpeech,
         microCategory: widget.microCategory,
       );
 
-      // ── SILE: Cross-Subtheme Reviews ──────────────────────────────────────────
-      final crossReviews = await db.getCrossSubthemeReviews(
-        nativeLang,
-        targetLang,
-        limit: 5, // up to 5 interleaves
-        excludeSubDomain: widget.subDomain ?? _activeSubDomain,
-      );
+      // ── SILE: Cross-Subtheme Reviews (Disabled for isolated sessions) ──────
+      final List<Word> crossReviews = _isIsolatedSession
+          ? []
+          : await db.getCrossSubthemeReviews(
+              nativeLang,
+              targetLang,
+              limit: 5, // up to 5 interleaves
+              excludeSubDomain: widget.subDomain ?? _activeSubDomain,
+            );
 
       // Merge forgotten, theme due, and cross-subtheme (shuffle cross reviews)
       final mergedDue = <Word>[
@@ -301,18 +321,20 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
               nativeLang,
               targetLang,
               limit: 10,
-              categoryId: null,
+              categoryId: widget.categoryId,
+              subDomain: widget.subDomain, // Strict theme filter
               partOfSpeech: widget.partOfSpeech,
               microCategory: widget.microCategory,
             )
             .timeout(const Duration(seconds: 5)),
-        db
-            .getCrossSubthemeReviews(
-              nativeLang,
-              targetLang,
-              limit: 3,
-              excludeSubDomain: widget.subDomain ?? _activeSubDomain,
-            )
+        (_isIsolatedSession
+                ? Future.value(<Word>[])
+                : db.getCrossSubthemeReviews(
+                    nativeLang,
+                    targetLang,
+                    limit: 3,
+                    excludeSubDomain: widget.subDomain ?? _activeSubDomain,
+                  ))
             .timeout(const Duration(seconds: 5)),
       ]);
 
@@ -337,6 +359,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
           nativeLang,
           targetLang,
           limit: 10,
+          subDomain: widget.subDomain, // Ensure isolated fallback
         );
         
         final filteredRandom = randomLearned
@@ -833,7 +856,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
         return Column(
           children: [
             _buildSessionHeader(
-              'Daily Review',
+              _isIsolatedSession ? (widget.subDomain ?? 'Topic Review') : 'Daily Review',
               totalWords,
               isSmall,
               isVerySmall,
@@ -862,6 +885,8 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
                 onSessionComplete: _handleBatchComplete,
                 onQueueDepleted: _handleQueueDepleted,
                 db: ref.read(databaseProvider),
+                activeSubDomain: widget.subDomain,
+                strictDistractors: _isIsolatedSession,
               ),
             ),
           ],
@@ -931,6 +956,18 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
                       style: SeedlingTypography.caption.copyWith(
                         color: SeedlingColors.seedlingGreen,
                         fontWeight: FontWeight.w700,
+                        fontSize: isSmall ? 9 : 11,
+                      ),
+                    ),
+                  ),
+                if (_isIsolatedSession)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '$_themeLearnedCount / $_themeTotalCount theme words learned',
+                      style: SeedlingTypography.caption.copyWith(
+                        color: SeedlingColors.textSecondary.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w600,
                         fontSize: isSmall ? 9 : 11,
                       ),
                     ),

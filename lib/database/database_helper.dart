@@ -10,6 +10,8 @@ class DatabaseHelper {
 
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
+  
+  static set databaseForTesting(Database db) => _database = db;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -476,6 +478,29 @@ class DatabaseHelper {
   // Returns words whose next_review is today or earlier (or never reviewed),
   // filtered by language pair, ordered by urgency then interleaved by mastery
   // for optimal interleaving (Active Recall + SRS combined).
+
+  Future<List<String>> _getDistractors(int targetWordId, String nativeLang, String targetLang, {String? subDomain, int count = 3}) async {
+    final db = await database;
+    String where = 'language_code = ? AND target_language_code = ? AND mastery_level > 0 AND id != ?';
+    List<dynamic> args = [nativeLang, targetLang, targetWordId];
+
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
+
+    final rows = await db.query(
+      'words',
+      columns: ['translation'],
+      where: where,
+      whereArgs: args,
+      orderBy: 'RANDOM()',
+      limit: count,
+    );
+
+    return rows.map((r) => r['translation'] as String).toList();
+  }
+
   Future<List<Word>> getSRSDueWords(
     String languageCode,
     String targetLanguageCode, {
@@ -530,6 +555,15 @@ class DatabaseHelper {
     );
 
     final words = due.map((m) => Word.fromMap(m)).toList();
+    
+    // Populate distractors from learned words
+    for (var word in words) {
+      final distractors = await _getDistractors(word.id!, languageCode, targetLanguageCode, subDomain: subDomain);
+      if (distractors.length >= 3) {
+        word.setOptions([word.translation, ...distractors]..shuffle());
+      }
+    }
+
     words.shuffle();
     return words;
   }
@@ -584,16 +618,35 @@ class DatabaseHelper {
     String languageCode,
     String targetLanguageCode, {
     int limit = 5,
+    String? subDomain,
   }) async {
     final db = await database;
+    String where = 'language_code = ? AND target_language_code = ? AND mastery_level > 0';
+    List<dynamic> args = [languageCode, targetLanguageCode];
+
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
+
     final rows = await db.query(
       'words',
-      where: 'language_code = ? AND target_language_code = ? AND mastery_level > 0',
-      whereArgs: [languageCode, targetLanguageCode],
+      where: where,
+      whereArgs: args,
       orderBy: 'RANDOM()',
       limit: limit,
     );
-    return rows.map((m) => Word.fromMap(m)).toList();
+    final words = rows.map((m) => Word.fromMap(m)).toList();
+
+    // Populate distractors from learned words
+    for (var word in words) {
+      final distractors = await _getDistractors(word.id!, languageCode, targetLanguageCode, subDomain: subDomain);
+      if (distractors.length >= 3) {
+        word.setOptions([word.translation, ...distractors]..shuffle());
+      }
+    }
+
+    return words;
   }
 
   // ── Get up to N unplanted words (smart new-word candidates) ─────────────
@@ -734,11 +787,26 @@ class DatabaseHelper {
     };
   }
 
-  Future<int> getTotalWordsLearned(String languageCode) async {
+  Future<int> getTotalWordsLearned(String languageCode, {String? subDomain}) async {
+    final db = await database;
+    String where = 'target_language_code = ? AND mastery_level > 0';
+    List<dynamic> args = [languageCode];
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM words WHERE $where',
+      args,
+    );
+    return result.first['count'] as int? ?? 0;
+  }
+
+  Future<int> getTotalWordsInSubDomain(String languageCode, String subDomain) async {
     final db = await database;
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM words WHERE target_language_code = ? AND mastery_level > 0',
-      [languageCode],
+      'SELECT COUNT(*) as count FROM words WHERE target_language_code = ? AND sub_domain = ?',
+      [languageCode, subDomain],
     );
     return result.first['count'] as int? ?? 0;
   }
@@ -1183,6 +1251,7 @@ class DatabaseHelper {
   Future<List<Word>> getIntelligentDistractors(
     Word correctWord, {
     int limit = 3,
+    bool strictSubDomain = false,
   }) async {
     final db = await database;
     final List<Word> distractors = [];
@@ -1204,11 +1273,42 @@ class DatabaseHelper {
           ...extraArgs,
         ],
         orderBy: 'RANDOM()',
-        limit: needed - distractors.length,
+        limit: math.max(0, needed - distractors.length),
       );
       return maps.map((m) => Word.fromMap(m)).toList();
     }
 
+    // ── ISOLATED THEME LOGIC ───────────────────────────────────────────
+    if (strictSubDomain &&
+        correctWord.subDomain != null &&
+        correctWord.subDomain!.isNotEmpty) {
+      // 1. First, try to find ONLY learned words in the same Sub-Domain
+      final learned = await fetchWithConditions(
+        ' AND sub_domain = ? AND mastery_level > 0',
+        [correctWord.subDomain],
+      );
+      distractors.addAll(learned);
+
+      // 2. If we have fewer than 2 distractors, we MUST supplement with 
+      // unlearned words from the SAME theme to meet the user's minimum (2).
+      // If we have 2 already, we still try for 3 (matching limit).
+      if (distractors.length < limit) {
+        final unlearned = await fetchWithConditions(
+          ' AND sub_domain = ? AND mastery_level = 0',
+          [correctWord.subDomain],
+        );
+        distractors.addAll(
+          unlearned.where((w) => !distractors.any((d) => d.id == w.id)),
+        );
+      }
+
+      // We take exactly what we've found in the sub-domain and STOP.
+      // If the sub-domain is tiny, the quiz might be small (min 2 distractors).
+      return distractors.take(needed).toList();
+    }
+
+    // ── GLOBAL / NON-STRICT LOGIC (Legacy / SILE Fallback) ────────────────
+    
     // 1. Try to find words in the EXACT same Micro Category & Part of Speech
     if (correctWord.microCategory != null &&
         correctWord.microCategory!.isNotEmpty) {
@@ -1525,16 +1625,25 @@ class DatabaseHelper {
     String targetLanguageCode, {
     int overdueDays = 3,
     int limit = 5,
+    String? subDomain,
   }) async {
     final db = await database;
     final cutoff = DateTime.now()
         .subtract(Duration(days: overdueDays))
         .toIso8601String();
+    
+    String where = 'language_code = ? AND target_language_code = ? AND mastery_level > 0 AND next_review < ?';
+    List<dynamic> args = [languageCode, targetLanguageCode, cutoff];
+
+    if (subDomain != null && subDomain.isNotEmpty) {
+      where += ' AND sub_domain = ?';
+      args.add(subDomain);
+    }
+
     final maps = await db.query(
       'words',
-      where:
-          'language_code = ? AND target_language_code = ? AND mastery_level > 0 AND next_review < ?',
-      whereArgs: [languageCode, targetLanguageCode, cutoff],
+      where: where,
+      whereArgs: args,
       orderBy: 'next_review ASC',
       limit: limit,
     );
@@ -1608,5 +1717,30 @@ class DatabaseHelper {
       };
     }
     return res.first;
+  }
+
+  // ── SMART REVIEW & SRS METHODS (Consolidated) ───────────────────────────
+
+  /// Groups learned words by sub-domain for the Review dashboard.
+  Future<List<Map<String, dynamic>>> getReviewTopicGroups(
+    String languageCode,
+    String targetLanguageCode,
+  ) async {
+    final db = await database;
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final List<Map<String, dynamic>> results = await db.rawQuery('''
+      SELECT 
+        sub_domain, 
+        domain,
+        COUNT(*) as total_learned,
+        SUM(CASE WHEN next_review <= ? THEN 1 ELSE 0 END) as due_count
+      FROM words
+      WHERE language_code = ? AND target_language_code = ? AND mastery_level > 0
+      GROUP BY sub_domain, domain
+      ORDER BY due_count DESC, total_learned DESC
+    ''', [now, languageCode, targetLanguageCode]);
+
+    return results;
   }
 }

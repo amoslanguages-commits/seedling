@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../learning.dart';
-import '../grammar/grammar_screen.dart';
+import '../review/smart_review_screen.dart';
 import '../../providers/app_providers.dart';
 import '../profile_screen.dart';
 import '../../models/taxonomy.dart';
@@ -24,7 +24,7 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
 
   final List<Widget> _tabs = [
     const _HomeTab(),
-    const GrammarScreen(),
+    const SmartReviewScreen(),
     const ProfileScreen(),
   ];
 
@@ -52,9 +52,9 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
             label: 'Grow',
           ),
           NavigationDestination(
-            icon: Icon(Icons.local_florist_outlined),
-            selectedIcon: Icon(Icons.local_florist, color: SeedlingColors.seedlingGreen),
-            label: 'Grammar',
+            icon: Icon(Icons.auto_awesome_motion_outlined),
+            selectedIcon: Icon(Icons.auto_awesome_motion, color: SeedlingColors.seedlingGreen),
+            label: 'Review',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

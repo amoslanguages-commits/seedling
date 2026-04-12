@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fsrs/fsrs.dart' as fsrs;
 import 'package:seedling/models/word.dart';
 import 'package:seedling/services/fsrs_service.dart';
 

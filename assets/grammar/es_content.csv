@@ -1,0 +1,6 @@
+node_id,lesson_id,lesson_title,challenge_id,type,target_text,native_text,phonetic_text,literal_gloss,magic_hint,word_bank,correct_tokens,options,correct_option,concept_explanation
+es_a_u1_n1,l1,Vowels,c1,phoneticMatch,A,Select the sound A,ah,,,A;E;I,A;E;I,A;B;C,A,"Stage A is for the script. Before we can learn words, we must learn the sounds. Spanish has 5 pure vowels."
+es_a_u1_n1,l1,Vowels,c2,scriptRead,E,The letter E,eh,,,E;O;U,E,A;E;I,E,
+es_b_u1_n1,l1,Greetings,c1,construct,Hola,Hello,oh-lah,Hello,Use 'Hola' for greetings.,Hola;Adiós;Gracias,Hola,Hola;Adiós,,"Stage B builds the foundation. Spanish greetings often change based on the time of day."
+es_b_u1_n1,l1,Greetings,c2,listenSelect,Adiós,Goodbye,ah-dee-ohs,,,Adiós;Hola;Perdón,Adiós,Adiós;Hola,Adiós,
+es_b_u2_n1,l1,Pronouns,c1,construct,Yo soy,I am,yoh soy,I am,In Spanish, 'Yo' is often optional.,Yo;soy;él;es,Yo;soy,Yo;soy;él;es,,

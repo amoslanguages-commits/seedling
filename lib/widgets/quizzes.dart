@@ -2303,6 +2303,8 @@ class QuizManager extends StatefulWidget {
   final VoidCallback onSessionComplete;
   final VoidCallback? onQueueDepleted; // Signal for more words
   final DatabaseHelper? db;
+  final String? activeSubDomain;
+  final bool strictDistractors;
 
   const QuizManager({
     super.key,
@@ -2315,6 +2317,8 @@ class QuizManager extends StatefulWidget {
     required this.onSessionComplete,
     this.onQueueDepleted,
     this.db,
+    this.activeSubDomain,
+    this.strictDistractors = false,
   });
 
   @override
@@ -2466,6 +2470,7 @@ class QuizManagerState extends State<QuizManager> {
           final distractors = await widget.db!.getIntelligentDistractors(
             currentWord,
             limit: 3,
+            strictSubDomain: widget.strictDistractors,
           );
           _distractorWordCache[currentWord.id!] = distractors;
         }
@@ -2499,6 +2504,7 @@ class QuizManagerState extends State<QuizManager> {
           final distractors = await widget.db!.getIntelligentDistractors(
             next.word,
             limit: 3,
+            strictSubDomain: widget.strictDistractors,
           );
           _distractorWordCache[next.word.id!] = distractors;
         }
@@ -3582,15 +3588,15 @@ class QuizManagerState extends State<QuizManager> {
         pool = others
             .where(
               (w) =>
-                  w.primaryPOS == correctWord.primaryPOS &&
-                  w.subDomain != null &&
-                  w.subDomain == correctWord.subDomain,
+                  w.id != correctWord.id &&
+                  (!widget.strictDistractors || w.subDomain == correctWord.subDomain),
             )
+            .where((w) => w.primaryPOS == correctWord.primaryPOS)
             .map((w) => w.translation)
             .toSet()
             .toList();
 
-        if (pool.length < 3) {
+        if (pool.length < 3 && !widget.strictDistractors) {
           pool = others
               .where(
                 (w) =>
@@ -3603,7 +3609,7 @@ class QuizManagerState extends State<QuizManager> {
               .toList();
         }
 
-        if (pool.length < 3) {
+        if (pool.length < 3 && !widget.strictDistractors) {
           pool = others
               .where((w) => w.primaryPOS == correctWord.primaryPOS)
               .map((w) => w.translation)
@@ -3611,7 +3617,7 @@ class QuizManagerState extends State<QuizManager> {
               .toList();
         }
 
-        if (pool.length < 3) {
+        if (pool.length < 3 && !widget.strictDistractors) {
           pool = others.map((w) => w.translation).toSet().toList();
         }
 
@@ -3635,7 +3641,8 @@ class QuizManagerState extends State<QuizManager> {
     }
 
     // GUARANTEE: Never show less than 2 options (1 correct + 1 distractor)
-    if (distractors.isEmpty) {
+    // For strict isolated sessions, we prefer returning fewer distractors than leaking global ones.
+    if (distractors.isEmpty && !widget.strictDistractors) {
       // Emergency fallbacks for very fresh sessions or empty databases
       final emergencyDefaults = ['Yes', 'No', 'Wait', 'Go', 'Tree', 'Leaf'];
       final fallback = emergencyDefaults.firstWhere(
@@ -3686,7 +3693,7 @@ class QuizManagerState extends State<QuizManager> {
       );
     }
 
-    if (pool.length < 3) {
+    if (pool.length < 3 && !widget.strictDistractors) {
       pool.addAll(
         others
             .where((w) => w.primaryPOS == correctWord.primaryPOS)
@@ -3694,7 +3701,7 @@ class QuizManagerState extends State<QuizManager> {
       );
     }
 
-    if (pool.length < 3) {
+    if (pool.length < 3 && !widget.strictDistractors) {
       pool.addAll(others.map((w) => w.word));
     }
 

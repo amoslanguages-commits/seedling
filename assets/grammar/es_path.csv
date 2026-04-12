@@ -1,0 +1,9 @@
+stage,level,unit,node_id,node_title,node_subtitle,icon,color
+A,Pre-A1,Script Intro,es_a_u1_n1,Vowels,A E I O U,school_rounded,#FF5722
+A,Pre-A1,Script Intro,es_a_u1_n2,Accents,Tildes & Nuance,school_rounded,#FF7043
+B,A1 Foundation,Greetings,es_b_u1_n1,Basics,Hello & Bye,chat_bubble_outline_rounded,#4BAE4F
+B,A1 Foundation,Pronouns,es_b_u2_n1,Subjects,I You He She,people_outline_rounded,#81C784
+C,A2 Practical,Daily Life,es_c_u1_n1,Restaurants,Ordering food,explore_rounded,#1976D2
+D,B1 Fluency,Discussion,es_d_u1_n1,Opinions,Expressing why,explore_rounded,#0288D1
+E,B2 Precision,Advanced,es_e_u1_n1,Conditionals,What if?,history_rounded,#673AB7
+F,C1/C2 Mastery,Nuance,es_f_u1_n1,Literature,Complex metaphors,history_rounded,#4527A0
