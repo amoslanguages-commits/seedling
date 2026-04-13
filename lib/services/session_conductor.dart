@@ -4,14 +4,61 @@ import '../models/taxonomy.dart';
 import '../database/database_helper.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SESSION CONDUCTOR
-// Central brain of the Ultra-Smart Vocabulary Learning System (UVLS).
+// SESSION CONDUCTOR — Ultra-Smart Vocabulary Learning System (UVLS)
 //
-// Responsibilities:
-//  • Cognitive Load Score (CLS) — composite 0-100 readiness metric
-//  • New Word Gate — multi-signal gating with 3-turn minimum separation
-//  • Adaptive Pimsleur Gaps — gap shrinks when slow/wrong, normal when fast
-//  • 14-Priority Quiz Type Cascade — per-word adaptive quiz selection
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │                    COMPLETE SESSION LEARNING ARC                         │
+// │                                                                          │
+// │  PHASE 1 — FIRST EVER SESSION (brand-new user or empty theme):           │
+// │    • learning.dart detects isBrandNew → loads 3 words as initialNewWords │
+// │    • SeedPlantingScreen runs first (user sees each word + plays TTS)     │
+// │    • QuizManager.initState() injects all 3 via injectNewWord() bypass    │
+// │    • _AdaptiveQueue runs Pimsleur 4-step intro on each in parallel       │
+// │    • Steps interleave: A(0), B(0), C(0), A(1), B(1), C(1) ...           │
+// │    • CLS gate is NOT consulted for initialNewWords                       │
+// │    • After session: 3 words become review cards (mastery=1, FSRS=0)     │
+// │                                                                          │
+// │  PHASE 2 — REGULAR SESSION (has planted words):                          │
+// │    • learning.dart loads up to 15 SRS-due review words + 1 new word     │
+// │    • QuizManager interleaves reviews (shuffled) with the new word        │
+// │    • CLS gate fires after each answer to possibly inject pendingNewWords │
+// │    • New word plants ONLY when: CLS≥70 AND ≥3 turns since last plant    │
+// │      AND no other new word drill is in progress                          │
+// │    • Milestone quiz fires every 6th turn (buildTree, rootNetwork,        │
+// │      memoryFlip) regardless of other conditions                          │
+// │                                                                          │
+// │  PIMSLEUR 4-STEP INTRO (for every new/relearn word):                    │
+// │    Step 0 – Imprint    → growWord / picturePick   (see + hear it)        │
+// │    Step 1 – Associate  → swipeNourish / bloomOrWilt (forced choice)     │
+// │    Step 2 – Recall     → catchLeaf / seedSort    (active recognition)   │
+// │    Step 3 – Produce    → deepRoot / engraveRoot  (active production)    │
+// │    Gap schedule (correct + fast): 2 → 5 → 10 → 15 intervening cards    │
+// │    Gap schedule (correct + slow): halved           (hesitation = shaky) │
+// │    Gap schedule (wrong at step0): 5 cards (re-expose gently)            │
+// │    Gap schedule (wrong at step1+): 1 card (near-immediate retry)        │
+// │                                                                          │
+// │  REVIEW QUIZ TIER SYSTEM (by FSRS stability band):                      │
+// │    Tier 1  stability 0.0–3.0   → Imprint: gentle re-exposure            │
+// │      bloomOrWilt, wordRain, swipeNourish, picturePick*, imageMatch*,    │
+// │      growWord                                                            │
+// │    Tier 2  stability 3.0–8.0   → Anchor: active recognition             │
+// │      catchLeaf, deepRoot, seedSort, whatWordIsThis*, articleChallenge†  │
+// │    Tier 3  stability 8.0–18.0  → Recall: active production              │
+// │      gardenSort, engraveRoot, leafLetter, seedSort,                     │
+// │      articleChallenge†, imageMatch*                                      │
+// │    Tier 4  stability ≥18.0     → Automate: fluency / zero hints         │
+// │      leafLetter, engraveRoot, gardenSort, memoryFlip                    │
+// │    Milestone (every 6th turn) → buildTree, rootNetwork, memoryFlip      │
+// │                                                                          │
+// │    * requires word.imageId to be populated                               │
+// │    † requires noun + word.hasTargetArticle                               │
+// │    forestCloze: REMOVED (gate too restrictive, rarely triggered)         │
+// │                                                                          │
+// │  ROTATION: Within each tier, excludedTypes (recently used) are skipped  │
+// │    first. When all types in a tier are excluded, picks ANY in the tier  │
+// │    so the session never gets stuck. This guarantees every quiz type      │
+// │    appears before any is repeated.                                       │
+// └─────────────────────────────────────────────────────────────────────────┘
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Snapshot of the user's real-time mental state inside a session.
@@ -20,11 +67,10 @@ class SessionState {
   final int totalCorrect;
   final int streak;
   final int reviewsDone;
-  final int
-  turnsSinceNewWord; // turns elapsed since last new word intro (Step 0)
+  final int turnsSinceNewWord;
   final DateTime sessionStartTime;
-  final List<bool> recentAnswers; // last 5 answers (true = correct)
-  final bool hasWiltedWord; // is there a failed-review word being re-learned?
+  final List<bool> recentAnswers;
+  final bool hasWiltedWord;
 
   const SessionState({
     this.totalAnswered = 0,
@@ -98,7 +144,6 @@ class SessionConductor {
     } else if (acc >= 0.50) {
       score += 8;
     }
-    // No accuracy bonus for acc < 50%
 
     // ── Streak (max 25 pts) ───────────────────────────────────────────────
     if (state.streak >= 5) {
@@ -123,7 +168,7 @@ class SessionConductor {
         .difference(state.sessionStartTime)
         .inSeconds;
     if (secsInSession >= 180) {
-      score += 10; // 3+ minutes: brain is fully engaged
+      score += 10;
     } else if (secsInSession >= 60) {
       score += 4;
     }
@@ -134,24 +179,20 @@ class SessionConductor {
     }
 
     // ── Recent struggle penalty (-15 pts) ─────────────────────────────────
-    // More than 1 wrong in the last 3 answers = user is struggling
     final recentWrong = state.recentAnswers.take(3).where((a) => !a).length;
     if (recentWrong >= 2) {
       score -= 15;
     }
 
     // ── Active re-learning penalty (-20 pts) ──────────────────────────────
-    // Never introduce new words while user is re-learning a failed review
     if (state.hasWiltedWord) {
       score -= 20;
     }
 
     // ── Candidate word difficulty (-10 to +10 pts) ───────────────────────
-    // Easy words = lower cognitive cost = can be introduced sooner
     if (candidateWord != null) {
       final difficultyFactor = 1.0 - (candidateWord.difficulty / 5.0);
-      score +=
-          (difficultyFactor * 20) - 10; // maps [0,5] difficulty → [-10,+10]
+      score += (difficultyFactor * 20) - 10;
     }
 
     // ── Small noise (prevents mechanical, predictable gating) ────────────
@@ -163,6 +204,10 @@ class SessionConductor {
   // ── New Word Gate ─────────────────────────────────────────────────────────
 
   /// Returns true if conditions are right to introduce a new word now.
+  ///
+  /// This gate only applies to [pendingNewWords] (CLS-gated injection).
+  /// Words passed via [initialNewWords] bypass this gate entirely and are
+  /// injected immediately in QuizManager.initState().
   ///
   /// Rules (all must pass):
   ///   1. No other new word is currently being drilled
@@ -199,19 +244,15 @@ class SessionConductor {
   int adaptiveGap({
     required int step,
     required bool correct,
-    required bool slow, // true if answer took > 12 seconds
+    required bool slow,
     int queueLength = 10,
   }) {
     if (!correct) {
-      // Wrong: come back after just 1 review
       return math.min(1, queueLength);
     }
 
-    // Base Pimsleur intervals (wider as step increases)
     const baseGaps = [2, 5, 10, 15];
     final base = step < baseGaps.length ? baseGaps[step] : 15;
-
-    // Halve the gap when the user is slow (hesitation = fragile memory)
     final adjusted = slow ? math.max(1, (base * 0.5).round()) : base;
 
     return math.min(adjusted, queueLength);
@@ -220,7 +261,6 @@ class SessionConductor {
   // ── Smart New Word Selection ──────────────────────────────────────────────
 
   /// Selects the best next word to introduce.
-  /// Priority: active sub-domain → coverage gaps → difficulty ramp → recency.
   Future<Word?> selectNextNewWord(
     DatabaseHelper db,
     String nativeLang,
@@ -246,7 +286,6 @@ class SessionConductor {
         coverageGaps: coverageGaps,
       );
     } catch (_) {
-      // Fallback: plain next unlearned word
       return await db.getNewWordToPlant(
         nativeLang,
         targetLang,
@@ -255,103 +294,157 @@ class SessionConductor {
     }
   }
 
-  // ── 14-Priority Quiz Type Cascade ────────────────────────────────────────
+  // ── Tier-Based Quiz Type Selection ───────────────────────────────────────
   //
-  // Priority order (highest first):
-  //   1. New word Step 0 → passive visual (growWord / picturePick)
-  //   2. New word Step 1 → passive forced-choice (swipeNourish / seedSort)
-  //   3. New word Step 2 → active recall with aid (catchLeaf / deepRoot)
-  //   4. New word Step 3 → hard active recall (engraveRoot / leafLetter)
-  //   5. Re-learn word   → restart at Step 0 logic
-  //   6. Milestone turn  → multi-word quiz (buildTree / rootNetwork)
-  //   7. Noun + article + mastery ≥ 2 → articleChallenge (40%)
-  //   8. Has image + mastery ≥ 1      → imageMatch / whatWordIsThis (45%)
-  //   9. Has example sentence + mastery ≥ 3 → forestCloze (70%)
-  //  10. Mastery ≤ 2 reinforcement    → wordRain (25%)
-  //  11. Weak quiz type from DB       → force weakest type (70%)
-  //  12. High mastery challenge       → leafLetter / forestCloze (50%)
-  //  13. Any non-image safe type      → shuffled pool fallback
-  //  14. Last resort default          → deepRoot
+  // Quiz type map (17 active types, forestCloze removed):
+  //
+  // NEW / RELEARN (Pimsleur 4-step intro):
+  //   Step 0: growWord, picturePick*
+  //   Step 1: swipeNourish, bloomOrWilt
+  //   Step 2: catchLeaf, seedSort
+  //   Step 3: deepRoot, engraveRoot
+  //
+  // REVIEW — Tier 1 (stability 0–3, Imprint):
+  //   bloomOrWilt, wordRain, swipeNourish, picturePick*, imageMatch*, growWord
+  //
+  // REVIEW — Tier 2 (stability 3–8, Anchor):
+  //   catchLeaf, deepRoot, seedSort, whatWordIsThis*, articleChallenge†
+  //
+  // REVIEW — Tier 3 (stability 8–18, Recall):
+  //   gardenSort, engraveRoot, leafLetter, seedSort, articleChallenge†, imageMatch*
+  //
+  // REVIEW — Tier 4 (stability ≥18, Automate):
+  //   leafLetter, engraveRoot, gardenSort, memoryFlip
+  //
+  // MILESTONE (every 6th turn):
+  //   buildTree, rootNetwork, memoryFlip
+  //
+  // WEAKEST-TYPE fast path (dbWeakestType from IntelligenceService):
+  //   Any non-forestCloze type, 65% chance, fires before tier selection
 
   String selectQuizType({
     required Word word,
-    required int step, // for new/relearn words: 0-3
+    required int step,
     required bool isNewWord,
     required bool isRelearn,
-    String? dbWeakestType, // from IntelligenceService
+    String? dbWeakestType,
     int turnCount = 0,
     math.Random? rng,
     List<String>? excludedTypes,
   }) {
     final r = rng ?? _rng;
     final hasImage = word.imageId != null && word.imageId!.isNotEmpty;
-    final hasExample =
-        word.exampleSentence != null && word.exampleSentence!.isNotEmpty;
+    final isNoun = word.primaryPOS == PartOfSpeech.noun;
+    final hasArticle = word.hasTargetArticle;
 
-    // Helper functions
-    bool canUse(String type) => !(excludedTypes?.contains(type) ?? false);
-    String choose(List<String> types, String fallback) {
-      final valid = types.where(canUse).toList();
-      return valid.isNotEmpty ? valid[r.nextInt(valid.length)] : fallback;
+    // ── Rotation helper ────────────────────────────────────────────────────
+    // Prefers types not in excludedTypes (recently used for this word).
+    // If all types are excluded (full rotation complete), resets and picks any —
+    // so the session never gets stuck on a single type.
+    String pickFrom(List<String> types) {
+      if (types.isEmpty) return 'deepRoot';
+      final fresh = types.where(
+        (t) => !(excludedTypes?.contains(t) ?? false),
+      ).toList();
+      final pool = fresh.isNotEmpty ? fresh : types;
+      return pool[r.nextInt(pool.length)];
     }
 
-    // 1-5: Intro Mode (New words or Re-learning)
-    final isIntroMode = isNewWord || isRelearn;
-    if (isIntroMode) {
-      if (step == 0) return choose(['growWord', if (hasImage) 'picturePick'], 'growWord');
-      if (step == 1) return choose(['swipeNourish', 'seedSort'], 'swipeNourish');
-      if (step == 2) return choose(['catchLeaf', 'deepRoot'], 'deepRoot');
-      if (step >= 3) return choose(['engraveRoot', 'leafLetter'], 'engraveRoot');
+    // ── INTRO MODE: Pimsleur 4-step first introduction ─────────────────────
+    // Applies to newly planted words AND words being re-learned after failure.
+    // The 4 steps expose the word in progressively harder challenge formats,
+    // interleaved with review cards via AdaptiveQueue Pimsleur gaps.
+    if (isNewWord || isRelearn) {
+      switch (step) {
+        case 0:
+          // Step 0 — Imprint: see and hear the word, passive recognition
+          return pickFrom(['growWord', if (hasImage) 'picturePick']);
+        case 1:
+          // Step 1 — Associate: forced true/false choice to start engagement
+          return pickFrom(['swipeNourish', 'bloomOrWilt']);
+        case 2:
+          // Step 2 — Recall: active recognition from multiple choices
+          return pickFrom(['catchLeaf', 'seedSort']);
+        default:
+          // Step 3+ — Produce: translate without any native language prompt
+          return pickFrom(['deepRoot', 'engraveRoot']);
+      }
     }
 
-    // 6: Milestone turn
+    // ── MILESTONE: every 6th turn — multi-word consolidation ───────────────
+    // Multi-word quizzes fire periodically regardless of stability tier.
+    // buildTree: arrange words into a category tree
+    // rootNetwork: connect related words in a network
+    // memoryFlip: classic memory matching (FIX: was never triggered before)
     if (turnCount > 0 && turnCount % 6 == 0) {
-      if (canUse('buildTree') || canUse('rootNetwork')) {
-        return choose(['buildTree', 'rootNetwork'], 'deepRoot');
-      }
+      return pickFrom(['buildTree', 'rootNetwork', 'memoryFlip']);
     }
 
-    // 7: Target Article Challenge
-    if (word.hasTargetArticle && word.primaryPOS == PartOfSpeech.noun && word.fsrsStability >= 5.0) {
-      if (canUse('articleChallenge') && r.nextDouble() < 0.40) return 'articleChallenge';
+    // ── WEAKEST-TYPE FAST PATH ─────────────────────────────────────────────
+    // IntelligenceService tracks per-word accuracy by quiz type.
+    // If this word has a weak spot (e.g., always fails 'engraveRoot'),
+    // prioritise that type with 65% probability to directly address the gap.
+    if (dbWeakestType != null &&
+        dbWeakestType != 'forestCloze' &&
+        !(excludedTypes?.contains(dbWeakestType) ?? false)) {
+      if (r.nextDouble() < 0.65) return dbWeakestType;
     }
 
-    // 8: Image Mastery
-    if (hasImage && word.fsrsStability >= 1.0) {
-      if (r.nextDouble() < 0.45) return choose(['imageMatch', 'whatWordIsThis'], 'deepRoot');
+    // ── STABILITY-TIER REVIEW SELECTION ────────────────────────────────────
+    // As FSRS stability grows, quiz difficulty escalates automatically.
+    // Each tier ensures ALL its quiz types appear before any is repeated,
+    // creating maximum contextual variation for each word.
+    final stability = word.fsrsStability;
+
+    if (stability < 3.0) {
+      // ── TIER 1: Imprint (stability 0–3) ──────────────────────────────────
+      // The word is fragile — gentle recognition is most effective here.
+      // Seeing it in varied formats strengthens the initial memory trace.
+      return pickFrom([
+        'bloomOrWilt',               // true/false — lowest cognitive load
+        'wordRain',                  // visual multiple choice with animation
+        'swipeNourish',              // swipe left/right kinesthetic response
+        if (hasImage) 'picturePick', // image → word (passive)
+        if (hasImage) 'imageMatch',  // match image to word from grid
+        'growWord',                  // see + hear the word again (re-imprint)
+      ]);
     }
 
-    // 9: Context/Example Sentence
-    if (hasExample && word.fsrsStability >= 10.0) {
-      if (canUse('forestCloze') && r.nextDouble() < 0.70) return 'forestCloze';
+    if (stability < 8.0) {
+      // ── TIER 2: Anchor (stability 3–8) ───────────────────────────────────
+      // The word is starting to stick. Active recognition challenges test
+      // whether it can be retrieved with moderate contextual support.
+      return pickFrom([
+        'catchLeaf',                 // multiple choice with distractors
+        'deepRoot',                  // native → target recall with context
+        'seedSort',                  // drag words to correct positions
+        if (hasImage) 'whatWordIsThis', // image → produce the word
+        if (isNoun && hasArticle) 'articleChallenge', // test grammatical gender
+      ]);
     }
 
-    // 10: Reinforcement for low stability
-    if (word.fsrsStability <= 3.0) {
-      if (canUse('wordRain') && r.nextDouble() < 0.25) return 'wordRain';
+    if (stability < 18.0) {
+      // ── TIER 3: Recall (stability 8–18) ──────────────────────────────────
+      // The word is consolidated. Production challenges (no hints) create
+      // the strongest long-term memory traces via the Generation Effect.
+      return pickFrom([
+        'gardenSort',                // category sort with competing words
+        'engraveRoot',               // fill-in-blanks / translate harder
+        'leafLetter',                // spell it letter by letter
+        'seedSort',                  // still valid at higher difficulty
+        if (isNoun && hasArticle) 'articleChallenge',
+        if (hasImage) 'imageMatch',  // image → word (now reverse direction)
+      ]);
     }
 
-    // 11: Weakest type from IntelligenceService
-    if (dbWeakestType != null && canUse(dbWeakestType)) {
-      if (r.nextDouble() < 0.70) return dbWeakestType;
-    }
-
-    // 12: High-stability challenge
-    if (word.fsrsStability >= 15.0) {
-      if (r.nextDouble() < 0.50) {
-        return choose(['leafLetter', if (hasExample) 'forestCloze'], 'deepRoot');
-      }
-    }
-
-    // 13: Shuffled pool fallback
-    final pool = [
-      'growWord', 'swipeNourish', 'catchLeaf', 'deepRoot', 
-      'bloomOrWilt', 'seedSort', 'gardenSort', 'engraveRoot',
-    ].where(canUse).toList();
-
-    if (pool.isNotEmpty) return pool[r.nextInt(pool.length)];
-
-    // 14: Last resort default
-    return 'deepRoot';
+    // ── TIER 4: Automate (stability ≥18) ─────────────────────────────────
+    // The word is deeply encoded. Fluency drills test automatic retrieval
+    // with zero scaffolding. memoryFlip adds a working-memory layer.
+    return pickFrom([
+      'leafLetter',                  // full spelling from memory
+      'engraveRoot',                 // hardest translation recall
+      'gardenSort',                  // fast recall under time pressure
+      'memoryFlip',                  // memory matching (now active in Tier 4)
+    ]);
   }
 }

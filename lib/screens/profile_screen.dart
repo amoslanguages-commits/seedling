@@ -212,10 +212,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       Icons.settings_rounded,
                       color: SeedlingColors.textSecondary,
                     ),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                      if (!context.mounted) return;
+                      await SubscriptionService().refreshSubscription();
+                      ref.invalidate(isPremiumProvider);
+                    },
                   ),
                 ),
               ),
@@ -873,7 +880,7 @@ class _OverviewTab extends ConsumerWidget {
                         Row(
                           children: [
                             Text(
-                              'Forest Guardian',
+                              'Garden Guardian',
                               style: SeedlingTypography.heading3.copyWith(
                                 color: SeedlingColors.textPrimary,
                                 fontSize: 18,

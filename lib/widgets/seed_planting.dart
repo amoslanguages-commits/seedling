@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import '../core/colors.dart';
 import '../core/typography.dart';
 import '../models/word.dart';
@@ -190,8 +192,12 @@ class _SeedPlantingScreenState extends State<SeedPlantingScreen>
     if (_currentWordIndex < widget.words.length) {
       final w = widget.words[_currentWordIndex];
       _plantedWords.add(w);
-      if (widget.onWordPlanted != null) {
-        await widget.onWordPlanted!(w);
+      try {
+        if (widget.onWordPlanted != null) {
+          await widget.onWordPlanted!(w);
+        }
+      } catch (e) {
+        if (kDebugMode) print('SeedPlantingScreen: onWordPlanted callback failed: $e');
       }
     }
     await _gardenController.forward();
@@ -768,6 +774,7 @@ class SeedRevealPainter extends CustomPainter {
                 ),
                 Colors.transparent,
               ],
+              stops: const [0.0, 0.4, 1.0],
             ).createShader(
               Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
             );

@@ -14,28 +14,26 @@ class TtsService {
   }
 
   Future<void> _initTts() async {
-    _flutterTts = FlutterTts();
+    try {
+      _flutterTts = FlutterTts();
 
-    // Configure ultra high-end parameters for pedagogical clarity
-    await _flutterTts.setVolume(1.0);
+      // Configure ultra high-end parameters for pedagogical clarity
+      await _flutterTts.setVolume(1.0);
 
-    // Slow down speech slightly for language learners (1.0 is default, 0.85 is clearer)
-    await _flutterTts.setSpeechRate(0.85);
+      // Slow down speech slightly for language learners (1.0 is default, 0.85 is clearer)
+      await _flutterTts.setSpeechRate(0.85);
 
-    // Very slight pitch lift for a brighter, more engaging AI voice
-    await _flutterTts.setPitch(1.05);
+      // Very slight pitch lift for a brighter, more engaging AI voice
+      await _flutterTts.setPitch(1.05);
 
-    // Ensure asynchronous TTS completion tracking
-    await _flutterTts.awaitSpeakCompletion(true);
+      // Ensure asynchronous TTS completion tracking
+      await _flutterTts.awaitSpeakCompletion(true);
 
-    // Prioritize high-quality local voices if available
-    if (!kIsWeb) {
-      // In a full production app, you might iterate through await _flutterTts.getVoices
-      // and explicitly select a neural/enhanced voice variant.
-      // FlutterTts naturally picks the system active voice.
+      _isReady = true;
+    } catch (e) {
+      debugPrint('TTS Init Error: $e');
+      _isReady = false;
     }
-
-    _isReady = true;
   }
 
   /// Maps a generic 2-letter language code or locale string to a precise TTS locale.
@@ -73,6 +71,7 @@ class TtsService {
   Future<void> speak(String text, String languageCode) async {
     try {
       if (!_isReady) await _initTts();
+      if (!_isReady) return; // Still not ready, probably not supported
 
       final locale = _mapLanguageCodeToLocale(languageCode);
 
@@ -107,6 +106,12 @@ class TtsService {
   }
 
   Future<void> stop() async {
-    await _flutterTts.stop();
+    try {
+      if (_isReady) {
+        await _flutterTts.stop();
+      }
+    } catch (e) {
+      debugPrint('TTS Stop Error: $e');
+    }
   }
 }

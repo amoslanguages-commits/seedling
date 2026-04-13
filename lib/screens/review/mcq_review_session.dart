@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../services/haptic_service.dart';
+import '../../services/audio_service.dart';
 import '../../services/tts_service.dart'; // Voice Synthesis
+import '../../services/usage_service.dart';
 import '../../providers/review_provider.dart';
 import '../../providers/app_providers.dart'; // For targetLanguage
 import '../../models/word.dart';
@@ -21,6 +23,11 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
   late AnimationController _bloomController;
   late AnimationController _optionsController;
   
+  // Duration used for the timer - null means no timer
+  Duration? _timerDuration;
+  // Track the status listener so we can remove it before re-adding
+  AnimationStatusListener? _timerStatusListener;
+
   DateTime? _questionStartTime;
   bool _isAnswered = false;
   int? _selectedIndex;
@@ -36,9 +43,29 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
+    // Initialize with a safe duration; _setupTimer() will configure it properly
+    _timerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+
+    final session = ref.read(reviewSessionProvider);
+    if (session.words.isEmpty || session.currentWord == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('Nothing to review in this session.')),
+        );
+        Navigator.of(context).pop();
+      });
+      return;
+    }
+
     _setupTimer();
     _startBloom();
-    Future.microtask(_playTts);
+    Future.microtask(() {
+      if (mounted) _playTts();
+    });
   }
 
   void _startBloom() {
@@ -49,12 +76,19 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
   }
 
   void _playTts() async {
-    await TtsService.instance.stop();
-    final session = ref.read(reviewSessionProvider);
-    final word = session.currentWord;
-    if (word != null) {
-      final targetLang = ref.read(currentLanguageProvider);
-      TtsService.instance.speak(word.word, targetLang);
+    if (!mounted) return;
+    try {
+      await TtsService.instance.stop();
+      if (!mounted) return;
+      final session = ref.read(reviewSessionProvider);
+      final word = session.currentWord;
+      if (word != null) {
+        final targetLang = ref.read(currentLanguageProvider);
+        TtsService.instance.speak(word.word, targetLang);
+      }
+    } catch (e) {
+      // TTS may not be supported on all platforms (e.g. Windows) — fail silently
+      debugPrint('TTS playback skipped: $e');
     }
   }
 
@@ -62,19 +96,26 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
     final timerMode = ref.read(reviewTimerProvider);
     final seconds = timerMode.seconds;
 
+    // SAFE: Stop the controller and remove the old status listener before
+    // reconfiguring, so we never crash from a disposed/rebuilt controller.
+    _timerController.stop();
+    if (_timerStatusListener != null) {
+      _timerController.removeStatusListener(_timerStatusListener!);
+      _timerStatusListener = null;
+    }
+    _timerDuration = seconds != null ? Duration(seconds: seconds) : null;
+
     if (seconds != null) {
-      _timerController = AnimationController(
-        vsync: this,
-        duration: Duration(seconds: seconds),
-      );
-      _timerController.addStatusListener((status) {
+      _timerController.duration = Duration(seconds: seconds);
+      _timerStatusListener = (status) {
         if (status == AnimationStatus.completed && !_isAnswered) {
           _submitSelection(-1); // Timeout
         }
-      });
-      _timerController.forward();
+      };
+      _timerController.addStatusListener(_timerStatusListener!);
+      _timerController.forward(from: 0);
     } else {
-      _timerController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
+      _timerController.duration = const Duration(seconds: 1);
     }
     _questionStartTime = DateTime.now();
   }
@@ -96,13 +137,17 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
     bool isCorrect = index != -1 && currentWord.options[index] == currentWord.translation;
     
     if (isCorrect) {
+      AudioService.instance.playCorrect();
       HapticService.mediumImpact();
     } else {
+      AudioService.instance.play(SFX.wrongAnswer);
       HapticService.heavyImpact();
     }
 
     await Future.delayed(const Duration(milliseconds: 600));
-    await ref.read(reviewSessionProvider.notifier).submitRating(isCorrect, responseTime);
+    final String? selectedTranslation = index != -1 ? currentWord.options[index] : null;
+    await ref.read(reviewSessionProvider.notifier).submitRating(isCorrect, responseTime, selectedTranslation: selectedTranslation);
+    await UsageService().logReviewTime(responseTime.inSeconds);
 
     if (mounted) {
       if (ref.read(reviewSessionProvider).isCompleted) {
@@ -151,8 +196,12 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
   Widget build(BuildContext context) {
     final session = ref.watch(reviewSessionProvider);
     final word = session.currentWord;
-    
-    if (word == null) return const Scaffold();
+
+    if (word == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: SeedlingColors.background,
@@ -223,6 +272,7 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
     return AnimatedBuilder(
       animation: _timerController,
       builder: (context, child) {
+        final seconds = _timerDuration?.inSeconds ?? timerMode.seconds ?? 1;
         return Stack(
           alignment: Alignment.center,
           children: [
@@ -237,7 +287,7 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
               ),
             ),
             Text(
-              '${(timerMode.seconds! * (1 - _timerController.value)).ceil()}',
+              '${(seconds * (1 - _timerController.value)).ceil()}',
               style: SeedlingTypography.caption.copyWith(fontWeight: FontWeight.w900),
             ),
           ],
@@ -307,9 +357,19 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
         final isCorrect = opt == word.translation;
         
         Color cardColor = SeedlingColors.cardBackground;
+        double scale = 1.0;
+        double opacity = 1.0;
+
         if (_isAnswered) {
-          if (isCorrect) cardColor = SeedlingColors.seedlingGreen.withValues(alpha: 0.15);
-          else if (isSelected) cardColor = Colors.redAccent.withValues(alpha: 0.15);
+          if (isCorrect) {
+            // Golden Bloom!
+            cardColor = SeedlingColors.sunlight.withValues(alpha: 0.15);
+            scale = 1.03;
+          } else {
+            if (isSelected) cardColor = Colors.redAccent.withValues(alpha: 0.15);
+             scale = 0.9;
+             opacity = 0.4;
+          }
         }
 
         final stagger = CurvedAnimation(
@@ -323,40 +383,49 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
             opacity: stagger,
             child: SlideTransition(
               position: stagger.drive(Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)),
-              child: InkWell(
-                onTap: () => _submitSelection(i),
-                borderRadius: BorderRadius.circular(28),
-                child: AnimatedContainer(
+              child: AnimatedScale(
+                scale: scale,
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: opacity,
                   duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: cardColor,
+                  child: InkWell(
+                    onTap: () => _submitSelection(i),
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: _isAnswered && isCorrect 
-                        ? SeedlingColors.seedlingGreen 
-                        : (_isAnswered && isSelected ? Colors.redAccent : Colors.white.withValues(alpha: 0.03)),
-                      width: 2,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: _isAnswered && isCorrect 
+                            ? SeedlingColors.sunlight 
+                            : (_isAnswered && isSelected ? Colors.redAccent : Colors.white.withValues(alpha: 0.03)),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          if (_isAnswered && isCorrect)
+                            BoxShadow(
+                              color: SeedlingColors.sunlight.withValues(alpha: 0.4),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            )
+                        ],
+                      ),
+                      child: Text(
+                        opt,
+                        style: SeedlingTypography.heading3.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: _isAnswered && isCorrect ? SeedlingColors.sunlight : SeedlingColors.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    boxShadow: [
-                      if (isSelected && !_isAnswered)
-                        BoxShadow(
-                          color: SeedlingColors.seedlingGreen.withValues(alpha: 0.2),
-                          blurRadius: 15,
-                          spreadRadius: 2,
-                        )
-                    ],
-                  ),
-                  child: Text(
-                    opt,
-                    style: SeedlingTypography.heading3.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _isAnswered && isCorrect ? SeedlingColors.seedlingGreen : SeedlingColors.textPrimary,
-                    ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
@@ -429,12 +498,10 @@ class GardenGrowthSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final correctCount = session.results.values.where((v) => v >= 3).length; // SRS level 3+ is considered "pass" in some contexts, but usually we just track binary in session.
-    // Actually our submitRating uses isCorrect boolean.
-    // Let's assume session.results stores something we can use. 
-    // Wait, review_provider.dart results map stores rating (1-4).
+    // [results] values: 3 = correct, 1 = wrong (see [ReviewSessionNotifier.submitRating]).
+    final correctCount = session.results.values.where((v) => v >= 3).length;
     final total = session.words.length;
-    final accuracy = (correctCount / total * 100).round();
+    final accuracyPct = total == 0 ? 0 : (correctCount / total * 100).round();
 
     return Scaffold(
       backgroundColor: SeedlingColors.background,
@@ -482,7 +549,7 @@ class GardenGrowthSummary extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildSummaryStat('Mastery', '$accuracy%', Icons.bolt_rounded),
+                            _buildSummaryStat('Mastery', '$accuracyPct%', Icons.bolt_rounded),
                             _buildSummaryStat('Roots', '$total', Icons.spa_rounded),
                           ],
                         ),

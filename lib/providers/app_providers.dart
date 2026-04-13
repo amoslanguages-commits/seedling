@@ -2,16 +2,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
-import '../services/social_service.dart';
 import '../services/subscription_service.dart';
-import '../models/social.dart';
+import '../services/usage_service.dart';
 import 'course_provider.dart';
-import 'competition_provider.dart';
 import '../models/gamification.dart';
 import '../services/settings_service.dart';
 import '../services/sync_manager.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter/foundation.dart';
+import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../core/supabase_config.dart';
 
@@ -72,10 +71,30 @@ final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
 );
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
-  SettingsNotifier() : super(SettingsState.initial());
+  SettingsNotifier() : super(SettingsState.initial()) {
+    settingsService.addListener(_onServiceSettingsChanged);
+  }
+
+  void _onServiceSettingsChanged() {
+    state = SettingsState.initial();
+  }
+
+  @override
+  void dispose() {
+    settingsService.removeListener(_onServiceSettingsChanged);
+    super.dispose();
+  }
 
   Future<void> toggleNotifications(bool value) async {
     await settingsService.setNotificationsEnabled(value);
+    if (value) {
+      await NotificationService.instance.scheduleDailyReminder(
+        hour: state.reminderTime.hour,
+        minute: state.reminderTime.minute,
+      );
+    } else {
+      await NotificationService.instance.cancelAll();
+    }
     state = state.copyWith(notificationsEnabled: value);
     _triggerSync();
   }
@@ -106,6 +125,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
   Future<void> setReminderTime(TimeOfDay time) async {
     await settingsService.setReminderTime(time);
+    if (state.notificationsEnabled) {
+      await NotificationService.instance.scheduleDailyReminder(
+        hour: time.hour,
+        minute: time.minute,
+      );
+    }
     state = state.copyWith(reminderTime: time);
     _triggerSync();
   }
@@ -124,7 +149,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 }
 
 final databaseProvider = Provider<DatabaseHelper>((ref) => DatabaseHelper());
-final socialServiceProvider = Provider<SocialService>((ref) => SocialService());
+
+final usageServiceProvider = Provider<UsageService>((ref) => UsageService());
 
 final authStateProvider = StreamProvider<AuthState>((ref) async* {
   // Emit initial state immediately
@@ -149,9 +175,7 @@ final nativeLanguageProvider = Provider<String>((ref) {
   return active?.nativeLanguage.code ?? 'en';
 });
 final isPremiumProvider = StreamProvider<bool>((ref) {
-  return SubscriptionService().subscriptionStatus.map(
-    (status) => status == SubscriptionStatus.premium,
-  );
+  return SubscriptionService().premiumStateStream;
 });
 final showPronunciationProvider = StateProvider<bool>((ref) => false);
 
@@ -209,6 +233,7 @@ final userStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
     'dailyGoal': settings.dailyWordGoal,
     'dailyProgress': dailyProgress,
     'sentencesToday': usage['sentences_played'] ?? 0,
+    'reviewSecondsToday': usage['review_seconds'] ?? 0,
   };
 });
 
@@ -252,55 +277,9 @@ final weeklyStudyStatsProvider = FutureProvider<Map<String, List<double>>>((
   return await DatabaseHelper().getWeeklyStudyStats();
 });
 
-final friendsProvider = FutureProvider<List<Friend>>((ref) async {
-  final auth = ref.watch(authStateProvider);
-  if (auth.value?.session == null) return [];
-  return await ref.watch(socialServiceProvider).getFriends();
-});
 
-final globalRankingsProvider = FutureProvider<List<Friend>>((ref) async {
-  return await ref.watch(socialServiceProvider).getGlobalRankings();
-});
 
-final pendingRequestsProvider = FutureProvider<List<Friend>>((ref) async {
-  final auth = ref.watch(authStateProvider);
-  if (auth.value?.session == null) return [];
-  return await ref.watch(socialServiceProvider).getPendingRequests();
-});
 
-final competitionsProvider = FutureProvider<List<Competition>>((ref) async {
-  final auth = ref.watch(authStateProvider);
-  if (auth.value?.session == null) return [];
-  return await ref.watch(socialServiceProvider).getCompetitions();
-});
-
-/// Real user compete stats pulled from Supabase, used in the CompeteHomeScreen header.
-final userCompeteStatsProvider = FutureProvider<CompetitionStats>((ref) async {
-  final auth = ref.watch(authStateProvider);
-  if (auth.value?.session == null) return CompetitionStats.empty();
-
-  final social = ref.watch(socialServiceProvider);
-  final stats = await social.getUserCompeteStats();
-  final rankPos = await social.getGlobalRankPosition();
-
-  if (stats == null) return CompetitionStats.empty();
-
-  final totalXP = (stats['total_xp'] as int?) ?? 0;
-  final won = (stats['challenges_won'] as int?) ?? 0;
-  final hosted = (stats['total_rooms_hosted'] as int?) ?? 0;
-  final spectator = (stats['spectator_minutes'] as int?) ?? 0;
-
-  return CompetitionStats(
-    rank: CompetitionStats.rankFromXP(totalXP),
-    winRate: '$won Wins', // Now showing real victory count
-    medals: hosted + (won * 2), // Medals derived from hosting and winning
-    totalXP: totalXP,
-    globalPosition: rankPos,
-    challengesWon: won,
-    totalRoomsHosted: hosted,
-    spectatorMinutes: spectator,
-  );
-});
 
 /// The three modes the Smart Focus Hub can display.
 enum FocusMode { watering, resume, discover }

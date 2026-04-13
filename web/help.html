@@ -3,172 +3,147 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Help Center — Seedling Support</title>
-  <meta name="description" content="Official Help Center for Seedling by Amos languages. Find FAQs and contact our support team." />
+  <title>Seedling — Support</title>
+  <meta name="description" content="Official Help Center for Seedling. Find answers to frequently asked questions or contact our botanical experts." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=5" />
-  <style>
-    .help-content {
-      max-width: 900px;
-      margin: 120px auto 80px;
-      padding: 0 32px;
-    }
-    .help-hero {
-      text-align: center;
-      margin-bottom: 64px;
-    }
-    .help-hero h1 {
-      font-size: 3.5rem;
-      font-weight: 800;
-      letter-spacing: -1.5px;
-      margin-bottom: 16px;
-    }
-    .help-hero p {
-      color: var(--text-sec);
-      font-size: 1.2rem;
-    }
-
-    .faq-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 24px;
-      margin-bottom: 80px;
-    }
-    .faq-item {
-      background: rgba(20, 38, 26, 0.6);
-      border: 1px solid rgba(165,214,167,0.1);
-      border-radius: var(--radius-lg);
-      padding: 32px;
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      transition: var(--transition);
-    }
-    .faq-item:hover {
-      border-color: rgba(75,174,79,0.3);
-      transform: translateY(-4px);
-    }
-    .faq-item h3 {
-      font-size: 1.2rem;
-      color: var(--green);
-      margin-bottom: 12px;
-    }
-    .faq-item p {
-      color: var(--text-sec);
-      font-size: 0.95rem;
-      line-height: 1.7;
-    }
-
-    .contact-card {
-      background: linear-gradient(135deg, rgba(75,174,79,0.15), rgba(20,38,26,0.8));
-      border: 1px solid rgba(75,174,79,0.3);
-      border-radius: var(--radius-xl);
-      padding: 48px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .contact-card::before {
-      content: '🌿';
-      position: absolute;
-      font-size: 120px;
-      opacity: 0.05;
-      right: -20px;
-      bottom: -20px;
-      pointer-events: none;
-    }
-    .contact-card h2 {
-      font-size: 2.22rem;
-      margin-bottom: 16px;
-    }
-    .contact-card p {
-      color: var(--text-sec);
-      margin-bottom: 32px;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .email-link {
-      font-family: var(--font-mono);
-      font-size: 1.4rem;
-      color: var(--text);
-      font-weight: 700;
-      text-decoration: underline;
-      text-decoration-color: var(--green);
-      transition: var(--transition);
-    }
-    .email-link:hover {
-      color: var(--green);
-    }
-  </style>
+  <link rel="stylesheet" href="css/styles.css?v=8" />
 </head>
-<body>
+<body class="subpage">
 
-  <div class="bg-mesh">
-    <div class="mesh-orb orb-1"></div>
-    <div class="mesh-orb orb-2"></div>
-    <div class="mesh-orb orb-3"></div>
-  </div>
-
-  <nav class="navbar scrolled">
+  <!-- ═══════════════════════════════════════ NAVBAR ═══ -->
+  <nav class="navbar" id="navbar">
     <div class="nav-inner">
-      <a href="/" class="nav-logo">
-        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="18" cy="18" r="18" fill="#14261A"/>
-          <path d="M18 28 C18 28 18 16 18 14" stroke="#4BAE4F" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M18 18 C18 18 12 15 10 10 C14 10 18 14 18 18Z" fill="#66BB6A"/>
-          <path d="M18 15 C18 15 24 12 26 7 C22 7 18 11 18 15Z" fill="#81C784"/>
-          <ellipse cx="18" cy="29" rx="5" ry="2" fill="#3E2723" opacity="0.6"/>
-        </svg>
+      <a href="index.html" class="nav-logo">
+        <img src="assets/app_logo.png" alt="Seedling Logo" class="logo-icon">
         <span class="logo-text">Seedling</span>
       </a>
-      <div class="nav-links">
-        <a href="/">Back to Home</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="features.html">Features</a></li>
+        <li><a href="languages.html">Languages</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="help.html" class="active">Support</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="pricing.html" class="btn-nav-cta" id="navCta">Open App</a>
+        <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
       </div>
     </div>
   </nav>
 
-  <main class="help-content">
-    <section class="help-hero reveal visible">
-      <span class="section-tag">Support Center</span>
-      <h1>How can we help you <em>grow?</em></h1>
-      <p>Find answers to common questions or reach out to our botanical experts.</p>
+  <!-- ═══════════════════════════════════ PAGE HEADER ═══ -->
+  <header class="page-header">
+    <div class="header-content reveal">
+      <h1>Grow With Support</h1>
+      <p>Answers to common questions and direct access to our team.</p>
+    </div>
+  </header>
+
+  <main class="help-main">
+    <!-- ═══════════════════════════════════════ FAQ ═══ -->
+    <section class="faq-section" id="faq">
+      <div class="section-header reveal">
+        <span class="section-tag">Questions</span>
+        <h2>Frequently Asked Questions</h2>
+      </div>
+      <div class="faq-list">
+        <div class="faq-item reveal">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            How is Seedling different from Duolingo or Anki?
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-a">
+            <p>Duolingo is gamified but shallow. Anki is powerful but ugly and sterile. Seedling is the first app that combines Anki-grade SRS science with a world-class, immersive visual experience and active recall quiz types that go far beyond multiple choice.</p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            How long should I study each day?
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-a">
+            <p>Seedling is designed for 5-10 minutes per day. Shorter, daily sessions are scientifically proven to beat marathon weekly sessions. The SRS engine ensures you never waste time reviewing words you already know perfectly.</p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Can I learn multiple languages at once?
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-a">
+            <p>Yes! With a <strong>Seedling Premium</strong> plan, you can maintain active gardens in multiple languages simultaneously. Each language has its own garden, streak, and mastery progress.</p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Does it work offline?
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-a">
+            <p>Yes. The full quiz engine works offline. Your progress syncs automatically when you reconnect. Perfect for travel, commutes, or garden walks.</p>
+          </div>
+        </div>
+        <div class="faq-item reveal">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            What is the "Ancient Oak" achievement?
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-a">
+            <p>Every word progresses through 5 mastery levels: Seedling -> Sprout -> Sapling -> Tree -> Ancient Oak. Reaching Ancient Oak means the word is deeply embedded in your long-term memory.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <div class="faq-grid">
-      <div class="faq-item reveal visible">
-        <h3>How does the Spaced Repetition System work?</h3>
-        <p>Seedling calculates the optimal time to review words based on your previous performance. Words you find easy transition to "Stable" status and appear less frequently, while difficult words stay in "Nurturing" and pop up more often.</p>
+    <!-- ═══════════════════════════════════ CONTACT ═══ -->
+    <section class="contact-section reveal">
+      <div class="contact-card">
+        <h2>Still have questions?</h2>
+        <p>Our dedicated team is ready to help you with anything from technical issues to learning advice.</p>
+        <a href="mailto:seedlingapp.team@gmail.com" class="email-link">seedlingapp.team@gmail.com</a>
       </div>
-      <div class="faq-item reveal visible">
-        <h3>Is Seedling free to use?</h3>
-        <p>The core Seedling experience is entirely free. You can plant, nurture, and master unlimited words. Our "Greenhouse" subscription offers advanced analytics, unlimited offline voice synthesis, and custom learning themes.</p>
-      </div>
-      <div class="faq-item reveal visible">
-        <h3>Can I sync my data between devices?</h3>
-        <p>Yes! If you sign in, your entire garden is securely synced to our cloud forest. Plant on your phone during your commute, and harvest on your tablet at home.</p>
-      </div>
-      <div class="faq-item reveal visible">
-        <h3>How do I report a bug or translation error?</h3>
-        <p>We're human (and mascots)! If you find an error, please click the contact button below or email us directly with a screenshot of the issue.</p>
-      </div>
-    </div>
-
-    <section class="contact-card reveal visible">
-      <h2>Still have questions?</h2>
-      <p>Our dedicated team is ready to help you with anything from technical issues to learning advice.</p>
-      <a href="mailto:seedlingapp.team@gmail.com" class="email-link">seedlingapp.team@gmail.com</a>
     </section>
   </main>
 
+  <!-- ═══════════════════════════════════ FOOTER ═══ -->
   <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/app_logo.png" alt="Seedling Logo">
+          <span>Seedling</span>
+        </div>
+        <p>The botanical way to master a new language. Grow your vocabulary, one seed at a time.</p>
+        <div class="footer-socials">
+          <a href="#" class="social-link" aria-label="Twitter/X">𝕏</a>
+          <a href="#" class="social-link" aria-label="Instagram">📸</a>
+          <a href="#" class="social-link" aria-label="Discord">💬</a>
+        </div>
+      </div>
+      <div class="footer-links">
+        <div class="link-group">
+          <h4>Product</h4>
+          <a href="features.html">Features</a>
+          <a href="languages.html">Languages</a>
+          <a href="pricing.html">Pricing</a>
+        </div>
+        <div class="link-group">
+          <h4>Support</h4>
+          <a href="help.html">Help Center</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+        </div>
+      </div>
+    </div>
     <div class="footer-bottom">
-      <span>© 2026 Amos languages. Made with 🌿 and science.</span>
-      <span class="footer-version">v1.0.0 — Production Edition</span>
+      <span>© 2026 Amos languages. Made with 🌿</span>
+      <span class="footer-version">v1.2.0</span>
     </div>
   </footer>
 
-  <script src="js/main.js"></script>
+  <script src="js/main.js?v=8"></script>
 </body>
 </html>

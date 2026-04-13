@@ -86,9 +86,9 @@ class _SentenceSessionScreenState extends ConsumerState<SentenceSessionScreen> {
         if (mounted) {
           PremiumGateDialog.show(
             context,
-            title: 'Daily Sentence Limit',
+            title: 'Endless Language Practice',
             message:
-                'You\'ve mastered 30 sentences today! Free users can play up to 30 sentences daily. Upgrade for unlimited practice!',
+                'You\'ve practiced 30 sentences with great precision today! Upgrade to Seedling Pro to practice unlimited sentences and reach total fluency.',
           );
           Navigator.of(context).pop();
         }

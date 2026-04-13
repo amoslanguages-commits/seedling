@@ -425,9 +425,9 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   void _showPremiumForPlanting() {
     PremiumGateDialog.show(
       context,
-      title: 'Daily Seed Limit Reached',
+      title: 'Unlimited Daily Growth',
       message:
-          'You\'ve planted 5 seeds today. Free accounts can plant up to 5 words daily to ensure steady growth. Upgrade to plant unlimited seeds!',
+          'You\'ve successfully nurtured 5 new words today! Upgrade to Seedling Pro to plant unlimited seeds and watch your vocabulary flourish.',
     );
   }
 
@@ -466,7 +466,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
         'xp_gained': xpGained,
       });
 
-      // Trigger background sync to Supabase for "real data" in social/competitions
+      // Trigger background sync to Supabase
       SyncManager().syncToCloud().ignore();
 
       // Refresh Home Tab stats immediately

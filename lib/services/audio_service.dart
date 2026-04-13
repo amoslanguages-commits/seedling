@@ -1,6 +1,7 @@
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart'; // Required for WidgetsBindingObserver
+import 'settings_service.dart';
 
 /// Catalogue of every SFX in the app.
 enum SFX {
@@ -44,7 +45,7 @@ const _escalatingCorrect = [
 ///  • Dynamic escalating correct-answer SFX based on streak
 ///  • Haptic feedback paired with every key interaction
 ///  • Ambient garden layer with smart ducking when SFX fires
-class AudioService {
+class AudioService with WidgetsBindingObserver {
   AudioService._();
   static final AudioService instance = AudioService._();
 
@@ -97,11 +98,21 @@ class AudioService {
   // ── Initialization ───────────────────────────────────────────
 
   Future<void> initialize() async {
+    WidgetsBinding.instance.addObserver(this);
+
+    // Sync muted state with settings
+    _muted = !SettingsService().soundEffectsEnabled;
+
     // Warm up standard SFX pool
     for (final entry in _assetMap.entries) {
       final player = AudioPlayer();
       await player.setReleaseMode(ReleaseMode.stop);
       await player.setVolume(_volume);
+      try {
+        await player.setSourceAsset(entry.value); // Pre-cache buffer
+      } catch (e) {
+        debugPrint('[AudioService] Missing asset: ${entry.value}');
+      }
       _pool[entry.key] = player;
     }
 
@@ -109,12 +120,20 @@ class AudioService {
     for (int i = 0; i < _correctPool.length; i++) {
       await _correctPool[i].setReleaseMode(ReleaseMode.stop);
       await _correctPool[i].setVolume(_volume);
+      try {
+        await _correctPool[i].setSourceAsset(_escalatingCorrect[i]); // Pre-cache buffer
+      } catch (e) {
+        debugPrint('[AudioService] Missing asset: ${_escalatingCorrect[i]}');
+      }
     }
 
     // Set up ambient player
     _ambientPlayer = AudioPlayer();
     await _ambientPlayer.setReleaseMode(ReleaseMode.loop);
     await _ambientPlayer.setVolume(0); // starts silent
+    try {
+      await _ambientPlayer.setSourceAsset('sfx/ambient_garden.mp3');
+    } catch (_) {}
 
     // Set up flow state player
     _flowPlayer = AudioPlayer();
@@ -123,10 +142,28 @@ class AudioService {
     await _flowPlayer.setPlaybackRate(
       1.25,
     ); // Faster, more intense upbeat tempo
+    try {
+      await _flowPlayer.setSourceAsset('sfx/ambient_flow.mp3');
+    } catch (_) {}
 
     debugPrint(
-      '[AudioService] initialized ${_pool.length} SFX channels + ambient + flow.',
+      '[AudioService] initialized ${_pool.length} SFX channels + ambient + flow with pre-cached buffers.',
     );
+  }
+
+  /// Explicitly re-primes the audio buffers for the next session.
+  /// Call this during transition screens (e.g., Get Ready) to ensure
+  /// the first interactions have zero latency.
+  Future<void> preloadNextSessionAssets() async {
+    if (_muted) return;
+    try {
+      // Re-prime core quiz sounds
+      await _pool[SFX.correctAnswer]?.setSourceAsset(_assetMap[SFX.correctAnswer]!);
+      await _pool[SFX.wrongAnswer]?.setSourceAsset(_assetMap[SFX.wrongAnswer]!);
+      await _pool[SFX.quizStart]?.setSourceAsset(_assetMap[SFX.quizStart]!);
+    } catch (e) {
+      debugPrint('[AudioService] Pre-prime warning: $e');
+    }
   }
 
   // ── Ambient garden layer ─────────────────────────────────────
@@ -137,9 +174,24 @@ class AudioService {
       return;
     }
     _ambientRunning = true;
-    await _ambientPlayer.play(AssetSource('sfx/ambient_garden.mp3'));
+    await _ambientPlayer.resume(); // Use resume since source is already set
     // Fade in gently over 2 seconds
     _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      if (_ambientRunning) _ambientPlayer.pause();
+      if (_flowRunning) _flowPlayer.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_ambientRunning && _ambientEnabled && !_muted) {
+        _ambientPlayer.resume();
+      }
+      if (_flowRunning && _ambientEnabled && !_muted) {
+        _flowPlayer.resume();
+      }
+    }
   }
 
   /// Stop the ambient layer — call when session ends.
@@ -244,7 +296,7 @@ class AudioService {
 
   /// Play a standard SFX. Optionally ducks ambient.
   Future<void> play(SFX sfx) async {
-    if (_muted) {
+    if (_muted || !SettingsService().soundEffectsEnabled) {
       return;
     }
 
@@ -270,7 +322,7 @@ class AudioService {
   /// Streak tiers: 0-2 → tier 1, 3-5 → tier 2, 6-8 → tier 3, 9+ → tier 4
   /// Each tier also raises playback rate ~12% (~half octave) for pitch escalation.
   Future<void> playCorrect({int? streak}) async {
-    if (_muted) {
+    if (_muted || !SettingsService().soundEffectsEnabled) {
       return;
     }
 

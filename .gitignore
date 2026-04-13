@@ -48,3 +48,5 @@ app.*.map.json
 # Secrets and Authentication
 .env
 github_auth.txt
+
+.env

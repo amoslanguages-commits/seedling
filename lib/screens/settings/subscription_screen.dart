@@ -2,20 +2,21 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/app_providers.dart';
 import '../../services/subscription_service.dart';
 import '../../widgets/buttons.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _SubscriptionScreenState createState() => _SubscriptionScreenState();
+  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen>
+class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen>
     with TickerProviderStateMixin {
   bool _isLoading = false;
   late AnimationController _pulseController;
@@ -27,6 +28,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SubscriptionService().refreshSubscription();
+    });
   }
 
   @override
@@ -39,12 +43,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     setState(() => _isLoading = true);
     try {
       await SubscriptionService().upgradeToPremium(planId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Welcome to Seedling Premium! 🌱')),
-        );
-        Navigator.pop(context);
-      }
+      if (!mounted) return;
+      await SubscriptionService().refreshSubscription();
+      if (!mounted) return;
+      ref.invalidate(isPremiumProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Welcome to Seedling Premium! 🌱')),
+      );
+      Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -225,7 +231,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                   _staggeredSlide(
                     2,
                     Text(
-                      'Unlock your full language potential.',
+                      'The ultimate companion for your botanical language journey.',
                       style: SeedlingTypography.body.copyWith(
                         color: SeedlingColors.textSecondary,
                       ),
@@ -237,40 +243,48 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                   _staggeredSlide(
                     3,
                     _buildGlassFeatureRow(
-                      Icons.cloud_sync,
-                      'Cloud Sync',
-                      'Access your data across all devices',
+                      Icons.local_florist_rounded,
+                      'Unlimited Daily Growth',
+                      'Nurture as many new words as you desire every single day.',
                     ),
                   ),
                   _staggeredSlide(
                     4,
                     _buildGlassFeatureRow(
-                      Icons.offline_pin,
-                      'Offline Mode',
-                      'Learn anywhere without restrictions',
+                      Icons.category_rounded,
+                      'Full Course Access',
+                      'Instant access to all 20+ specialized Topic Gems and rare vocabulary.',
                     ),
                   ),
                   _staggeredSlide(
                     5,
                     _buildGlassFeatureRow(
-                      Icons.analytics,
-                      'Advanced Stats',
-                      'Track your progress beautifully',
+                      Icons.forum_rounded,
+                      'Endless Language Practice',
+                      'Practice unlimited grammar sentences to achieve total fluency faster.',
                     ),
                   ),
                   _staggeredSlide(
                     6,
                     _buildGlassFeatureRow(
-                      Icons.all_inclusive,
-                      'Unlimited Challenges',
-                      'Join any community arena instantly',
+                      Icons.all_inclusive_rounded,
+                      'Infinite Study Sessions',
+                      'Learn for as long as you want with unlimited daily review and focus time.',
+                    ),
+                  ),
+                  _staggeredSlide(
+                    7,
+                    _buildGlassFeatureRow(
+                      Icons.cloud_sync_rounded,
+                      'Botanical Cloud Sync',
+                      'Keep your entire botanical journey safely synced across all your devices.',
                     ),
                   ),
 
                   const SizedBox(height: 48),
 
                   _staggeredSlide(
-                    7,
+                    8,
                     AnimatedBuilder(
                       animation: _pulseController,
                       builder: (_, __) => Column(
@@ -298,7 +312,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
                   const SizedBox(height: 24),
                   _staggeredSlide(
-                    8,
+                    9,
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: Text(

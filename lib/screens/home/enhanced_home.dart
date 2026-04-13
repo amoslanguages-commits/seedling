@@ -11,6 +11,7 @@ import '../courses/active_course_banner.dart';
 import '../sentence_session_screen.dart';
 import '../../widgets/word_library_sheet.dart';
 import '../../services/haptic_service.dart';
+import '../../widgets/premium_gate.dart';
 
 class EnhancedHomeScreen extends ConsumerStatefulWidget {
   const EnhancedHomeScreen({super.key});
@@ -106,6 +107,7 @@ class _HomeTabState extends ConsumerState<_HomeTab>
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(userStatsProvider);
     final categoryStatsAsync = ref.watch(categoryStatsProvider);
+    final isPremium = ref.watch(isPremiumProvider).value ?? false;
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -230,11 +232,14 @@ class _HomeTabState extends ConsumerState<_HomeTab>
                             childAspectRatio: 2.1,
                           ),
                       delegate: SliverChildListDelegate(
-                        subs.map((cat) {
+                        subs.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final cat = entry.value;
                           final stat = catStats.firstWhere(
                             (s) => s['category'] == cat.id,
                             orElse: () => {'learned': 0, 'total': 0},
                           );
+                          final isLocked = !isPremium && index > 0;
                           return _CategoryCard(
                             title: cat.name,
                             learnedCount: stat['learned'] as int,
@@ -246,6 +251,7 @@ class _HomeTabState extends ConsumerState<_HomeTab>
                             categoryId: cat.id,
                             domain: root.id,
                             subDomain: cat.id,
+                            isLocked: isLocked,
                           );
                         }).toList(),
                       ),
@@ -259,12 +265,11 @@ class _HomeTabState extends ConsumerState<_HomeTab>
                 ),
               ];
             }),
-          ] else ...[
-            // SENTENCES: mode-selection cards
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24.0),
-                child: _SentencesTabContent(),
+          ] else if (_selectedTab == 1) ...[
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              sliver: SliverToBoxAdapter(
+                child: const _SentencesTabContent(),
               ),
             ),
           ],
@@ -333,7 +338,7 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
   }
 
   Widget _buildHub(BuildContext context, FocusState focus) {
-    final config = _getConfig(focus);
+    final config = _getConfig(focus, ref);
 
     return AnimatedBuilder(
       animation: _pulseAnimation,
@@ -441,15 +446,26 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
     );
   }
 
-  _HubConfig _getConfig(FocusState focus) {
+  bool _isGrammarLocked() {
+    // Unlocked as per user request: "free user will be allowed to play only 30 sentences a day"
+    // The limit is enforced inside the session.
+    return false;
+  }
+
+  _HubConfig _getConfig(FocusState focus, WidgetRef ref) {
     if (widget.tabIndex == 1) {
-      return const _HubConfig(
-        gradientColors: [Color(0xFF2C5282), Color(0xFF4299E1)],
-        glowColor: Color(0xFF2C5282),
-        emoji: '🌳',
-        badge: 'SENTENCE SPRINT',
-        title: 'Master Your Grammar',
-        subtitle: 'Build complex sentences now',
+      final isLocked = _isGrammarLocked();
+      return _HubConfig(
+        gradientColors: isLocked
+            ? [const Color(0xFF48484A), const Color(0xFF2C2C2E)]
+            : [const Color(0xFF2C5282), const Color(0xFF4299E1)],
+        glowColor: isLocked ? Colors.transparent : const Color(0xFF2C5282),
+        emoji: isLocked ? '🔒' : '🌳',
+        badge: isLocked ? 'PRO FEATURE' : 'SENTENCE SPRINT',
+        title: isLocked ? 'The Grammar Conservatory' : 'Master Your Grammar',
+        subtitle: isLocked
+            ? 'Unlock the full power of context'
+            : 'Build complex sentences now',
       );
     }
 
@@ -486,6 +502,15 @@ class _SmartFocusHubState extends ConsumerState<_SmartFocusHub>
 
   void _handleTap(BuildContext context, FocusState focus) {
     if (widget.tabIndex == 1) {
+      if (_isGrammarLocked()) {
+        PremiumGateDialog.show(
+          context,
+          title: 'Grammar Conservatory',
+          message:
+              'Mastering sentences and syntax is a Seedling Pro feature. Upgrade to unlock the full garden!',
+        );
+        return;
+      }
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) =>
@@ -701,6 +726,7 @@ class _CategoryCard extends StatefulWidget {
   final String? categoryId;
   final String? domain;
   final String? subDomain;
+  final bool isLocked;
 
   const _CategoryCard({
     required this.title,
@@ -714,6 +740,7 @@ class _CategoryCard extends StatefulWidget {
     this.categoryId,
     this.domain,
     this.subDomain,
+    this.isLocked = false,
   }) : assert(
          emojiIcon != null || iconData != null,
          'Provide emojiIcon or iconData',
@@ -758,6 +785,17 @@ class _CategoryCardState extends State<_CategoryCard>
         await _pressController.reverse();
         if (!context.mounted) return;
         HapticService.lightImpact();
+
+        if (widget.isLocked) {
+          PremiumGateDialog.show(
+            context,
+            title: 'Full Course Access',
+            message:
+                'Upgrade to Seedling Pro to unlock all specialized topics and nurture every hidden language gem in your collection!',
+          );
+          return;
+        }
+
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => LearningSessionScreen(
@@ -786,6 +824,7 @@ class _CategoryCardState extends State<_CategoryCard>
               SeedlingColors.cardBackground,
               SeedlingColors.cardBackground.withValues(alpha: 0.8),
             ],
+            stops: const [0.0, 0.5, 1.0],
           ),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
@@ -809,10 +848,12 @@ class _CategoryCardState extends State<_CategoryCard>
               bottom: -12,
               child: Opacity(
                 opacity: 0.06,
-                child: Text(
-                  widget.emojiIcon ?? '🌿',
-                  style: const TextStyle(fontSize: 84),
-                ),
+                child: widget.isLocked
+                    ? const Icon(Icons.lock_rounded, size: 84)
+                    : Text(
+                        widget.emojiIcon ?? '🌿',
+                        style: const TextStyle(fontSize: 84),
+                      ),
               ),
             ),
 
@@ -843,9 +884,11 @@ class _CategoryCardState extends State<_CategoryCard>
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: widget.emojiIcon != null
-                        ? Text(widget.emojiIcon!, style: const TextStyle(fontSize: 24))
-                        : Icon(widget.iconData!, color: resolvedIconColor, size: 24),
+                    child: widget.isLocked
+                        ? Icon(Icons.lock_rounded, color: resolvedIconColor, size: 24)
+                        : (widget.emojiIcon != null
+                            ? Text(widget.emojiIcon!, style: const TextStyle(fontSize: 24))
+                            : Icon(widget.iconData!, color: resolvedIconColor, size: 24)),
                   ),
                   const SizedBox(width: 14),
                   // Content
@@ -982,6 +1025,7 @@ class _CategoryCardState extends State<_CategoryCard>
   }
 }
 
+
 class _SentencesTabContent extends ConsumerWidget {
   const _SentencesTabContent();
 
@@ -1105,6 +1149,7 @@ class _SentenceModeCard extends StatelessWidget {
               SeedlingColors.cardBackground,
               SeedlingColors.cardBackground.withValues(alpha: 0.9),
             ],
+            stops: const [0.0, 0.5, 1.0],
           ),
           borderRadius: BorderRadius.circular(26),
           border: Border.all(

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/word.dart';
-import '../database/database_helper.dart';
 import '../services/fsrs_service.dart';
 import 'app_providers.dart';
 
@@ -69,38 +68,50 @@ class ReviewSessionState {
       results: results ?? this.results,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'words': words.map((w) => w.toMap()).toList(),
+        'currentIndex': currentIndex,
+        'isCompleted': isCompleted,
+        'results': results.map((key, value) => MapEntry(key.toString(), value)),
+      };
+
+  factory ReviewSessionState.fromMap(Map<String, dynamic> map) => ReviewSessionState(
+        words: (map['words'] as List).map((w) => Word.fromMap(w)).toList(),
+        currentIndex: map['currentIndex'],
+        isCompleted: map['isCompleted'],
+        results: (map['results'] as Map).map((key, value) => MapEntry(int.parse(key.toString()), value as int)),
+      );
 }
 
 final reviewSessionProvider = StateNotifierProvider<ReviewSessionNotifier, ReviewSessionState>((ref) {
   return ReviewSessionNotifier(ref);
 });
 
+/// Quiz type key for Review-tab MCQ (feeds `word_quiz_performance` / weakest-type).
+const String reviewMcqQuizType = 'mcqReview';
+
 class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
   final Ref _ref;
   ReviewSessionNotifier(this._ref) : super(ReviewSessionState());
 
-  Future<void> startSession({int limit = 15, String? subDomain}) async {
+  Future<void> startSession({int limit = 30, String? subDomain}) async {
     final db = _ref.read(databaseProvider);
     final nativeLang = _ref.read(nativeLanguageProvider);
     final targetLang = _ref.read(currentLanguageProvider);
 
-    final dueWords = await db.getSRSDueWords(
-      nativeLang, 
-      targetLang, 
+    // Review tab shows ALL planted words (mastery_level > 0), not just today's due.
+    // Due/overdue words sort first automatically — the user naturally reviews the
+    // most urgent cards but can keep going through their entire planted vocabulary.
+    // FSRS scheduling continues working normally: answers in this tab update
+    // next_review and stability exactly as they do in the Home tab.
+    final sessionWords = await db.getSRSDueWords(
+      nativeLang,
+      targetLang,
       limit: limit,
       subDomain: subDomain,
+      ignoreDueDate: true, // KEY: show all planted words, not only today's due
     );
-    
-    // If no due words, get some random learned words as fallback
-    List<Word> sessionWords = dueWords;
-    if (sessionWords.isEmpty) {
-      sessionWords = await db.getRandomLearnedWords(
-        nativeLang, 
-        targetLang, 
-        limit: 10,
-        subDomain: subDomain,
-      );
-    }
 
     state = ReviewSessionState(
       words: sessionWords,
@@ -110,19 +121,47 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
     );
   }
 
-  Future<void> submitRating(bool isCorrect, Duration responseTime) async {
+  Future<void> submitRating(bool isCorrect, Duration responseTime, {String? selectedTranslation}) async {
     final word = state.currentWord;
     if (word == null) return;
 
-    // 1. Calculate new FSRS state
-    final updatedWord = FSRSService.instance.calculateReview(word, isCorrect, responseTime);
+    final db = _ref.read(databaseProvider);
+    final nativeLang = _ref.read(nativeLanguageProvider);
+    final targetLang = _ref.read(currentLanguageProvider);
+    final responseMs = responseTime.inMilliseconds.clamp(0, 86400000);
 
-    // 2. Persist to DB
-    await _ref.read(databaseProvider).updateWordFSRS(updatedWord);
+    final wordId = word.id;
+    if (wordId != null) {
+      // 1. Calculate new FSRS state
+      final updatedWord = FSRSService.instance.calculateReview(word, isCorrect, responseTime);
 
-    // 3. Move to next word
+      // 2. Persist to DB
+      await db.updateWordFSRS(updatedWord);
+
+      // 3. Record confusion if applicable
+      if (!isCorrect && selectedTranslation != null) {
+        await db.recordConfusion(
+          correctWordId: wordId,
+          confusedTranslation: selectedTranslation,
+          languageCode: nativeLang,
+          targetLanguageCode: targetLang,
+        );
+      }
+
+      // 4. Per-quiz analytics (parity with learning sessions)
+      await db.recordQuizPerformance(
+        wordId: wordId,
+        quizType: reviewMcqQuizType,
+        correct: isCorrect,
+        responseMs: responseMs,
+      );
+    }
+
+    // 5. Move to next word
     final newResults = Map<int, int>.from(state.results);
-    newResults[word.id!] = isCorrect ? 3 : 1; // Good vs again
+    if (wordId != null) {
+      newResults[wordId] = isCorrect ? 3 : 1; // Good vs again
+    }
 
     if (state.currentIndex >= state.words.length - 1) {
       state = state.copyWith(
@@ -130,16 +169,29 @@ class ReviewSessionNotifier extends StateNotifier<ReviewSessionState> {
         isCompleted: true,
         results: newResults,
       );
+      // Clear draft on completion
+      _ref.read(usageServiceProvider).clearDraftSession();
     } else {
       state = state.copyWith(
         currentIndex: state.currentIndex + 1,
         results: newResults,
       );
+      // Save draft for resumption
+      _saveDraft();
     }
+  }
+
+  void _saveDraft() {
+    _ref.read(usageServiceProvider).saveDraftSession(state);
+  }
+
+  Future<void> resumeSession(ReviewSessionState draft) async {
+    state = draft;
   }
 
   void reset() {
     state = ReviewSessionState();
+    _ref.read(usageServiceProvider).clearDraftSession();
   }
 }
 

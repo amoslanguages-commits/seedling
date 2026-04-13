@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terms of Service — Seedling & Amos languages</title>
+  <title>Seedling — Terms of Service</title>
   <meta name="description" content="Terms of Service for Seedling by Amos languages. Usage rules and legal agreement." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <link rel="stylesheet" href="css/styles.css?v=6" />
   <style>
     .legal-content {
       max-width: 800px;
@@ -33,6 +33,11 @@
       font-size: 1.5rem;
       margin: 32px 0 16px;
       color: var(--green);
+    }
+    .logo-icon { 
+      width: 36px; height: 36px; 
+      object-fit: contain;
+      border-radius: 8px; /* App icon standard feel */
     }
     .legal-card p {
       color: var(--text-sec);
@@ -66,20 +71,23 @@
     <div class="mesh-orb orb-3"></div>
   </div>
 
-  <nav class="navbar scrolled">
+  <nav class="navbar" id="navbar">
     <div class="nav-inner">
-      <a href="/" class="nav-logo">
-        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="18" cy="18" r="18" fill="#14261A"/>
-          <path d="M18 28 C18 28 18 16 18 14" stroke="#4BAE4F" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M18 18 C18 18 12 15 10 10 C14 10 18 14 18 18Z" fill="#66BB6A"/>
-          <path d="M18 15 C18 15 24 12 26 7 C22 7 18 11 18 15Z" fill="#81C784"/>
-          <ellipse cx="18" cy="29" rx="5" ry="2" fill="#3E2723" opacity="0.6"/>
-        </svg>
+      <a href="index.html" class="nav-logo">
+        <img src="assets/app_logo.png" alt="Seedling Logo" class="logo-icon">
         <span class="logo-text">Seedling</span>
       </a>
-      <div class="nav-links">
-        <a href="/">Back to Home</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="features.html">Features</a></li>
+        <li><a href="languages.html">Languages</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="help.html">Support</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="pricing.html" class="btn-nav-cta" id="navCta">Open App</a>
+        <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
       </div>
     </div>
   </nav>
@@ -120,9 +128,37 @@
   </main>
 
   <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="logo">
+          <img src="assets/app_logo.png" alt="Seedling Logo">
+          <span>Seedling</span>
+        </div>
+        <p>The botanical way to master a new language. Grow your vocabulary, one seed at a time.</p>
+        <div class="footer-socials">
+          <a href="#" class="social-link" aria-label="Twitter/X">𝕏</a>
+          <a href="#" class="social-link" aria-label="Instagram">📸</a>
+          <a href="#" class="social-link" aria-label="Discord">💬</a>
+        </div>
+      </div>
+      <div class="footer-links">
+        <div class="link-group">
+          <h4>Product</h4>
+          <a href="features.html">Features</a>
+          <a href="languages.html">Languages</a>
+          <a href="pricing.html">Pricing</a>
+        </div>
+        <div class="link-group">
+          <h4>Support</h4>
+          <a href="help.html">Help Center</a>
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+        </div>
+      </div>
+    </div>
     <div class="footer-bottom">
-      <span>© 2026 Amos languages. Made with 🌿 and science.</span>
-      <span class="footer-version">v1.0.0 — Production Edition</span>
+      <span>© 2026 Amos languages. Made with 🌿</span>
+      <span class="footer-version">v1.2.0</span>
     </div>
   </footer>
 

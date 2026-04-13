@@ -17,8 +17,23 @@ class SubscriptionService {
   Stream<SubscriptionStatus> get subscriptionStatus =>
       _subscriptionController.stream;
 
+  /// Yields [isPremium] immediately, then every live update from [subscriptionStatus].
+  ///
+  /// The underlying [subscriptionStatus] stream is **broadcast** and does not
+  /// replay past events; emitting the current flag first keeps Riverpod
+  /// [StreamProvider]s aligned with [UsageService] after [initialize]/[checkSubscription].
+  Stream<bool> get premiumStateStream async* {
+    yield _isPremium;
+    await for (final status in subscriptionStatus) {
+      yield status == SubscriptionStatus.premium;
+    }
+  }
+
   bool _isPremium = false;
   bool get isPremium => _isPremium;
+
+  /// Re-fetch entitlement from Supabase (or local fallback). Safe to call after purchase flows.
+  Future<void> refreshSubscription() => checkSubscription();
 
   Future<void> initialize() async {
     if (AuthService().isAuthenticated) {

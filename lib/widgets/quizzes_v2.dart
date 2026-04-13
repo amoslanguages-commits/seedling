@@ -111,7 +111,7 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
     final isCorrect = widget.options[index] == widget.word.translation;
     if (isCorrect) {
       _bloomController.forward();
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);
@@ -3686,7 +3686,7 @@ class _MemoryFlipQuizState extends State<MemoryFlipQuiz>
         _selectedRight = null;
         _isChecking = false;
       });
-      AudioService.instance.playCorrect(streak: _correctCount);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
 
       if (_matchedPairIds.length == widget.words.length) {
@@ -4119,7 +4119,7 @@ class _WordRainQuizState extends State<WordRainQuiz>
     _timeoutTimer?.cancel();
 
     if (correct) {
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       AudioService.instance.play(SFX.wrongAnswer);
@@ -4352,6 +4352,7 @@ class _WordRainQuizState extends State<WordRainQuiz>
                         SeedlingColors.soil.withValues(alpha: 0.6),
                         SeedlingColors.soil.withValues(alpha: 0.0),
                       ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),

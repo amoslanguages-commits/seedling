@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;
 import '../models/word.dart';
@@ -21,12 +22,83 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
-    return await openDatabase(
+    final db = await openDatabase(
       dbPath,
-      version: 13,
+      version: 17,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+    
+    // Convergence: Ensure the schema is consistent across all migrations
+    await _ensureSchemaConsistency(db);
+    
+    return db;
+  }
+
+  Future<void> _ensureSchemaConsistency(Database db) async {
+    // 1. Ensure delta-sync columns exist in core tables
+    await _addColumnIfMissing(db, 'words', 'is_dirty', 'INTEGER DEFAULT 0');
+    await _addColumnIfMissing(db, 'words', 'updated_at', 'TEXT');
+    await db.execute('UPDATE words SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+    
+    await _addColumnIfMissing(db, 'user_progress', 'is_dirty', 'INTEGER DEFAULT 0');
+    await _addColumnIfMissing(db, 'user_progress', 'updated_at', 'TEXT');
+    await db.execute('UPDATE user_progress SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+    
+    await _addColumnIfMissing(db, 'word_confusions', 'is_dirty', 'INTEGER DEFAULT 0');
+    await _addColumnIfMissing(db, 'word_confusions', 'updated_at', 'TEXT');
+    await db.execute('UPDATE word_confusions SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+
+    // 2. Ensure tables that might have been skipped in old upgrade paths
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS daily_usage(
+        date TEXT PRIMARY KEY,
+        words_planted INTEGER DEFAULT 0,
+        sentences_played INTEGER DEFAULT 0,
+        games_hosted INTEGER DEFAULT 0,
+        games_joined INTEGER DEFAULT 0,
+        review_seconds INTEGER DEFAULT 0
+      )
+    ''');
+    await _addColumnIfMissing(db, 'daily_usage', 'review_seconds', 'INTEGER DEFAULT 0');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_activities(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        description TEXT,
+        xp_earned INTEGER DEFAULT 0,
+        timestamp TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS courses(
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        native_lang_code TEXT NOT NULL,
+        target_lang_code TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
+        is_dirty INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // 3. Ensure indexes
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_words_srs ON words (language_code, target_language_code, mastery_level, next_review)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_words_domain ON words (language_code, target_language_code, domain, sub_domain, mastery_level)');
+  }
+
+  Future<void> _addColumnIfMissing(Database db, String table, String column, String type) async {
+    try {
+      final columns = await db.rawQuery('PRAGMA table_info($table)');
+      final isMissing = !columns.any((c) => c['name'] == column);
+      if (isMissing) {
+        await db.execute('ALTER TABLE $table ADD COLUMN $column $type');
+      }
+    } catch (e) {
+      if (kDebugMode) print('Database alignment error ($table.$column): $e');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -71,7 +143,9 @@ class DatabaseHelper {
         fsrs_scheduled_days INTEGER DEFAULT 0,
         fsrs_reps INTEGER DEFAULT 0,
         fsrs_lapses INTEGER DEFAULT 0,
-        fsrs_state INTEGER DEFAULT 0
+        fsrs_state INTEGER DEFAULT 0,
+        is_dirty INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
 
@@ -88,9 +162,8 @@ class DatabaseHelper {
         total_study_minutes INTEGER DEFAULT 0,
         total_xp INTEGER DEFAULT 0,
         is_premium INTEGER DEFAULT 0,
-        challenges_won INTEGER DEFAULT 0,
-        total_rooms_hosted INTEGER DEFAULT 0,
-        spectator_minutes INTEGER DEFAULT 0
+        is_dirty INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
 
@@ -118,6 +191,8 @@ class DatabaseHelper {
         target_language_code TEXT NOT NULL,
         confusion_count INTEGER DEFAULT 1,
         last_confused TEXT,
+        is_dirty INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(correct_word_id, confused_with_id)
       )
     ''');
@@ -149,8 +224,7 @@ class DatabaseHelper {
         date TEXT PRIMARY KEY,
         words_planted INTEGER DEFAULT 0,
         sentences_played INTEGER DEFAULT 0,
-        games_hosted INTEGER DEFAULT 0,
-        games_joined INTEGER DEFAULT 0
+        review_seconds INTEGER DEFAULT 0
       )
     ''');
 
@@ -158,10 +232,23 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE user_activities(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type TEXT NOT NULL, -- e.g. 'planted', 'mastered', 'challenge_win'
+        type TEXT NOT NULL, -- e.g. 'planted', 'mastered'
         description TEXT,
         xp_earned INTEGER DEFAULT 0,
         timestamp TEXT NOT NULL
+      )
+    ''');
+
+    // Courses Table
+    await db.execute('''
+      CREATE TABLE courses(
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        native_lang_code TEXT NOT NULL,
+        target_lang_code TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
+        is_dirty INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
   }
@@ -365,6 +452,65 @@ class DatabaseHelper {
         ''');
       } catch (_) {}
     }
+
+    if (oldVersion < 14) {
+      try {
+        await db.execute(
+          'ALTER TABLE daily_usage ADD COLUMN review_seconds INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+    } // end if (oldVersion < 14)
+
+    if (oldVersion < 15) {
+      // Add delta-sync columns to core tables
+      try {
+        await db.execute('ALTER TABLE words ADD COLUMN is_dirty INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE words ADD COLUMN updated_at TEXT');
+        await db.execute('UPDATE words SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+      } catch (e) {
+        if (kDebugMode) print("v15 migration error words: $e");
+      }
+
+      try {
+        await db.execute('ALTER TABLE user_progress ADD COLUMN is_dirty INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE user_progress ADD COLUMN updated_at TEXT');
+        await db.execute('UPDATE user_progress SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+      } catch (e) {
+        if (kDebugMode) print("v15 migration error user_progress: $e");
+      }
+
+      try {
+        await db.execute('ALTER TABLE word_confusions ADD COLUMN is_dirty INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE word_confusions ADD COLUMN updated_at TEXT');
+        await db.execute('UPDATE word_confusions SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+      } catch (e) {
+        if (kDebugMode) print("v15 migration error word_confusions: $e");
+      }
+    }
+
+    if (oldVersion < 16) {
+      // Add courses table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS courses(
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          native_lang_code TEXT NOT NULL,
+          target_lang_code TEXT NOT NULL,
+          is_active INTEGER DEFAULT 0,
+          is_dirty INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
+
+    if (oldVersion < 17) {
+      try {
+        await db.execute('ALTER TABLE words ADD COLUMN updated_at TEXT');
+        await db.execute('UPDATE words SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
+      } catch (e) {
+        // Ignore if already exists
+      }
+    }
   }
 
   // Word operations
@@ -431,25 +577,78 @@ class DatabaseHelper {
       mastery = 2;
     }
 
+    // Build the update map explicitly without 'id' — including 'id' in an
+    // UPDATE column list causes SQLite to reject the query (can't update PK).
+    final wordMap = word.toMap()..remove('id');
     await db.update(
       'words',
       {
-        'fsrs_stability': word.fsrsStability,
-        'fsrs_difficulty': word.fsrsDifficulty,
-        'fsrs_elapsed_days': word.fsrsElapsedDays,
-        'fsrs_scheduled_days': word.fsrsScheduledDays,
-        'fsrs_reps': word.fsrsReps,
-        'fsrs_lapses': word.fsrsLapses,
-        'fsrs_state': word.fsrsState,
+        ...wordMap,
         'mastery_level': mastery,
-        'last_reviewed': word.lastReviewed?.toIso8601String(),
-        'next_review': word.nextReview?.toIso8601String(),
-        'streak': word.streak,
-        'total_reviews': word.totalReviews,
-        'times_correct': word.timesCorrect,
+        'is_dirty': 1,
+        'updated_at': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [word.id],
+    );
+  }
+
+  // Link anonymous data (where user_id is null or placeholder) to a real user
+  Future<void> linkAnonymousDataToUser(String userId) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      // Update study sessions
+      await txn.update(
+        'study_sessions',
+        {'user_id': userId},
+        where: 'user_id IS NULL OR user_id = ? OR user_id = ?',
+        whereArgs: ['anonymous', 'placeholder'],
+      );
+
+      // Link anonymous courses
+      await txn.update(
+        'courses',
+        {'user_id': userId, 'is_dirty': 1},
+        where: 'user_id IS NULL OR user_id = ? OR user_id = ?',
+        whereArgs: ['anonymous', 'placeholder'],
+      );
+
+      // Note: user_progress has user_id as PRIMARY KEY. 
+      // We need to check if a record for the new userId already exists.
+      final existingProgress = await txn.query(
+        'user_progress',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+      );
+
+      if (existingProgress.isEmpty) {
+        // If not, migrate the anonymous one if it exists
+        await txn.update(
+          'user_progress',
+          {'user_id': userId, 'is_dirty': 1},
+          where: 'user_id IS NULL OR user_id = ? OR user_id = ?',
+          whereArgs: ['anonymous', 'placeholder'],
+        );
+      }
+    });
+  }
+
+  // Course methods
+  Future<void> saveCourse(Map<String, dynamic> courseData) async {
+    final db = await database;
+    await db.insert(
+      'courses',
+      {...courseData, 'is_dirty': 1},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getCourses(String? userId) async {
+    final db = await database;
+    return await db.query(
+      'courses',
+      where: 'user_id = ? OR user_id IS NULL',
+      whereArgs: [userId],
     );
   }
 
@@ -479,26 +678,161 @@ class DatabaseHelper {
   // filtered by language pair, ordered by urgency then interleaved by mastery
   // for optimal interleaving (Active Recall + SRS combined).
 
-  Future<List<String>> _getDistractors(int targetWordId, String nativeLang, String targetLang, {String? subDomain, int count = 3}) async {
+  Future<List<String>> _getDistractors(
+    int targetWordId,
+    String nativeLang,
+    String targetLang, {
+    String? subDomain,
+    int count = 3,
+  }) async {
     final db = await database;
-    String where = 'language_code = ? AND target_language_code = ? AND mastery_level > 0 AND id != ?';
-    List<dynamic> args = [nativeLang, targetLang, targetWordId];
 
-    if (subDomain != null && subDomain.isNotEmpty) {
-      where += ' AND sub_domain = ?';
-      args.add(subDomain);
-    }
-
-    final rows = await db.query(
+    final selfRows = await db.query(
       'words',
       columns: ['translation'],
-      where: where,
-      whereArgs: args,
-      orderBy: 'RANDOM()',
-      limit: count,
+      where: 'id = ?',
+      whereArgs: [targetWordId],
+      limit: 1,
     );
+    final selfNorm = selfRows.isEmpty
+        ? ''
+        : (selfRows.first['translation'] as String).trim().toLowerCase();
 
-    return rows.map((r) => r['translation'] as String).toList();
+    bool isSelf(String t) =>
+        selfNorm.isNotEmpty && t.trim().toLowerCase() == selfNorm;
+
+    final distractors = <String>[];
+
+    // 1. Words the user has confused with this target before (table may be absent in tests)
+    try {
+      final confusionRows = await db.rawQuery('''
+      SELECT w.translation 
+      FROM word_confusions c
+      JOIN words w ON c.confused_with_id = w.id
+      WHERE c.correct_word_id = ? 
+      AND c.language_code = ? AND c.target_language_code = ?
+      ORDER BY c.confusion_count DESC, c.last_confused DESC
+      LIMIT ?
+    ''', [targetWordId, nativeLang, targetLang, count]);
+      for (final r in confusionRows) {
+        final t = r['translation'] as String;
+        if (!isSelf(t) && !distractors.contains(t)) distractors.add(t);
+      }
+    } catch (_) {}
+
+    Future<void> pullPlanted({required bool requireSubDomain, String? sub}) async {
+      if (distractors.length >= count) return;
+      var where =
+          'language_code = ? AND target_language_code = ? AND mastery_level > 0 AND id != ?';
+      final args = <dynamic>[nativeLang, targetLang, targetWordId];
+
+      if (distractors.isNotEmpty) {
+        where += ' AND translation NOT IN (${distractors.map((_) => '?').join(',')})';
+        args.addAll(distractors);
+      }
+      if (selfNorm.isNotEmpty) {
+        where += ' AND LOWER(TRIM(translation)) != ?';
+        args.add(selfNorm);
+      }
+      if (requireSubDomain && sub != null && sub.isNotEmpty) {
+        where += ' AND sub_domain = ?';
+        args.add(sub);
+      }
+
+      final rows = await db.query(
+        'words',
+        columns: ['translation'],
+        where: where,
+        whereArgs: args,
+        orderBy: 'RANDOM()',
+        limit: count - distractors.length,
+      );
+      for (final r in rows) {
+        final t = r['translation'] as String;
+        if (!isSelf(t) && !distractors.contains(t)) distractors.add(t);
+      }
+    }
+
+    // 2. Planted words in same subtheme (when a subtheme filter is active)
+    if (subDomain != null && subDomain.isNotEmpty) {
+      await pullPlanted(requireSubDomain: true, sub: subDomain);
+    }
+
+    // 3. Any planted word in this course — only when not restricting to one subtheme
+    if (distractors.length < count &&
+        (subDomain == null || subDomain.isEmpty)) {
+      await pullPlanted(requireSubDomain: false, sub: null);
+    }
+
+    // 4. Full lexicon (incl. mastery 0); stay inside subtheme when [subDomain] is set
+    if (distractors.length < count) {
+      var where =
+          'language_code = ? AND target_language_code = ? AND id != ?';
+      final args = <dynamic>[nativeLang, targetLang, targetWordId];
+      if (distractors.isNotEmpty) {
+        where += ' AND translation NOT IN (${distractors.map((_) => '?').join(',')})';
+        args.addAll(distractors);
+      }
+      if (selfNorm.isNotEmpty) {
+        where += ' AND LOWER(TRIM(translation)) != ?';
+        args.add(selfNorm);
+      }
+      if (subDomain != null && subDomain.isNotEmpty) {
+        where += ' AND sub_domain = ?';
+        args.add(subDomain);
+      }
+      final rows = await db.query(
+        'words',
+        columns: ['translation'],
+        where: where,
+        whereArgs: args,
+        orderBy: 'RANDOM()',
+        limit: count - distractors.length,
+      );
+      for (final r in rows) {
+        final t = r['translation'] as String;
+        if (!isSelf(t) && !distractors.contains(t)) distractors.add(t);
+      }
+    }
+
+    return distractors;
+  }
+
+  /// Builds shuffled MCQ options; drops words with no real distractors.
+  Future<List<Word>> _attachMcqOptions(
+    List<Word> words,
+    String languageCode,
+    String targetLanguageCode, {
+    String? subDomain,
+  }) async {
+    final out = <Word>[];
+    for (final word in words) {
+      if (word.id == null) continue;
+      final raw = await _getDistractors(
+        word.id!,
+        languageCode,
+        targetLanguageCode,
+        subDomain: subDomain,
+      );
+      final wrong = <String>[];
+      final seen = <String>{};
+      for (final t in raw) {
+        if (t.trim().toLowerCase() == word.translation.trim().toLowerCase()) {
+          continue;
+        }
+        final k = t.trim().toLowerCase();
+        if (seen.add(k)) wrong.add(t);
+      }
+      if (wrong.isEmpty) {
+        word.setOptions([word.translation]);
+      } else {
+        final take = math.min(3, wrong.length);
+        word.setOptions([word.translation, ...wrong.take(take)]..shuffle());
+      }
+      out.add(word);
+    }
+    out.shuffle(math.Random());
+    return out;
   }
 
   Future<List<Word>> getSRSDueWords(
@@ -510,15 +844,27 @@ class DatabaseHelper {
     String? partOfSpeech,
     String? microCategory,
     int limit = 15,
+    // When true (Review tab): shows ALL planted words, not just today's due.
+    // Overdue words are still sorted first so urgent ones surface naturally.
+    // The Home tab keeps this false so it only drills today's cards.
+    bool ignoreDueDate = false,
   }) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
 
+    // mastery_level > 0 = planted. Always required for both tabs.
     String where =
         'language_code = ? AND target_language_code = ? '
-        'AND mastery_level > 0 '
-        'AND (next_review IS NULL OR next_review <= ?)';
-    List<dynamic> args = [languageCode, targetLanguageCode, now];
+        'AND mastery_level > 0';
+    List<dynamic> args = [languageCode, targetLanguageCode];
+
+    // Home tab: only surface cards that are due right now.
+    // Review tab (ignoreDueDate=true): surface all planted words,
+    // overdue words will be sorted first via ORDER BY.
+    if (!ignoreDueDate) {
+      where += ' AND (next_review IS NULL OR next_review <= ?)';
+      args.add(now);
+    }
 
     if (domain != null && domain.isNotEmpty) {
       where += ' AND domain = ?';
@@ -546,26 +892,26 @@ class DatabaseHelper {
       args.add('%$partOfSpeech%');
     }
 
+    // ORDER BY: due/overdue words always first (CASE = 0), then future words
+    // sorted by soonest next_review. Works for both tabs:
+    //   • Home tab   — only due words are in result set anyway (ignoreDueDate=false)
+    //   • Review tab — due words naturally bubble to top (ignoreDueDate=true)
+    final orderBy = [
+      "CASE WHEN next_review IS NULL OR next_review <= '$now' THEN 0 ELSE 1 END ASC",
+      'next_review ASC',
+      'mastery_level ASC',
+    ].join(', ');
+
     final due = await db.query(
       'words',
       where: where,
       whereArgs: args,
-      orderBy: 'next_review ASC, mastery_level ASC',
+      orderBy: orderBy,
       limit: limit,
     );
 
     final words = due.map((m) => Word.fromMap(m)).toList();
-    
-    // Populate distractors from learned words
-    for (var word in words) {
-      final distractors = await _getDistractors(word.id!, languageCode, targetLanguageCode, subDomain: subDomain);
-      if (distractors.length >= 3) {
-        word.setOptions([word.translation, ...distractors]..shuffle());
-      }
-    }
-
-    words.shuffle();
-    return words;
+    return _attachMcqOptions(words, languageCode, targetLanguageCode, subDomain: subDomain);
   }
 
   // ── Cross-subtheme SRS reviews (for Smart Interleaved Learning Engine) ───
@@ -609,7 +955,7 @@ class DatabaseHelper {
 
     final words = rows.map((m) => Word.fromMap(m)).toList();
     words.shuffle(); // final shuffle for variety
-    return words;
+    return _attachMcqOptions(words, languageCode, targetLanguageCode, subDomain: null);
   }
 
   // ── Unlimited Smart Review Fallback ──────────────────────────────────────
@@ -637,16 +983,7 @@ class DatabaseHelper {
       limit: limit,
     );
     final words = rows.map((m) => Word.fromMap(m)).toList();
-
-    // Populate distractors from learned words
-    for (var word in words) {
-      final distractors = await _getDistractors(word.id!, languageCode, targetLanguageCode, subDomain: subDomain);
-      if (distractors.length >= 3) {
-        word.setOptions([word.translation, ...distractors]..shuffle());
-      }
-    }
-
-    return words;
+    return _attachMcqOptions(words, languageCode, targetLanguageCode, subDomain: subDomain);
   }
 
   // ── Get up to N unplanted words (smart new-word candidates) ─────────────
@@ -760,6 +1097,8 @@ class DatabaseHelper {
         'mastery_level': 1,
         'last_reviewed': DateTime.now().toIso8601String(),
         'next_review': _calculateNextReview(1, frequency).toIso8601String(),
+        'is_dirty': 1,
+        'updated_at': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [wordId],
@@ -859,6 +1198,30 @@ class DatabaseHelper {
     final db = await database;
     final maps = await db.query('words', where: 'mastery_level > 0');
     return maps.map((m) => Word.fromMap(m)).toList();
+  }
+
+  Future<List<Word>> getDirtyWords() async {
+    final db = await database;
+    final maps = await db.query('words', where: 'is_dirty = 1');
+    return maps.map((m) => Word.fromMap(m)).toList();
+  }
+
+  Future<void> clearDirtyFlags(String table, List<dynamic> ids) async {
+    final db = await database;
+    if (ids.isEmpty) return;
+    
+    final placeholders = List.filled(ids.length, '?').join(',');
+    await db.update(
+      table,
+      {'is_dirty': 0},
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+  }
+
+  Future<void> clearUserProgressDirtyFlag() async {
+    final db = await database;
+    await db.update('user_progress', {'is_dirty': 0});
   }
 
   Future<Map<String, dynamic>> getUserStats() async {
@@ -976,6 +1339,8 @@ class DatabaseHelper {
         'mastery_level': masteryLevel,
         'streak': streak,
         'last_reviewed': DateTime.now().toIso8601String(),
+        'is_dirty': 1,
+        'updated_at': DateTime.now().toIso8601String(),
       },
       where: 'id = ?',
       whereArgs: [wordId],
@@ -990,12 +1355,18 @@ class DatabaseHelper {
       'longest_streak': stats['longestStreak'],
       'total_study_minutes': stats['totalStudyMinutes'],
       'total_xp': stats['totalXP'] ?? 0,
+      'is_dirty': 1,
+      'updated_at': DateTime.now().toIso8601String(),
     }); // Assumes one row
   }
 
   Future<void> updatePremiumStatus(bool isPremium) async {
     final db = await database;
-    await db.update('user_progress', {'is_premium': isPremium ? 1 : 0});
+    await db.update('user_progress', {
+      'is_premium': isPremium ? 1 : 0,
+      'is_dirty': 1,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
   Future<void> saveStudySession(Map<String, dynamic> session) async {
@@ -1012,9 +1383,10 @@ class DatabaseHelper {
     });
 
     // Also update aggregate XP in user_progress
-    await db.rawUpdate('UPDATE user_progress SET total_xp = total_xp + ?', [
-      session['xp_gained'],
-    ]);
+    await db.rawUpdate(
+      'UPDATE user_progress SET total_xp = total_xp + ?, is_dirty = 1, updated_at = ?',
+      [session['xp_gained'], DateTime.now().toIso8601String()],
+    );
   }
 
   Future<void> clearUserData() async {
@@ -1035,10 +1407,55 @@ class DatabaseHelper {
         'next_review': null,
         'total_reviews': 0,
         'times_correct': 0,
+        'is_dirty': 1,
+        'updated_at': DateTime.now().toIso8601String(),
       },
       where: 'language_code = ? AND target_language_code = ?',
       whereArgs: [nativeLang, targetLang],
     );
+  }
+
+  Future<void> recordConfusion({
+    required int correctWordId,
+    required String confusedTranslation,
+    required String languageCode,
+    required String targetLanguageCode,
+  }) async {
+    final db = await database;
+    try {
+      // 1. Find the word_id for the confused translation
+      final result = await db.query(
+        'words',
+        columns: ['id'],
+        where: 'translation = ? AND language_code = ? AND target_language_code = ?',
+        whereArgs: [confusedTranslation, languageCode, targetLanguageCode],
+        limit: 1,
+      );
+
+      if (result.isEmpty) return;
+      final confusedWithId = result.first['id'] as int;
+
+      // 2. Insert or increment confusion count
+      await db.rawInsert('''
+        INSERT INTO word_confusions (
+          correct_word_id, confused_with_id, language_code, target_language_code, confusion_count, last_confused, is_dirty, updated_at
+        ) VALUES (?, ?, ?, ?, 1, ?, 1, ?)
+        ON CONFLICT(correct_word_id, confused_with_id) DO UPDATE SET 
+          confusion_count = confusion_count + 1,
+          last_confused = excluded.last_confused,
+          is_dirty = 1,
+          updated_at = excluded.updated_at
+      ''', [
+        correctWordId,
+        confusedWithId,
+        languageCode,
+        targetLanguageCode,
+        DateTime.now().toIso8601String(),
+        DateTime.now().toIso8601String(),
+      ]);
+    } catch (e) {
+      debugPrint('Error recording confusion: $e');
+    }
   }
 
   Future<void> insertWordWithProgress(Word word) async {
@@ -1069,6 +1486,7 @@ class DatabaseHelper {
         'sentences_played': 0,
         'games_hosted': 0,
         'games_joined': 0,
+        'review_seconds': 0,
       };
     }
 
@@ -1077,10 +1495,11 @@ class DatabaseHelper {
       'sentences_played': result.first['sentences_played'] as int? ?? 0,
       'games_hosted': result.first['games_hosted'] as int? ?? 0,
       'games_joined': result.first['games_joined'] as int? ?? 0,
+      'review_seconds': result.first['review_seconds'] as int? ?? 0,
     };
   }
 
-  Future<void> incrementDailyUsage(String column) async {
+  Future<void> incrementDailyUsage(String column, {int amount = 1}) async {
     final db = await database;
     final date = _currentDate;
 
@@ -1092,10 +1511,10 @@ class DatabaseHelper {
       );
 
       if (exists.isEmpty) {
-        await txn.insert('daily_usage', {'date': date, column: 1});
+        await txn.insert('daily_usage', {'date': date, column: amount});
       } else {
         await txn.rawUpdate(
-          'UPDATE daily_usage SET $column = $column + 1 WHERE date = ?',
+          'UPDATE daily_usage SET $column = $column + $amount WHERE date = ?',
           [date],
         );
       }
@@ -1369,33 +1788,6 @@ class DatabaseHelper {
     }
 
     return distractors;
-  }
-
-  // ── CONFUSION GRAPH ───────────────────────────────────────────────────────
-
-  /// Record a wrong answer: showed [correctWordId] but user chose [confusedWithId].
-  Future<void> recordConfusion({
-    required int correctWordId,
-    required int confusedWithId,
-    required String languageCode,
-    required String targetLanguageCode,
-  }) async {
-    final db = await database;
-    final now = DateTime.now().toIso8601String();
-    await db.rawInsert(
-      '''
-      INSERT INTO word_confusions
-        (correct_word_id, confused_with_id, language_code, target_language_code, confusion_count, last_confused)
-      VALUES (?, ?, ?, ?, 1, ?)
-      ON CONFLICT(correct_word_id, confused_with_id) DO UPDATE SET
-        confusion_count = confusion_count + 1,
-        last_confused = excluded.last_confused
-    ''',
-      [correctWordId, confusedWithId, languageCode, targetLanguageCode, now],
-    );
-
-    // Async Queue for sync
-    OfflineQueueManager().queueConfusionRecord(correctWordId, confusedWithId);
   }
 
   /// Returns Word objects the user has historically confused with [word].
@@ -1681,43 +2073,6 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> incrementChallengeWin() async {
-    final db = await database;
-    await db.execute(
-      'UPDATE user_progress SET challenges_won = challenges_won + 1',
-    );
-  }
-
-  Future<void> incrementTotalRoomsHosted() async {
-    final db = await database;
-    await db.execute(
-      'UPDATE user_progress SET total_rooms_hosted = total_rooms_hosted + 1',
-    );
-  }
-
-  Future<void> addSpectatorMinutes(int minutes) async {
-    final db = await database;
-    await db.execute(
-      'UPDATE user_progress SET spectator_minutes = spectator_minutes + ?',
-      [minutes],
-    );
-  }
-
-  Future<Map<String, dynamic>> getUserMultiplayerStats() async {
-    final db = await database;
-    final List<Map<String, dynamic>> res = await db.query(
-      'user_progress',
-      columns: ['challenges_won', 'total_rooms_hosted', 'spectator_minutes'],
-    );
-    if (res.isEmpty) {
-      return {
-        'challenges_won': 0,
-        'total_rooms_hosted': 0,
-        'spectator_minutes': 0,
-      };
-    }
-    return res.first;
-  }
 
   // ── SMART REVIEW & SRS METHODS (Consolidated) ───────────────────────────
 

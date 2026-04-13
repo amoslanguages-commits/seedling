@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/colors.dart';
 import '../core/typography.dart';
-import '../widgets/buttons.dart';
+import '../providers/app_providers.dart';
 import '../screens/settings/subscription_screen.dart';
+import '../services/subscription_service.dart';
+import '../widgets/buttons.dart';
 
 class PremiumGateDialog extends StatelessWidget {
   final String title;
@@ -102,15 +105,19 @@ class PremiumGateDialog extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             OrganicButton(
-              text: 'UPGRADE TO PRO',
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+              text: 'UPGRADE TO SEEDLING PRO',
+              onPressed: () async {
+                final container =
+                    ProviderScope.containerOf(context, listen: false);
+                final nav = Navigator.of(context);
+                nav.pop();
+                await nav.push(
                   MaterialPageRoute(
                     builder: (context) => const SubscriptionScreen(),
                   ),
                 );
+                await SubscriptionService().refreshSubscription();
+                container.invalidate(isPremiumProvider);
               },
               width: double.infinity,
               isPremiumActiveMode: true,

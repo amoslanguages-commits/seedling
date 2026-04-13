@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/course.dart';
+import '../database/database_helper.dart';
+import '../services/auth_service.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -37,33 +39,77 @@ class CourseNotifier extends StateNotifier<CourseState> {
   }
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_coursesKey);
-    final activeId = prefs.getString(_activeKey);
+    final db = DatabaseHelper();
+    final userId = AuthService().userId;
+    final localData = await db.getCourses(userId);
 
-    if (raw != null) {
-      try {
-        final courses = Course.listFromJson(raw);
-        state = CourseState(
-          courses: courses,
-          activeCourseId:
-              activeId ?? (courses.isNotEmpty ? courses.first.id : null),
-        );
-        return;
-      } catch (_) {}
+    if (localData.isNotEmpty) {
+      final courses = localData.map((m) => Course(
+        id: m['id'],
+        nativeLanguage: Language.byCode(m['native_lang_code']) ?? Language.all.first,
+        targetLanguage: Language.byCode(m['target_lang_code']) ?? Language.all.last,
+      )).toList();
+
+      final activeRecord = localData.firstWhere((c) => c['is_active'] == 1, orElse: () => localData.first);
+
+      state = CourseState(
+        courses: courses,
+        activeCourseId: activeRecord['id'],
+      );
+    } else {
+      // Fallback to SharedPreferences if DB is empty (migration path)
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_coursesKey);
+      final activeId = prefs.getString(_activeKey);
+
+      if (raw != null) {
+        try {
+          final courses = Course.listFromJson(raw);
+          state = CourseState(
+            courses: courses,
+            activeCourseId: activeId ?? (courses.isNotEmpty ? courses.first.id : null),
+          );
+          // Migrate to DB
+          for (final c in courses) {
+            await db.saveCourse({
+              'id': c.id,
+              'user_id': userId,
+              'native_lang_code': c.nativeLanguage.code,
+              'target_lang_code': c.targetLanguage.code,
+              'is_active': c.id == state.activeCourseId ? 1 : 0,
+            });
+          }
+          return;
+        } catch (_) {}
+      }
+      state = CourseState(courses: [], activeCourseId: null);
     }
-
-    // Default: Return empty state
-    state = CourseState(courses: [], activeCourseId: null);
-    await _persist();
   }
 
   Future<void> _persist() async {
+    final db = DatabaseHelper();
+    final userId = AuthService().userId;
+
+    for (final c in state.courses) {
+      await db.saveCourse({
+        'id': c.id,
+        'user_id': userId,
+        'native_lang_code': c.nativeLanguage.code,
+        'target_lang_code': c.targetLanguage.code,
+        'is_active': c.id == state.activeCourseId ? 1 : 0,
+      });
+    }
+
+    // Still sync to SharedPreferences for legacy/backup compatibility if needed
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_coursesKey, Course.listToJson(state.courses));
     if (state.activeCourseId != null) {
       await prefs.setString(_activeKey, state.activeCourseId!);
     }
+  }
+
+  Future<void> refresh() async {
+    await _load();
   }
 
   Future<void> addCourse(Course course) async {

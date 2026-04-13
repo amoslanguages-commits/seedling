@@ -114,10 +114,12 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
     if (isCorrect) {
       _plantGrowthController.forward();
       setState(() => _currentGrowth = 1.0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);
       setState(() => _currentGrowth = 0.3);
+      AudioService.instance.play(SFX.wrongAnswer);
       AudioService.haptic(HapticType.wrong).ignore();
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) _plantGrowthController.animateTo(0.3);
@@ -759,7 +761,7 @@ class _SwipeToNourishQuizState extends State<SwipeToNourishQuiz>
 
     if (isCorrect) {
       _absorbController.forward(from: 0);
-      AudioService.instance.play(SFX.correctAnswer);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _rejectController.forward(from: 0);
@@ -2067,7 +2069,18 @@ class _AdaptiveQueue {
   // Pre-loaded from the session conductor. Words are popped one at a time
   // when the CLS gate passes. Only ONE new word drills at a time.
   final Queue<Word> pendingNewWords = Queue<Word>();
-  bool newWordInProgress = false; // true while a word is in steps 0-3
+  // Tracks the number of new-word drills currently in steps 0-3.
+  // Using a counter (not a bool) ensures that graduating one word out of
+  // three simultaneous drills does NOT prematurely open the CLS gate.
+  int _activeNewWordCount = 0;
+
+  /// True while any new-word Pimsleur drill is in progress.
+  bool get newWordInProgress => _activeNewWordCount > 0;
+
+  /// Allows legacy direct assignment (e.g., safety reset in _checkDone).
+  set newWordInProgress(bool value) {
+    _activeNewWordCount = value ? math.max(1, _activeNewWordCount) : 0;
+  }
 
   int _nextCardId = 0;
   String _generateId() => 'card_${_nextCardId++}';
@@ -2115,7 +2128,7 @@ class _AdaptiveQueue {
       pos,
       _createCard(word: word, kind: _CardKind.newWordRound, step: 0),
     );
-    newWordInProgress = true;
+    _activeNewWordCount++; // One more new-word drill is in flight
   }
 
   /// Pop the next pending new word if one exists.
@@ -2136,6 +2149,9 @@ class _AdaptiveQueue {
 
   bool get isEmpty => _queue.isEmpty;
   bool get isNotEmpty => _queue.isNotEmpty;
+
+  /// Cards waiting to be shown (used by milestone FSRS + [advanceMultiple]).
+  int get length => _queue.length;
 
   _SessionCard? get current => _queue.isEmpty ? null : _queue.first;
 
@@ -2165,7 +2181,9 @@ class _AdaptiveQueue {
         if (!isSlow && card.step >= 3) {
           // All 4 passes done — graduated! 🎉
           wordsMastered++;
-          newWordInProgress = false; // SILE: ready for next candidate
+          // FIX: Decrement counter, not clear flag — other words may still be
+          // in progress. CLS gate only opens when ALL drills are done.
+          _activeNewWordCount = math.max(0, _activeNewWordCount - 1);
           hasWiltedWord = false; // UVLS: Clear wilted flag on graduation!
           return;
         }
@@ -2246,6 +2264,13 @@ class _AdaptiveQueue {
         // Delegate to standard advance to ensure UVLS/Pimsleur flags stay pure
         advance(correct: isCorrect, timeTakenMs: 6000);
     }
+  }
+
+  /// First [n] cards in the queue (for milestone FSRS — must match [advanceMultiple]).
+  List<_SessionCard> snapshotHead(int n) {
+    if (n <= 0) return <_SessionCard>[];
+    final take = math.min(n, _queue.length);
+    return List<_SessionCard>.from(_queue.sublist(0, take));
   }
 
   /// Returns the card at the given offset from the queue head without removing it.
@@ -2333,7 +2358,6 @@ class QuizManagerState extends State<QuizManager> {
 
   // Cached options to prevent flickering Shuffle-on-Build.
   List<String>? _cachedOptions;
-  List<String>? _cachedTargetOptions;
   List<Word>? _cachedObjOptions;
   bool? _cachedShowCorrect;
   String? _cachedDecoy;
@@ -2354,11 +2378,14 @@ class QuizManagerState extends State<QuizManager> {
   final Map<int, String?> _weakestTypeCache = {};
   final Map<int, Set<String>> _skippedTypesForWord = {}; // wordId -> {quizTypes}
 
+  // Generic fallback distractors — used only when the session pool has zero
+  // available distractors (e.g. brand-new first session). These are
+  // intentionally diverse common concepts with no phonetic similarity.
   static const List<String> _fallbackDistractors = [
-    'always', 'sometimes', 'friend', 'house', 'world',
-    'time', 'place', 'water', 'people', 'thing',
-    'good', 'new', 'first', 'last', 'happy',
-    'large', 'little', 'night', 'morning', 'light',
+    'always', 'never', 'everywhere', 'nothing',
+    'beautiful', 'different', 'important', 'possible',
+    'quickly', 'carefully', 'already', 'almost',
+    'together', 'outside', 'beneath', 'beyond',
   ];
 
   late final Stopwatch _stopwatch;
@@ -2454,6 +2481,11 @@ class QuizManagerState extends State<QuizManager> {
     try {
       final currentWord = _queue.current?.word;
       if (currentWord != null && currentWord.id != null) {
+        // Snapshot the card's session ID before any awaits.
+        // After each await we verify the same card is still showing, so a
+        // stale async result can never flip the quiz type mid-question.
+        final capturedSessionId = _queue.current?.sessionId;
+
         // Fetch confusion distractors for current word if not cached
         if (!_confusionCache.containsKey(currentWord.id)) {
           final distractors = await widget.db!.getConfusionDistractors(
@@ -2483,7 +2515,12 @@ class QuizManagerState extends State<QuizManager> {
               fallbackType: _determineQuizType(),
             );
 
-        if (mounted && bestType != null && bestType != _currentQuizType) {
+        // STABILITY FIX: Only apply the new quiz type if the user has not
+        // already moved on to a different card while the DB was querying.
+        if (mounted &&
+            bestType != null &&
+            bestType != _currentQuizType &&
+            _queue.current?.sessionId == capturedSessionId) {
           setState(() => _currentQuizType = bestType);
         }
       }
@@ -2525,6 +2562,10 @@ class QuizManagerState extends State<QuizManager> {
     List<Word> moreNewWords = const [],
   }) {
     if (!mounted) return;
+    // STABILITY FIX: Only re-determine the quiz type when the queue was empty
+    // before this replenishment. If a question is already on screen, changing
+    // _currentQuizType would instantly swap the visible quiz widget.
+    final wasEmpty = _queue.isEmpty;
     setState(() {
       if (moreReviews.isNotEmpty) {
         _queue.seedReviewWords(moreReviews);
@@ -2533,7 +2574,9 @@ class QuizManagerState extends State<QuizManager> {
       if (moreNewWords.isNotEmpty) {
         _queue.enqueuePendingNewWords(moreNewWords);
       }
-      _currentQuizType = _determineQuizType();
+      if (wasEmpty) {
+        _currentQuizType = _determineQuizType();
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3124,7 +3167,7 @@ class QuizManagerState extends State<QuizManager> {
             widget.db!
                 .recordConfusion(
                   correctWordId: currentCard.word.id!,
-                  confusedWithId: confusedWord!.id!,
+                  confusedTranslation: confusedWord!.translation,
                   languageCode: currentCard.word.languageCode,
                   targetLanguageCode: currentCard.word.targetLanguageCode,
                 )
@@ -3139,7 +3182,7 @@ class QuizManagerState extends State<QuizManager> {
           AudioService.instance.play(SFX.streakBonus);
           AudioService.haptic(HapticType.levelUp);
         } else {
-          AudioService.instance.playCorrect(streak: streak);
+          AudioService.instance.playCorrect();
           AudioService.haptic(HapticType.correct);
         }
 
@@ -3185,10 +3228,15 @@ class QuizManagerState extends State<QuizManager> {
           // Reset the determinism cache so the new card gets a fresh type pick
           _lastDeterminedCardId = null;
           _currentQuizType = _determineQuizType();
-          _updateQuizType(); // Fire-and-forget refinement
         }
         _checkDone();
         _stopwatch.start();
+      });
+      // STABILITY FIX: Run the async intelligence pre-fetch AFTER the setState
+      // frame commits. Calling it inside setState could trigger a second
+      // setState from within an async callback before the first frame lands.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_showPlanting) _updateQuizType();
       });
     } finally {
       if (mounted) {
@@ -3197,6 +3245,75 @@ class QuizManagerState extends State<QuizManager> {
         });
       }
     }
+  }
+
+  /// Multi-word milestones bypass [_handleAnswer]; mirror [advanceMultiple]'s
+  /// per-card correctness split so FSRS and quiz stats stay aligned.
+  void _onMilestoneComplete(int correct, int total) {
+    if (!mounted) return;
+
+    const responseMs = 6000; // matches [_AdaptiveQueue.advance] in advanceMultiple
+    final remainingErrors = math.max(0, total - correct);
+    final limit = math.min(total, _queue.length);
+
+    final head = _queue.snapshotHead(limit);
+    var simStreak = _queue.streak;
+
+    for (var i = 0; i < head.length; i++) {
+      final isCorrect = i >= remainingErrors;
+      final word = head[i].word;
+
+      widget.onWordAnswered?.call(word, isCorrect, responseMs);
+
+      if (widget.db != null && word.id != null) {
+        widget.db!
+            .recordQuizPerformance(
+              wordId: word.id!,
+              quizType: _currentQuizType,
+              correct: isCorrect,
+              responseMs: responseMs,
+            )
+            .ignore();
+      }
+
+      // Match [_handleAnswer] audio/haptics + streak milestones (pre-advance streak).
+      if (isCorrect) {
+        final streakBefore = simStreak;
+        if (streakBefore > 0 && streakBefore % 3 == 0) {
+          AudioService.instance.play(SFX.streakBonus);
+          AudioService.haptic(HapticType.levelUp);
+        } else {
+          AudioService.instance.playCorrect();
+          AudioService.haptic(HapticType.correct);
+        }
+        _checkStreakMilestones(streakBefore);
+        simStreak = streakBefore + 1;
+      } else {
+        AudioService.instance.play(SFX.wrongAnswer);
+        AudioService.haptic(HapticType.wrong).ignore();
+        simStreak = 0;
+      }
+    }
+
+    _queue.advanceMultiple(total, correctCount: correct);
+
+    _stopwatch
+      ..reset()
+      ..start();
+
+    widget.onProgressUpdate(_queue.totalCorrect, _queue.totalAnswered);
+    _maybeInjectNewWord();
+    if (!_showPlanting) {
+      setState(() {
+        _lastDeterminedCardId = null;
+        _currentQuizType = _determineQuizType();
+      });
+    }
+    _checkDone();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_showPlanting) _updateQuizType();
+    });
   }
 
   // ── Build ──────────────────────────────────────────────────────────
@@ -3224,7 +3341,42 @@ class QuizManagerState extends State<QuizManager> {
 
     // ── UVLS: Unlock banner + streak milestone overlay (Stack wrapper) ────
     // These are positioned overlays above the quiz card.
-    final quizContent = _buildQuizContent(context);
+    final rawQuizContent = _buildQuizContent(context);
+    final quizContent = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 650),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInQuad,
+      layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+        return Stack(
+          alignment: Alignment.center,
+          children: <Widget>[
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        final isIncoming = child.key == rawQuizContent.key;
+        return SlideTransition(
+            position: Tween<Offset>(
+                begin: isIncoming ? const Offset(-0.15, 0) : const Offset(0.35, 0.05),
+                end: Offset.zero,
+            ).animate(animation),
+            child: FadeTransition(
+              opacity: animation,
+              child: RotationTransition(
+                turns: Tween<double>(
+                  begin: isIncoming ? 0.0 : 0.015,
+                  end: 0.0,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+        );
+      },
+      child: rawQuizContent,
+    );
+
     if (_showUnlockBanner || _showStreakMilestone) {
       return Stack(
         alignment: Alignment.topCenter,
@@ -3293,11 +3445,15 @@ class QuizManagerState extends State<QuizManager> {
 
     if (needsRefresh) {
       _cachedOptions = _generateOptions(current);
-      _cachedTargetOptions = _generateTargetOptions(current);
       _cachedObjOptions = _getObjOptions(current);
-      _cachedShowCorrect = math.Random().nextBool();
+      // STABILITY FIX: Seed from the card's session ID so the correct/decoy
+      // split is deterministic for this card. Using math.Random().nextBool()
+      // would re-roll on every rebuild, causing BloomOrWilt/SeedSort to flip
+      // their presented translation if a repaint is triggered mid-question.
+      final cardRng = math.Random(card.sessionId.hashCode);
+      _cachedShowCorrect = cardRng.nextBool();
       _cachedDecoy = _getDecoy(current);
-      _cachedPotOptions = [current.translation, _cachedDecoy!]..shuffle();
+      _cachedPotOptions = [current.translation, _cachedDecoy!]..shuffle(cardRng);
 
       // Batch words for milestone quizzes
       final batchSize = math.min(4, _queue._queue.length + 1);
@@ -3317,7 +3473,6 @@ class QuizManagerState extends State<QuizManager> {
     }
 
     final options = _cachedOptions!;
-    final targetOptions = _cachedTargetOptions!;
 
     // ── Pick quiz widget ──────────────────────────────────────────
     switch (_currentQuizType) {
@@ -3353,18 +3508,7 @@ class QuizManagerState extends State<QuizManager> {
         return BuildTheTreeQuiz(
           key: ValueKey('buildTree_${card.sessionId}'),
           words: _cachedBatchWords!,
-          onComplete: (correct, total) {
-            _queue.advanceMultiple(total, correctCount: correct);
-            widget.onProgressUpdate(_queue.totalCorrect, _queue.totalAnswered);
-            _maybeInjectNewWord();
-            if (!_showPlanting) {
-              setState(() {
-                _lastDeterminedCardId = null;
-                _currentQuizType = _determineQuizType();
-              });
-            }
-            _checkDone();
-          },
+          onComplete: _onMilestoneComplete,
         );
 
       // ── V2: Deep Root ───────────────────────────────────────────
@@ -3444,18 +3588,7 @@ class QuizManagerState extends State<QuizManager> {
         return RootNetworkQuiz(
           key: ValueKey('rootNetwork_${card.sessionId}'),
           words: _cachedBatchWords!,
-          onComplete: (correct, total) {
-            _queue.advanceMultiple(total, correctCount: correct);
-            widget.onProgressUpdate(_queue.totalCorrect, _queue.totalAnswered);
-            _maybeInjectNewWord();
-            if (!_showPlanting) {
-              setState(() {
-                _lastDeterminedCardId = null;
-                _currentQuizType = _determineQuizType();
-              });
-            }
-            _checkDone();
-          },
+          onComplete: _onMilestoneComplete,
         );
 
       // ── Gender: Article Choice ───────────────────────────────────
@@ -3483,13 +3616,9 @@ class QuizManagerState extends State<QuizManager> {
           onAnswer: _handleAnswer,
         );
 
-      // ── Power Learning: Forest Cloze Quiz ────────────────────────
+      // forestCloze removed from conductor — falls through to deepRoot.
+      // The ForestClozeQuiz class is kept in quizzes_power.dart for future use.
       case 'forestCloze':
-        return ForestClozeQuiz(
-          word: current,
-          options: targetOptions,
-          onAnswer: _handleAnswer,
-        );
 
       // ── New: Memory Flip (milestone) ────────────────────────────
       case 'memoryFlip':
@@ -3498,18 +3627,7 @@ class QuizManagerState extends State<QuizManager> {
             'memoryFlip_${_cachedBatchWords!.map((w) => w.id ?? "").join("_")}',
           ),
           words: _cachedBatchWords!,
-          onComplete: (correct, total) {
-            _queue.advanceMultiple(total, correctCount: correct);
-            widget.onProgressUpdate(_queue.totalCorrect, _queue.totalAnswered);
-            _maybeInjectNewWord();
-            if (!_showPlanting) {
-              setState(() {
-                _lastDeterminedCardId = null;
-                _currentQuizType = _determineQuizType();
-              });
-            }
-            _checkDone();
-          },
+          onComplete: _onMilestoneComplete,
         );
 
       // ── New: Word Rain ───────────────────────────────────────────
@@ -3532,23 +3650,10 @@ class QuizManagerState extends State<QuizManager> {
 
   // ── Helpers ───────────────────────────────────────────────────────
 
-  int _levenshtein(String a, String b) {
-    if (a.isEmpty) return b.length;
-    if (b.isEmpty) return a.length;
-    var v0 = List<int>.generate(b.length + 1, (i) => i);
-    var v1 = List<int>.filled(b.length + 1, 0);
-    for (var i = 0; i < a.length; i++) {
-      v1[0] = i + 1;
-      for (var j = 0; j < b.length; j++) {
-        var cost = (a[i].toLowerCase() == b[j].toLowerCase()) ? 0 : 1;
-        v1[j + 1] = math.min(v1[j] + 1, math.min(v0[j + 1] + 1, v0[j] + cost));
-      }
-      for (var j = 0; j <= b.length; j++) {
-        v0[j] = v1[j];
-      }
-    }
-    return v1[b.length];
-  }
+  // _levenshtein removed: orthographic similarity is a poor proxy for
+  // pedagogical distractor quality. Distractors are now selected by semantic
+  // tier (confusion graph → POS match → domain match → global) and shuffled
+  // randomly within each tier for unbiased, varied quiz experiences.
 
   List<Word> _getAllSessionWords() {
     final list = List<Word>.from(widget.words);
@@ -3625,16 +3730,9 @@ class QuizManagerState extends State<QuizManager> {
         final targetT = correctWord.translation.trim().toLowerCase();
         pool.removeWhere((t) => t.trim().toLowerCase() == targetT);
 
-        // Rank by Levenshtein similarity within tier
-        pool.sort(
-          (a, b) => _levenshtein(
-            correctWord.translation,
-            a,
-          ).compareTo(_levenshtein(correctWord.translation, b)),
-        );
-
+        // Shuffle within tier for random but stable distractor selection
         final candidates =
-            pool.where((t) => !distractors.contains(t)).take(6).toList()
+            pool.where((t) => !distractors.contains(t)).toList()
               ..shuffle(rng);
         distractors.addAll(candidates.take(3 - distractors.length));
       }
@@ -3652,80 +3750,6 @@ class QuizManagerState extends State<QuizManager> {
     }
 
     return [correctWord.translation, ...distractors.take(3)]..shuffle(rng);
-  }
-
-  List<String> _generateTargetOptions(Word correctWord) {
-    final rng = math.Random();
-    final allSessionWords = _getAllSessionWords();
-
-    List<String> pool = [];
-    final others = allSessionWords
-        .where((w) => w.id != correctWord.id)
-        .toList();
-
-    // Use cached intelligent distractors first
-    final cachedDistractors = _distractorWordCache[correctWord.id] ?? [];
-    pool.addAll(cachedDistractors.map((w) => w.word));
-
-    if (pool.length < 3) {
-      pool.addAll(
-        others
-            .where(
-              (w) =>
-                  w.primaryPOS == correctWord.primaryPOS &&
-                  w.subDomain != null &&
-                  w.subDomain == correctWord.subDomain,
-            )
-            .map((w) => w.word),
-      );
-    }
-
-    if (pool.length < 3) {
-      pool.addAll(
-        others
-            .where(
-              (w) =>
-                  w.primaryPOS == correctWord.primaryPOS &&
-                  w.domain != null &&
-                  w.domain == correctWord.domain,
-            )
-            .map((w) => w.word),
-      );
-    }
-
-    if (pool.length < 3 && !widget.strictDistractors) {
-      pool.addAll(
-        others
-            .where((w) => w.primaryPOS == correctWord.primaryPOS)
-            .map((w) => w.word),
-      );
-    }
-
-    if (pool.length < 3 && !widget.strictDistractors) {
-      pool.addAll(others.map((w) => w.word));
-    }
-
-    final uniquePool = pool.toSet().toList();
-    final targetW = correctWord.word.trim().toLowerCase();
-    uniquePool.removeWhere((w) => w.trim().toLowerCase() == targetW);
-
-    // EMERGENCY: Ensure at least one distractor
-    if (uniquePool.isEmpty) {
-      final rng = math.Random();
-      uniquePool.add(_fallbackDistractors[rng.nextInt(_fallbackDistractors.length)]);
-    }
-
-    // Within chosen tier, rank by Levenshtein similarity for extra difficulty
-    uniquePool.sort(
-      (a, b) => _levenshtein(
-        correctWord.word,
-        a,
-      ).compareTo(_levenshtein(correctWord.word, b)),
-    );
-
-    final candidates = uniquePool.take(6).toList()..shuffle(rng);
-    final wrong = candidates.take(3).toList();
-    return [correctWord.word, ...wrong]..shuffle(rng);
   }
 
   String _getDecoy(Word word) {
@@ -3753,15 +3777,13 @@ class QuizManagerState extends State<QuizManager> {
     final targetT = word.translation.trim().toLowerCase();
     validPool.removeWhere((t) => t.trim().toLowerCase() == targetT);
     
-    validPool.sort(
-      (a, b) => _levenshtein(
-        word.translation,
-        a,
-      ).compareTo(_levenshtein(word.translation, b)),
-    );
-
-    final top = validPool.take(3).toList();
-    return top[math.Random().nextInt(top.length)];
+    // Shuffle for unbiased decoy selection within the chosen tier
+    final rng = math.Random();
+    validPool.shuffle(rng);
+    if (validPool.isEmpty) {
+      return _fallbackDistractors[rng.nextInt(_fallbackDistractors.length)];
+    }
+    return validPool.first;
   }
 
   Word? _getWordFromTranslation(String translation) {
@@ -3790,15 +3812,8 @@ class QuizManagerState extends State<QuizManager> {
 
     pool.removeWhere((w) => w.word == correctWord.word || w.translation == correctWord.translation);
 
-    // Sort by Levenshtein distance for visual similarity challenge
-    pool.sort(
-      (a, b) => _levenshtein(
-        correctWord.translation,
-        a.translation,
-      ).compareTo(_levenshtein(correctWord.translation, b.translation)),
-    );
-
-    final candidates = pool.take(6).toList()..shuffle(rng);
+    // Shuffle within the session pool for unbiased distractor selection
+    final candidates = pool.toList()..shuffle(rng);
 
     // Take up to 3 distractors for 3-4 options total
     final wrong = candidates.take(3).toList();

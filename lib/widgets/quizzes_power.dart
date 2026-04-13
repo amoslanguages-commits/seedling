@@ -124,7 +124,7 @@ class _LeafLetterQuizState extends State<LeafLetterQuiz>
     if (currentSpelling.toLowerCase() == targetSpelling.toLowerCase()) {
       _hasAnswered = true;
       _bloomController.forward();
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
 
       Future.delayed(const Duration(milliseconds: 1500), () {
@@ -430,7 +430,7 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz>
 
     if (isCorrect) {
       _bloomController.forward();
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);

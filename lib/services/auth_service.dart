@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/supabase_config.dart';
+import '../database/database_helper.dart';
 import 'sync_manager.dart';
 
 // ================ AUTHENTICATION SERVICE ================
@@ -51,6 +52,12 @@ class AuthService {
       if (response.user != null) {
         // Create user profile in database
         await _createUserProfile(response.user!.id, displayName, email);
+
+        // Link any onboarding data to this new user
+        await DatabaseHelper().linkAnonymousDataToUser(response.user!.id);
+        
+        // Initial sync to push onboarding data to cloud
+        SyncManager().syncToCloud();
       }
 
       return response;
@@ -71,6 +78,11 @@ class AuthService {
       );
 
       if (response.user != null) {
+        final userId = response.user!.id;
+        
+        // Link any pre-auth data
+        await DatabaseHelper().linkAnonymousDataToUser(userId);
+
         // Sync in background to not block the UI
         SyncManager().syncFromCloud().then((_) {
           SyncManager().syncToCloud();
@@ -129,6 +141,21 @@ class AuthService {
     }
 
     await SupabaseConfig.client.auth.signOut();
+  }
+
+  // Delete Account
+  Future<void> deleteAccount() async {
+    try {
+      if (!isAuthenticated) return;
+
+      // Call the secure RPC function to delete the user
+      await SupabaseConfig.client.rpc('delete_user');
+
+      // Locally sign out just in case the server-side delete didn't propagate the session kill immediately
+      await SupabaseConfig.client.auth.signOut();
+    } catch (e) {
+      throw _handleAuthError(e);
+    }
   }
 
   // Password Reset

@@ -11,6 +11,7 @@ import '../services/vocabulary_service.dart';
 import 'package:twemoji/twemoji.dart';
 import 'package:confetti/confetti.dart';
 import '../widgets/animations.dart';
+import '../services/haptic_service.dart';
 
 // ============================================================================
 // ONBOARDING FLOW
@@ -269,7 +270,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
       );
+      HapticService.selection();
     } else {
+      HapticService.medium();
       controller.completeOnboarding(context, ref);
     }
   }
@@ -280,6 +283,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
       );
+      HapticService.selection();
     }
   }
 
@@ -497,11 +501,21 @@ class WelcomeStep extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildHighlightItem('🌱', 'Learn'),
+                  FloatingAnimation(
+                    duration: const Duration(milliseconds: 2200),
+                    child: _buildHighlightItem('🌱', 'Learn'),
+                  ),
                   const SizedBox(width: 30),
-                  _buildHighlightItem('🔥', 'Streak'),
+                  FloatingAnimation(
+                    duration: const Duration(milliseconds: 2500),
+                    distance: 10,
+                    child: _buildHighlightItem('🔥', 'Streak'),
+                  ),
                   const SizedBox(width: 30),
-                  _buildHighlightItem('🏆', 'Achieve'),
+                  FloatingAnimation(
+                    duration: const Duration(milliseconds: 1800),
+                    child: _buildHighlightItem('🏆', 'Achieve'),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
@@ -623,79 +637,81 @@ class _NativeLanguageStepState extends ConsumerState<NativeLanguageStep> {
             ),
             const SizedBox(height: 20),
 
-            // Language grid
+            // Language list
             Expanded(
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 2.5,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: filteredLanguages.length,
-                itemBuilder: (context, index) {
-                  final lang = filteredLanguages[index];
-                  final isSelected = controller.nativeLanguage == lang.code;
+              child: filteredLanguages.isEmpty
+                  ? const NoResultsView(
+                      title: 'Language Not Found',
+                      message:
+                          'We haven\'t added this one yet! We\'re growing our garden daily.',
+                    )
+                  : ListView.builder(
+                      itemCount: filteredLanguages.length,
+                      itemBuilder: (context, index) {
+                        final lang = filteredLanguages[index];
+                        final isSelected = controller.nativeLanguage == lang.code;
 
-                  return GestureDetector(
-                    onTap: () {
-                      controller.setNativeLanguage(lang.code);
-                      FocusScope.of(context).unfocus();
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? SeedlingColors.seedlingGreen.withValues(
-                                alpha: 0.1,
-                              )
-                            : SeedlingColors.cardBackground,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? SeedlingColors.seedlingGreen
-                              : SeedlingColors.morningDew.withValues(
-                                  alpha: 0.3,
-                                ),
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: SeedlingColors.seedlingGreen
-                                      .withValues(alpha: 0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Twemoji(emoji: lang.flag, height: 24, width: 24),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              lang.name,
-                              style: SeedlingTypography.body.copyWith(
-                                fontWeight: FontWeight.w600,
+                        return GestureDetector(
+                          onTap: () {
+                            HapticService.light();
+                            controller.setNativeLanguage(lang.code);
+                            FocusScope.of(context).unfocus();
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? SeedlingColors.seedlingGreen.withValues(
+                                      alpha: 0.1,
+                                    )
+                                  : SeedlingColors.cardBackground,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? SeedlingColors.seedlingGreen
+                                    : SeedlingColors.morningDew.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                width: isSelected ? 2 : 1,
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: SeedlingColors.seedlingGreen
+                                            .withValues(alpha: 0.2),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Twemoji(emoji: lang.flag, height: 24, width: 24),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    lang.name,
+                                    style: SeedlingTypography.body.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: SeedlingColors.seedlingGreen,
+                                    size: 20,
+                                  ),
+                              ],
                             ),
                           ),
-                          if (isSelected)
-                            const Icon(
-                              Icons.check_circle,
-                              color: SeedlingColors.seedlingGreen,
-                              size: 20,
-                            ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -813,70 +829,77 @@ class _TargetLanguageStepState extends ConsumerState<TargetLanguageStep> {
 
             // Language list
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredLanguages.length,
-                itemBuilder: (context, index) {
-                  final lang = filteredLanguages[index];
-                  final isSelected = controller.targetLanguage == lang.code;
+              child: filteredLanguages.isEmpty
+                  ? const NoResultsView(
+                      title: 'Language Not Found',
+                      message:
+                          'We haven\'t added this one yet! We\'re growing our garden daily.',
+                    )
+                  : ListView.builder(
+                      itemCount: filteredLanguages.length,
+                      itemBuilder: (context, index) {
+                        final lang = filteredLanguages[index];
+                        final isSelected = controller.targetLanguage == lang.code;
 
-                  return GestureDetector(
-                    onTap: () {
-                      controller.setTargetLanguage(lang.code);
-                      FocusScope.of(context).unfocus();
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? SeedlingColors.seedlingGreen.withValues(
-                                alpha: 0.1,
-                              )
-                            : SeedlingColors.cardBackground,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? SeedlingColors.seedlingGreen
-                              : SeedlingColors.morningDew.withValues(
-                                  alpha: 0.3,
-                                ),
-                          width: isSelected ? 2 : 1,
-                        ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: SeedlingColors.seedlingGreen
-                                      .withValues(alpha: 0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Twemoji(emoji: lang.flag, height: 32, width: 32),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              lang.name,
-                              style: SeedlingTypography.body.copyWith(
-                                fontWeight: FontWeight.w600,
+                        return GestureDetector(
+                          onTap: () {
+                            HapticService.light();
+                            controller.setTargetLanguage(lang.code);
+                            FocusScope.of(context).unfocus();
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? SeedlingColors.seedlingGreen.withValues(
+                                      alpha: 0.1,
+                                    )
+                                  : SeedlingColors.cardBackground,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected
+                                    ? SeedlingColors.seedlingGreen
+                                    : SeedlingColors.morningDew.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                width: isSelected ? 2 : 1,
                               ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: SeedlingColors.seedlingGreen
+                                            .withValues(alpha: 0.2),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Twemoji(emoji: lang.flag, height: 32, width: 32),
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Text(
+                                    lang.name,
+                                    style: SeedlingTypography.body.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: SeedlingColors.seedlingGreen,
+                                  ),
+                              ],
                             ),
                           ),
-                          if (isSelected)
-                            const Icon(
-                              Icons.check_circle,
-                              color: SeedlingColors.seedlingGreen,
-                            ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -911,20 +934,39 @@ class DailyGoalStep extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Set your daily goal', style: SeedlingTypography.heading2),
-              const SizedBox(height: 10),
-              Text(
-                'How many words do you want to learn each day? You can change this anytime.',
-                style: SeedlingTypography.body,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Set your daily goal',
+                          style: SeedlingTypography.heading2,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'How many words do you want to learn each day?',
+                          style: SeedlingTypography.body,
+                        ),
+                      ],
+                    ),
+                  ),
+                  GoalGrowthIndicator(goal: controller.dailyGoal),
+                ],
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               // Goal options
               ...goalOptions.map((goal) {
                 final isSelected = controller.dailyGoal == goal;
 
                 return GestureDetector(
-                  onTap: () => controller.setDailyGoal(goal),
+                  onTap: () {
+                    HapticService.light();
+                    controller.setDailyGoal(goal);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     margin: const EdgeInsets.only(bottom: 15),
@@ -1226,7 +1268,7 @@ class FeaturesStep extends StatelessWidget {
     ),
     FeatureItem(
       icon: '🌍',
-      title: '121 Languages',
+      title: '${Language.all.length} Languages',
       description: 'Learn any language from any language',
     ),
   ];
@@ -1396,17 +1438,12 @@ class GetStartedStep extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: SeedlingTypography.body.copyWith(
-              color: SeedlingColors.textPrimary.withValues(alpha: 0.9),
-            ),
-          ),
+          Text(label, style: SeedlingTypography.caption),
           Text(
             value,
             style: SeedlingTypography.body.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.bold,
+              color: SeedlingColors.textPrimary,
             ),
           ),
         ],
@@ -1472,8 +1509,91 @@ class OnboardingGate extends StatelessWidget {
     );
   }
 
+
   Future<bool> _checkOnboardingStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('onboarding_completed') ?? false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  NoResultsView — Mascot feedback for empty states
+// ─────────────────────────────────────────────────────────────────────────────
+
+class NoResultsView extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const NoResultsView({super.key, required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SeedlingMascot(state: MascotState.thinking, size: 120),
+            const SizedBox(height: 20),
+            Text(title, style: SeedlingTypography.heading3),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: SeedlingTypography.caption,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GoalGrowthIndicator — Visual feedback for goal intensity
+// ─────────────────────────────────────────────────────────────────────────────
+
+class GoalGrowthIndicator extends StatelessWidget {
+  final int goal;
+
+  const GoalGrowthIndicator({super.key, required this.goal});
+
+  @override
+  Widget build(BuildContext context) {
+    double scale = 0.5 + (goal / 30 * 1.0);
+    int leaves = (goal / 5).floor().clamp(1, 5);
+
+    return Column(
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.elasticOut,
+          transform: Matrix4.identity()..scale(scale),
+          transformAlignment: Alignment.bottomCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  leaves,
+                  (i) => const Text('🍃', style: TextStyle(fontSize: 14)),
+                ),
+              ),
+              const Text('🌱', style: TextStyle(fontSize: 32)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          goal >= 20 ? 'Intense!' : 'Cool',
+          style: SeedlingTypography.caption.copyWith(
+            fontWeight: FontWeight.bold,
+            color: SeedlingColors.seedlingGreen,
+          ),
+        ),
+      ],
+    );
   }
 }

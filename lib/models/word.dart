@@ -196,7 +196,8 @@ class Word {
     if (_customOptions != null && _customOptions!.isNotEmpty) {
       return _customOptions!;
     }
-    return [translation, 'Option A', 'Option B', 'Option C']..shuffle();
+    // Fallback if not injected (e.g., edge case where no distractors exist in DB)
+    return [translation];
   }
 
   int get correctIndex => options.indexOf(translation);

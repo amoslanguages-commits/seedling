@@ -1,7 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
-class SettingsService {
+class SettingsService extends ChangeNotifier {
   static final SettingsService _instance = SettingsService._internal();
   factory SettingsService() => _instance;
   SettingsService._internal();
@@ -37,30 +38,37 @@ class SettingsService {
   // Setters
   Future<void> setNotificationsEnabled(bool value) async {
     await _prefs?.setBool(_notificationsKey, value);
+    notifyListeners();
   }
 
   Future<void> setSoundEffectsEnabled(bool value) async {
     await _prefs?.setBool(_soundKey, value);
+    notifyListeners();
   }
 
   Future<void> setHapticsEnabled(bool value) async {
     await _prefs?.setBool(_hapticsKey, value);
+    notifyListeners();
   }
 
   Future<void> setReminderTime(TimeOfDay time) async {
     await _prefs?.setInt(_hourKey, time.hour);
     await _prefs?.setInt(_minuteKey, time.minute);
+    notifyListeners();
   }
 
   Future<void> setDailyWordGoal(int goal) async {
     await _prefs?.setInt(_dailyGoalKey, goal);
+    notifyListeners();
   }
 
   Future<void> setCloudSyncEnabled(bool value) async {
     await _prefs?.setBool(_syncKey, value);
+    notifyListeners();
   }
 
   Future<void> setNativeLanguageCode(String code) async {
     await _prefs?.setString(_nativeLangKey, code);
+    notifyListeners();
   }
 }

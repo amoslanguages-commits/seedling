@@ -7,10 +7,9 @@ import '../../providers/app_providers.dart';
 import '../../providers/review_provider.dart';
 import '../../models/taxonomy.dart';
 import 'mcq_review_session.dart';
-
-import 'dart:ui';
+import '../../services/usage_service.dart';
 import '../../widgets/tilt_card.dart';
-import '../../widgets/premium_environment.dart';
+import '../../widgets/premium_gate.dart';
 
 class SmartReviewScreen extends ConsumerStatefulWidget {
   const SmartReviewScreen({super.key});
@@ -23,10 +22,12 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _entranceController;
   late List<Animation<double>> _staggeredAnims;
+  ReviewSessionState? _draftSession;
 
   @override
   void initState() {
     super.initState();
+    _checkDraft();
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -49,6 +50,14 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
     _entranceController.dispose();
     super.dispose();
   }
+
+  Future<void> _checkDraft() async {
+    final draft = await UsageService().loadDraftSession();
+    if (mounted) {
+      setState(() => _draftSession = draft);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dueStatus = ref.watch(smartFocusProvider);
@@ -98,27 +107,31 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
             ),
           ),
           SliverToBoxAdapter(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FadeTransition(
-                        opacity: _staggeredAnims[0],
-                        child: SlideTransition(
-                          position: _staggeredAnims[0].drive(
-                            Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero),
-                          ),
-                          child: dueStatus.when(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FadeTransition(
+                    opacity: _staggeredAnims[0],
+                    child: SlideTransition(
+                      position: _staggeredAnims[0].drive(
+                        Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero),
+                      ),
+                      child: dueStatus.when(
                         data: (focus) => _buildIntegratedHub(focus.dueCount, totalLearned: focus.totalLearned),
                         loading: () => _buildIntegratedHub(0, totalLearned: 0, isLoading: true),
                         error: (_, __) => _buildIntegratedHub(0, totalLearned: 0),
                       ),
                     ),
                   ),
+                  if (_draftSession != null) ...[
+                    const SizedBox(height: 24),
+                    FadeTransition(
+                      opacity: _staggeredAnims[0],
+                      child: _buildResumeCard(),
+                    ),
+                  ],
                   const SizedBox(height: 32),
                   FadeTransition(
                     opacity: _staggeredAnims[1],
@@ -140,8 +153,6 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
                   ),
                   const SizedBox(height: 64),
                 ],
-              ),
-                ),
               ),
             ),
           ),
@@ -199,7 +210,7 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          isLocked ? 'LOCKED' : (isDue ? 'WATERING DUE' : 'FULLY WATERED'),
+                          isLocked ? 'LOCKED' : (isDue ? 'WATERING DUE' : 'ALL REVIEWED'),
                           style: SeedlingTypography.caption.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -214,7 +225,7 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isLocked ? 'Plant more seeds' : (isDue ? 'Plants are thirsty' : 'Garden is thriving'),
+                  isLocked ? 'Plant more seeds' : (isDue ? 'Plants are thirsty' : 'Great work! Keep it fresh'),
                   style: SeedlingTypography.heading2.copyWith(
                     color: Colors.white, 
                     fontSize: 22, 
@@ -225,7 +236,7 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
                 Text(
                   isLocked 
                      ? 'Learn $needed more words to start' 
-                     : (isDue ? '$dueCount plants need water' : 'Your vocabulary is hydrated'),
+                     : (isDue ? '$dueCount plants need water' : 'Explore all $totalLearned planted words'),
                   style: SeedlingTypography.body.copyWith(
                     color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 14,
@@ -247,25 +258,128 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
             ),
             onPressed: isLocked ? null : () async {
               HapticService.mediumImpact();
-              await ref.read(reviewSessionProvider.notifier).startSession();
-              if (mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const McqReviewSessionScreen()),
+              final canReview = await UsageService().canReview();
+              if (!canReview && mounted) {
+                PremiumGateDialog.show(
+                  context,
+                  title: 'Infinite Study Sessions',
+                  message: 'You\'ve done an amazing job studying for 30 minutes! Upgrade to Seedling Pro for infinite study sessions and to learn for as long as your garden needs.',
                 );
+                return;
               }
+              await ref.read(reviewSessionProvider.notifier).startSession();
+              if (!mounted) return;
+              if (ref.read(reviewSessionProvider).words.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No planted words to review yet. Grow a few seeds first!'),
+                  ),
+                );
+                return;
+              }
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const McqReviewSessionScreen()),
+              );
             },
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(isLocked ? Icons.lock_outline_rounded : Icons.water_drop_rounded, size: 24),
-                if (!isLocked && isDue) ...[
+                Icon(isLocked ? Icons.lock_outline_rounded : (isDue ? Icons.water_drop_rounded : Icons.auto_stories_rounded), size: 24),
+                if (!isLocked) ...[
                   const SizedBox(width: 8),
-                  Text('Water All', style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold, color: glowColor)),
+                  Text(
+                    isDue ? 'Water All' : 'Review All',
+                    style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold, color: glowColor),
+                  ),
                 ]
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildResumeCard() {
+    final progress = _draftSession!.progress * 100;
+    return GestureDetector(
+      onTap: () async {
+        HapticService.mediumImpact();
+        final draft = _draftSession!;
+        if (draft.words.isEmpty ||
+            (!draft.isCompleted && draft.currentIndex >= draft.words.length)) {
+          await UsageService().clearDraftSession();
+          if (mounted) {
+            setState(() => _draftSession = null);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Saved session was invalid and has been cleared.'),
+              ),
+            );
+          }
+          return;
+        }
+        if (draft.isCompleted) {
+          await UsageService().clearDraftSession();
+          if (mounted) setState(() => _draftSession = null);
+          return;
+        }
+        await ref.read(reviewSessionProvider.notifier).resumeSession(draft);
+        if (!mounted) return;
+        if (ref.read(reviewSessionProvider).words.isEmpty) {
+          await UsageService().clearDraftSession();
+          if (mounted) setState(() => _draftSession = null);
+          return;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const McqReviewSessionScreen()),
+        );
+        if (mounted) await _checkDraft();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: SeedlingColors.cardBackground,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: SeedlingColors.sunlight.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: SeedlingColors.sunlight.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: SeedlingColors.sunlight.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.history_rounded, color: SeedlingColors.sunlight, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Resume Watering',
+                    style: SeedlingTypography.heading3.copyWith(fontSize: 18, color: SeedlingColors.sunlight),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Progress: ${progress.round()}% • ${_draftSession!.words.length - _draftSession!.currentIndex} left',
+                    style: SeedlingTypography.caption.copyWith(color: SeedlingColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: SeedlingColors.textSecondary, size: 16),
+          ],
+        ),
       ),
     );
   }
@@ -317,23 +431,28 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
           ),
         ),
         const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: ReviewTimerMode.values.map((mode) {
-              final isSelected = currentMode == mode;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+        Row(
+          children: ReviewTimerMode.values.map((mode) {
+            final isSelected = currentMode == mode;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: mode == ReviewTimerMode.values.last ? 0 : 8.0),
                 child: GestureDetector(
                   onTap: () {
                     HapticService.selectionClick();
+                    if (mode != ReviewTimerMode.none && !(ref.read(isPremiumProvider).value ?? false)) {
+                       PremiumGateDialog.show(
+                         context,
+                         title: 'Pro Timers Locked',
+                         message: 'Unlock 5s Blitz and 15s Rapid pacing timers with Seedling Pro to truly test your reflexes.',
+                       );
+                       return;
+                    }
                     ref.read(reviewTimerProvider.notifier).setMode(mode);
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutQuart,
-                    width: 80, // Fixed width prevents cramming
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: SeedlingColors.cardBackground,
@@ -385,9 +504,9 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ),
+              ),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -455,12 +574,40 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
     return GestureDetector(
       onTap: isLocked ? null : () async {
         HapticService.selectionClick();
-        await ref.read(reviewSessionProvider.notifier).startSession(subDomain: cat.id);
-        if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const McqReviewSessionScreen()),
-          );
+        if (!(ref.read(isPremiumProvider).value ?? false)) {
+           PremiumGateDialog.show(
+             context,
+             title: 'Advanced Pruning',
+             message: 'Free users get the standard "Water All" review button. Upgrade to Seedling Pro to surgically target specific weak vocabulary subthemes.',
+           );
+           return;
         }
+        
+        final canReview = await UsageService().canReview();
+        if (!canReview && mounted) {
+           PremiumGateDialog.show(
+             context,
+             title: 'Daily Review Limit',
+             message: 'Free users can review their garden for 30 minutes a day. Upgrade to Seedling Pro to unlock infinite watering!',
+           );
+           return;
+        }
+
+        await ref.read(reviewSessionProvider.notifier).startSession(subDomain: cat.id);
+        if (!mounted) return;
+        if (ref.read(reviewSessionProvider).words.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'No reviewable words in "${cat.name}" yet (need real translation choices).',
+              ),
+            ),
+          );
+          return;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const McqReviewSessionScreen()),
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -477,6 +624,7 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
               SeedlingColors.cardBackground,
               SeedlingColors.cardBackground.withValues(alpha: 0.8),
             ],
+            stops: isLocked ? const [0.0, 1.0] : const [0.0, 0.5, 1.0],
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(

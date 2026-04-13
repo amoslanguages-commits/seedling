@@ -71,7 +71,7 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
     });
     if (isCorrect) {
       _bloomCtrl.forward();
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
       // Speak the full sentence once answered correctly
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -294,7 +294,7 @@ class _TranslationSprintQuizState extends State<TranslationSprintQuiz>
     });
     if (isCorrect) {
       _bloomCtrl.forward();
-      AudioService.instance.playCorrect(streak: 0);
+      AudioService.instance.playCorrect();
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeCtrl.forward(from: 0);
@@ -464,29 +464,51 @@ class _SentenceWithGap extends StatelessWidget {
     final gapColor = revealWord != null
         ? (isCorrect ? SeedlingColors.success : SeedlingColors.error)
         : SeedlingColors.seedlingGreen;
+        
+    final bool isRevealed = revealWord != null;
 
-    return RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: SeedlingTypography.bodyLarge.copyWith(
-          fontSize: fontSize,
-          color: SeedlingColors.textPrimary,
-          height: 1.6,
-        ),
-        children: [
-          TextSpan(text: before),
-          TextSpan(
-            text: revealWord ?? '___',
-            style: TextStyle(
-              color: gapColor,
-              fontWeight: FontWeight.bold,
-              decoration: TextDecoration.underline,
-              decorationColor: gapColor,
-              decorationThickness: 2,
-            ),
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: SeedlingTypography.bodyLarge.copyWith(
+            fontSize: fontSize,
+            color: SeedlingColors.textPrimary,
+            height: 1.6,
           ),
-          TextSpan(text: after),
-        ],
+          children: [
+            TextSpan(text: before),
+            WidgetSpan(
+               alignment: PlaceholderAlignment.baseline,
+               baseline: TextBaseline.alphabetic,
+               child: TweenAnimationBuilder<double>(
+                  key: ValueKey(isRevealed), // Forces restart when revealed
+                  tween: Tween<double>(begin: isRevealed ? 0.3 : 1.0, end: 1.0),
+                  duration: isRevealed ? const Duration(milliseconds: 600) : Duration.zero,
+                  curve: Curves.elasticOut,
+                  builder: (context, scale, child) {
+                     return Transform.scale(
+                        scale: scale,
+                        alignment: Alignment.bottomCenter,
+                        child: Text(
+                          revealWord ?? '___',
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            color: gapColor,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                            decorationColor: gapColor,
+                            decorationThickness: 2,
+                            fontFamily: SeedlingTypography.bodyLarge.fontFamily,
+                          ),
+                        ),
+                     );
+                  },
+               ),
+            ),
+            TextSpan(text: after),
+          ],
+        ),
       ),
     );
   }
