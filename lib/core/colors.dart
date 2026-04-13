@@ -11,7 +11,7 @@ class SeedlingColors {
   static const Color water = Color(0xFF4FC3F7); // Vitality
   static const Color background = Color(
     0xFF0B1910,
-  ); // Midnight Forest Deep Canvas
+  ); // Deep Forest Canvas
   static const Color cardBackground = Color(0xFF14261A); // Leaf Surface
   static const Color textPrimary = Color(0xFFF5F5DC); // Warm Personal Cream
   static const Color textSecondary = Color(0xFF9EAD94); // Muted Nature Green

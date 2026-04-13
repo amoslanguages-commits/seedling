@@ -31,6 +31,7 @@ dependencies:
   flutter_timezone: ^5.0.2
   fsrs: ^2.0.1
   path_provider: ^2.1.5
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -43,9 +44,19 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icons/ios_app_store_1024x1024.png"
-  adaptive_icon_background: "#ECF5E6" # SeedlingColors.background
-  adaptive_icon_foreground: "assets/icons/ios_app_store_1024x1024.png"
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+  image_path: "assets/icons/app_icon.png"
+  adaptive_icon_background: "#0b1910"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
@@ -57,3 +68,4 @@ flutter:
     - assets/sfx/
     - assets/database/
     - assets/grammar/
+    - .env

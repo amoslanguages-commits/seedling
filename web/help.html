@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help Center — Seedling Support</title>
+  <meta name="description" content="Official Help Center for Seedling by Amos languages. Find FAQs and contact our support team." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <style>
+    .help-content {
+      max-width: 900px;
+      margin: 120px auto 80px;
+      padding: 0 32px;
+    }
+    .help-hero {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+    .help-hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+    }
+    .help-hero p {
+      color: var(--text-sec);
+      font-size: 1.2rem;
+    }
+
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 24px;
+      margin-bottom: 80px;
+    }
+    .faq-item {
+      background: rgba(20, 38, 26, 0.6);
+      border: 1px solid rgba(165,214,167,0.1);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      transition: var(--transition);
+    }
+    .faq-item:hover {
+      border-color: rgba(75,174,79,0.3);
+      transform: translateY(-4px);
+    }
+    .faq-item h3 {
+      font-size: 1.2rem;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+    .faq-item p {
+      color: var(--text-sec);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .contact-card {
+      background: linear-gradient(135deg, rgba(75,174,79,0.15), rgba(20,38,26,0.8));
+      border: 1px solid rgba(75,174,79,0.3);
+      border-radius: var(--radius-xl);
+      padding: 48px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .contact-card::before {
+      content: '🌿';
+      position: absolute;
+      font-size: 120px;
+      opacity: 0.05;
+      right: -20px;
+      bottom: -20px;
+      pointer-events: none;
+    }
+    .contact-card h2 {
+      font-size: 2.22rem;
+      margin-bottom: 16px;
+    }
+    .contact-card p {
+      color: var(--text-sec);
+      margin-bottom: 32px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .email-link {
+      font-family: var(--font-mono);
+      font-size: 1.4rem;
+      color: var(--text);
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: var(--green);
+      transition: var(--transition);
+    }
+    .email-link:hover {
+      color: var(--green);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-mesh">
+    <div class="mesh-orb orb-1"></div>
+    <div class="mesh-orb orb-2"></div>
+    <div class="mesh-orb orb-3"></div>
+  </div>
+
+  <nav class="navbar scrolled">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <svg class="logo-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="18" fill="#14261A"/>
+          <path d="M18 28 C18 28 18 16 18 14" stroke="#4BAE4F" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M18 18 C18 18 12 15 10 10 C14 10 18 14 18 18Z" fill="#66BB6A"/>
+          <path d="M18 15 C18 15 24 12 26 7 C22 7 18 11 18 15Z" fill="#81C784"/>
+          <ellipse cx="18" cy="29" rx="5" ry="2" fill="#3E2723" opacity="0.6"/>
+        </svg>
+        <span class="logo-text">Seedling</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Back to Home</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="help-content">
+    <section class="help-hero reveal visible">
+      <span class="section-tag">Support Center</span>
+      <h1>How can we help you <em>grow?</em></h1>
+      <p>Find answers to common questions or reach out to our botanical experts.</p>
+    </section>
+
+    <div class="faq-grid">
+      <div class="faq-item reveal visible">
+        <h3>How does the Spaced Repetition System work?</h3>
+        <p>Seedling calculates the optimal time to review words based on your previous performance. Words you find easy transition to "Stable" status and appear less frequently, while difficult words stay in "Nurturing" and pop up more often.</p>
+      </div>
+      <div class="faq-item reveal visible">
+        <h3>Is Seedling free to use?</h3>
+        <p>The core Seedling experience is entirely free. You can plant, nurture, and master unlimited words. Our "Greenhouse" subscription offers advanced analytics, unlimited offline voice synthesis, and custom learning themes.</p>
+      </div>
+      <div class="faq-item reveal visible">
+        <h3>Can I sync my data between devices?</h3>
+        <p>Yes! If you sign in, your entire garden is securely synced to our cloud forest. Plant on your phone during your commute, and harvest on your tablet at home.</p>
+      </div>
+      <div class="faq-item reveal visible">
+        <h3>How do I report a bug or translation error?</h3>
+        <p>We're human (and mascots)! If you find an error, please click the contact button below or email us directly with a screenshot of the issue.</p>
+      </div>
+    </div>
+
+    <section class="contact-card reveal visible">
+      <h2>Still have questions?</h2>
+      <p>Our dedicated team is ready to help you with anything from technical issues to learning advice.</p>
+      <a href="mailto:seedlingapp.team@gmail.com" class="email-link">seedlingapp.team@gmail.com</a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-bottom">
+      <span>© 2026 Amos languages. Made with 🌿 and science.</span>
+      <span class="footer-version">v1.0.0 — Production Edition</span>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

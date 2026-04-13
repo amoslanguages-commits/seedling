@@ -13,6 +13,7 @@ import '../providers/app_providers.dart';
 import '../providers/course_provider.dart';
 import '../database/database_helper.dart';
 import '../services/haptic_service.dart';
+import '../services/subscription_service.dart';
 import 'settings/subscription_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -38,6 +39,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2500),
     )..repeat();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await SubscriptionService().refreshSubscription();
+      if (mounted) ref.invalidate(isPremiumProvider);
+    });
   }
 
   @override
@@ -69,8 +74,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // Use platformDefault to prefer in-app browser for web links (more professional)
+      // mailto handles itself via external app
+      await launchUrl(
+        uri,
+        mode: uri.scheme == 'mailto'
+            ? LaunchMode.externalApplication
+            : LaunchMode.platformDefault,
+      );
     }
+  }
+
+  void _contactSupport(String? userName) {
+    final String subject = 'Seedling Support Request - ${userName ?? 'Guest'}';
+    final String body = '\n\n---\nApp Version: 1.0.0\nPlatform: Windows';
+    final String url =
+        'mailto:seedlingapp.team@gmail.com?subject=${Uri.encodeComponent(subject)}&body=${Uri.encodeComponent(body)}';
+    _launchUrl(url);
   }
 
   @override
@@ -262,31 +282,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     Icons.help_outline,
                     'Help Center',
                     'Guides and FAQ',
-                    () => _launchUrl('https://seedling.app/help'),
+                    () => _launchUrl('https://www.seedlinglanguages.com/help'),
                   ),
                   _buildActionTile(
                     Icons.mail_outline,
                     'Contact Support',
                     'Get human help',
-                    () => _launchUrl('mailto:support@seedling.app'),
+                    () => _contactSupport(user?.userMetadata?['display_name']),
                   ),
                   _buildActionTile(
                     Icons.description_outlined,
                     'Privacy Policy',
                     'Data protection',
-                    () => _launchUrl('https://seedling.app/privacy'),
+                    () => _launchUrl('https://www.seedlinglanguages.com/privacy'),
                   ),
                   _buildActionTile(
                     Icons.gavel_outlined,
                     'Terms of Service',
                     'App rules',
-                    () => _launchUrl('https://seedling.app/terms'),
+                    () => _launchUrl('https://www.seedlinglanguages.com/terms'),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
+
+
 
           // Danger Zone
           _staggeredSlide(
@@ -328,24 +350,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
           const SizedBox(height: 40),
 
-          Center(
-            child: Column(
-              children: [
-                Text(
-                  'Seedling v1.1.0 (Build 2024)',
-                  style: SeedlingTypography.caption,
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  'Made with 💚 by Seedling Team',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: SeedlingColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildFooter(),
 
           const SizedBox(height: 40),
         ],
@@ -630,11 +635,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const SizedBox(width: 10),
           OrganicButton(
             text: 'UPGRADE',
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              await Navigator.push(
                 context,
                 SeedlingPageRoute(page: const SubscriptionScreen()),
               );
+              if (!mounted) return;
+              await SubscriptionService().refreshSubscription();
+              ref.invalidate(isPremiumProvider);
             },
             height: 40,
             width: 90,
@@ -679,7 +687,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
       title: Text(
         title,
-        style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.w600),
+        style: SeedlingTypography.body.copyWith(
+          fontWeight: FontWeight.w600,
+          color: value ? SeedlingColors.textPrimary : SeedlingColors.textSecondary,
+        ),
       ),
       subtitle: Text(subtitle, style: SeedlingTypography.caption),
       trailing: Switch(
@@ -998,11 +1009,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (context) => AlertDialog(
         backgroundColor: SeedlingColors.cardBackground,
         title: const Text(
-          'Delete Account',
+          'Delete Account Permanently?',
           style: TextStyle(color: SeedlingColors.textPrimary),
         ),
         content: const Text(
-          'This action will clear all your local data and sign you out. To permanently delete your remote Supabase account, please contact support.',
+          'This will permanently delete your account and all progress from our servers. This action is irreversible and you will lose all mastered words and statistics.',
           style: TextStyle(color: SeedlingColors.textSecondary),
         ),
         actions: [
@@ -1013,21 +1024,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               style: TextStyle(color: SeedlingColors.textSecondary),
             ),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SeedlingColors.error,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () async {
-              await DatabaseHelper().clearUserData();
-              await AuthService().signOut();
-              if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+              try {
+                // 1. Delete remote account (this will cascade to profiles, user_stats, etc)
+                await AuthService().deleteAccount();
+                
+                // 2. Clear local data
+                await DatabaseHelper().clearUserData();
+                
+                if (context.mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Account successfully deleted.')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting account: $e')),
+                  );
+                }
               }
             },
-            child: const Text(
-              'CLEAR & LOGOUT',
-              style: TextStyle(color: SeedlingColors.error),
-            ),
+            child: const Text('DELETE PERMANENTLY'),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildFooter() {
+    return Column(
+      children: [
+        Text(
+          'Seedling Version 1.0.0',
+          style: SeedlingTypography.caption.copyWith(
+            color: SeedlingColors.textSecondary.withOpacity(0.5),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '© 2026 Amos languages',
+          style: SeedlingTypography.caption.copyWith(
+            color: SeedlingColors.textSecondary.withOpacity(0.3),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 1,
+          width: 40,
+          color: SeedlingColors.seedlingGreen.withOpacity(0.1),
+        ),
+      ],
+    );
+  }
 }
+
