@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Seedling — Account Verified</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <style>
+    .welcome-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+      background: radial-gradient(circle at center, rgba(75,174,79,0.15) 0%, transparent 70%);
+      position: relative;
+      z-index: 1;
+    }
+    .check-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+      animation: bouncy 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes bouncy {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    h1 {
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+    p {
+      color: var(--text-sec);
+      font-size: 1.2rem;
+      max-width: 500px;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    .action-card {
+      background: var(--card-bg);
+      border: 1px solid rgba(165,214,167,0.2);
+      padding: 40px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-deep);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      max-width: 400px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    .brand-logo {
+      position: absolute;
+      top: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: -0.8px;
+    }
+    .brand-logo img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh">
+    <div class="mesh-orb orb-1"></div>
+    <div class="mesh-orb orb-2"></div>
+    <div class="mesh-orb orb-3"></div>
+  </div>
+
+    <div class="welcome-container">
+        <div class="brand-logo">
+            <img src="assets/app_logo.png" alt="Seedling Logo">
+            <span>Seedling</span>
+        </div>
+
+
+        <h1 class="gradient-text" style="font-weight: 900;">Verified!</h1>
+        <p>Your Seedling account is officially active. Your journey into a new language starts now.</p>
+        
+        <div class="action-card">
+            <h3 style="margin-bottom: 24px; font-weight: 700; color: var(--text);">Ready to grow?</h3>
+            <a id="launchBtn" href="io.seedling.app://callback" class="btn-primary btn-xl" style="width: 100%; justify-content: center; text-decoration: none;">
+                Launch Seedling App
+            </a>
+            <p style="font-size: 0.9rem; margin-top: 24px; margin-bottom: 0; color: var(--text-sec);">
+                Already confirmed? You can safely close this window and log in to the app.
+            </p>
+        </div>
+
+        <div class="footer-bottom" style="margin-top: 60px; border: none; background: transparent;">
+            <span style="color: var(--text-sec); opacity: 0.6;">© 2026 Seedling Languages</span>
+        </div>
+    </div>
+
+    <script>
+        // SMART TOKENS: Automatically hand the login 'Golden Ticket' to the app
+        document.addEventListener('DOMContentLoaded', async () => {
+            const launchBtn = document.getElementById('launchBtn');
+            let hash = window.location.hash; // Direct landing from email link
+            
+            // INTERCEPT: If this is a password reset, route them to the reset page automatically
+            if (hash && hash.includes('type=recovery')) {
+                window.location.replace('reset-password.html' + hash);
+                return;
+            }
+            
+            // If tokens are missing from URL (e.g. after a redirect from Password Reset)
+            // check the background session memory.
+            if (!hash || !hash.includes('access_token')) {
+                if (window.supabaseClient) {
+                    const { data } = await window.supabaseClient.auth.getSession();
+                    if (data.session) {
+                        hash = `#access_token=${data.session.access_token}&refresh_token=${data.session.refresh_token}&type=signup`;
+                    }
+                }
+            }
+            
+            if (hash && hash.includes('access_token')) {
+                // If tokens exist, append them to the app launch pulse
+                launchBtn.href = 'io.seedling.app://callback' + hash;
+            }
+            
+            document.body.style.opacity = '1';
+        });
+    </script>
+</body>
+</html>
