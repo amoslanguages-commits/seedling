@@ -112,10 +112,12 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const launchBtn = document.getElementById('launchBtn');
             let hash = window.location.hash; // Direct landing from email link
+            let search = window.location.search; // Query parameters
             
             // INTERCEPT: If this is a password reset, route them to the reset page automatically
-            if (hash && hash.includes('type=recovery')) {
-                window.location.replace('reset-password.html' + hash);
+            if ((hash && hash.includes('type=recovery')) || (search && search.includes('type=recovery'))) {
+                const params = hash ? hash : search;
+                window.location.replace('reset-password.html' + params);
                 return;
             }
             
