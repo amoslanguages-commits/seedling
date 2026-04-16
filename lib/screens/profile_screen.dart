@@ -12,6 +12,7 @@ import '../models/gamification.dart';
 import '../database/database_helper.dart';
 import '../widgets/gamification_widgets.dart';
 import '../providers/app_providers.dart';
+import '../widgets/notifications.dart';
 import 'auth/auth_screen.dart';
 import 'settings.dart';
 
@@ -115,6 +116,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       streak: streak,
       totalWords: stats['totalWordsLearned'] ?? 0,
       totalMinutes: stats['totalStudyMinutes'] ?? 0,
+      premiumWordsMastered: stats['premiumWordsMastered'] ?? 0,
+      premiumSentencesPlayed: stats['premiumSentencesPlayed'] ?? 0,
       achievementsUnlocked: achievementsCount,
       totalAchievements: achievements.length,
       achievements: achievements,
@@ -141,18 +144,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           final data = snapshot.data!;
 
           return NestedScrollView(
+            physics: const ClampingScrollPhysics(),
             headerSliverBuilder: (context, innerBoxIsScrolled) {
               return [
-                SliverAppBar(
-                  expandedHeight: 380,
-                  pinned: true,
-                  backgroundColor: SeedlingColors.background,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: _buildProfileHeader(
-                      context,
-                      isAuthenticated,
-                      user,
-                      data,
+                SliverOverlapAbsorber(
+                  handle:
+                      NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                  sliver: SliverAppBar(
+                    expandedHeight: 380,
+                    pinned: true,
+                    stretch: true,
+                    backgroundColor: SeedlingColors.background,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: _buildProfileHeader(
+                        context,
+                        isAuthenticated,
+                        user,
+                        data,
+                      ),
                     ),
                   ),
                 ),
@@ -222,6 +231,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       if (!context.mounted) return;
                       await SubscriptionService().refreshSubscription();
                       ref.invalidate(isPremiumProvider);
+                      SeedlingNotifications.showSnackBar(
+                        context,
+                        message: 'Subscription status updated!',
+                        isError: false,
+                      );
                     },
                   ),
                 ),
@@ -731,45 +745,150 @@ class _OverviewTab extends ConsumerWidget {
     final minutesSparkline = minuteData ?? List<double>.filled(7, 0);
     const badgesSparkline = <double>[1, 1, 2, 2, 2, 3, 3];
 
-    return ListView(
+    return CustomScrollView(
+      key: const PageStorageKey<String>('overview'),
+      physics: const ClampingScrollPhysics(),
+      slivers: [
+        SliverOverlapInjector(
+          handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverToBoxAdapter(child: _buildLevelRingCard()),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 20)),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(child: _buildStreakCard()),
+        ),
+        const SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(child: SizedBox(height: 20)),
+        ),
+        if (SubscriptionService().isPremium) ...[
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverToBoxAdapter(child: _buildPremiumValueHUD()),
+          ),
+          const SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            sliver: SliverToBoxAdapter(child: SizedBox(height: 20)),
+          ),
+        ],
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildSparklineStatCard(
+                    '📚',
+                    data.totalWords,
+                    'Words',
+                    SeedlingColors.seedlingGreen,
+                    wordsSparkline,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildSparklineStatCard(
+                    '⏱️',
+                    data.totalMinutes,
+                    'Minutes',
+                    SeedlingColors.water,
+                    minutesSparkline,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildSparklineStatCard(
+                    '🏆',
+                    data.achievementsUnlocked,
+                    'Badges',
+                    SeedlingColors.autumnGold,
+                    badgesSparkline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPremiumValueHUD() {
+    return Container(
       padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: SeedlingColors.waterBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: SeedlingColors.waterBlue.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.star_rounded, color: SeedlingColors.autumnGold, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Premium Mastery',
+                style: SeedlingTypography.heading3.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: SeedlingColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPremiumStat(
+                  '📚',
+                  '${data.premiumWordsMastered}',
+                  'Premium Words\\nMastered',
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 40,
+                color: SeedlingColors.textSecondary.withValues(alpha: 0.2),
+              ),
+              Expanded(
+                child: _buildPremiumStat(
+                  '🎧',
+                  '${data.premiumSentencesPlayed}',
+                  'Topic Sentences\\nPlayed',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumStat(String emoji, String value, String label) {
+    return Column(
       children: [
-        _buildLevelRingCard(),
-        const SizedBox(height: 20),
-        _buildStreakCard(),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSparklineStatCard(
-                '📚',
-                data.totalWords,
-                'Words',
-                SeedlingColors.seedlingGreen,
-                wordsSparkline,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSparklineStatCard(
-                '⏱️',
-                data.totalMinutes,
-                'Minutes',
-                SeedlingColors.water,
-                minutesSparkline,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSparklineStatCard(
-                '🏆',
-                data.achievementsUnlocked,
-                'Badges',
-                SeedlingColors.autumnGold,
-                badgesSparkline,
-              ),
-            ),
-          ],
+        Text(emoji, style: const TextStyle(fontSize: 24)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: SeedlingTypography.heading2.copyWith(
+            color: SeedlingColors.textPrimary,
+          ),
+        ),
+        Text(
+          label.replaceAll('\\n', '\n'),
+          style: SeedlingTypography.caption.copyWith(
+            color: SeedlingColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -1215,47 +1334,64 @@ class _AchievementsTab extends StatelessWidget {
     final unlocked = achievements.where((a) => a.isUnlocked).toList();
     final locked = achievements.where((a) => !a.isUnlocked).toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
+    return CustomScrollView(
+      key: const PageStorageKey<String>('achievements'),
+      physics: const ClampingScrollPhysics(),
+      slivers: [
+        SliverOverlapInjector(
+          handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+        ),
         // Circular progress card
-        _buildProgressRingCard(unlockedCount, achievements.length),
-        const SizedBox(height: 24),
+        SliverPadding(
+          padding: const EdgeInsets.all(20),
+          sliver: SliverToBoxAdapter(
+            child: _buildProgressRingCard(unlockedCount, achievements.length),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
         // Unlocked section
         if (unlocked.isNotEmpty) ...[
-          _buildSectionHeader('✨ Unlocked', SeedlingColors.seedlingGreen),
-          const SizedBox(height: 14),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            childAspectRatio: 0.72,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            children: unlocked
-                .map((a) => _buildRarityBadge(a, isUnlocked: true))
-                .toList(),
+          SliverToBoxAdapter(
+            child: _buildSectionHeader('✨ Unlocked', SeedlingColors.seedlingGreen),
           ),
-          const SizedBox(height: 24),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 0.72,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildRarityBadge(unlocked[index], isUnlocked: true),
+              childCount: unlocked.length,
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
 
         // Locked section
         if (locked.isNotEmpty) ...[
-          _buildSectionHeader('🔒 Locked', SeedlingColors.textSecondary),
-          const SizedBox(height: 14),
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            childAspectRatio: 0.72,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            children: locked
-                .map((a) => _buildRarityBadge(a, isUnlocked: false))
-                .toList(),
+          SliverToBoxAdapter(
+            child: _buildSectionHeader('🔒 Locked', SeedlingColors.textSecondary),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 0.72,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildRarityBadge(locked[index], isUnlocked: false),
+              childCount: locked.length,
+            ),
           ),
         ],
+        // Extra bottom padding
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
       ],
     );
   }
@@ -1480,13 +1616,32 @@ class _ActivityTabState extends ConsumerState<_ActivityTab>
           );
         }).toList();
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-          children: [
-            Text('Recent Activity', style: SeedlingTypography.heading3),
-            const SizedBox(height: 20),
-            ...activities.asMap().entries.map(
-              (e) => _buildTimelineItem(e.value, e.key, activities.length),
+        return CustomScrollView(
+          key: const PageStorageKey<String>('activity'),
+          physics: const ClampingScrollPhysics(),
+          slivers: [
+            SliverOverlapInjector(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: Text('Recent Activity', style: SeedlingTypography.heading3),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildTimelineItem(
+                    activities[index],
+                    index,
+                    activities.length,
+                  ),
+                  childCount: activities.length,
+                ),
+              ),
             ),
           ],
         );
@@ -1791,6 +1946,8 @@ class UserProfileData {
   final int streak;
   final int totalWords;
   final int totalMinutes;
+  final int premiumWordsMastered;
+  final int premiumSentencesPlayed;
   final int achievementsUnlocked;
   final int totalAchievements;
   final List<Achievement> achievements;
@@ -1802,6 +1959,8 @@ class UserProfileData {
     required this.streak,
     required this.totalWords,
     required this.totalMinutes,
+    required this.premiumWordsMastered,
+    required this.premiumSentencesPlayed,
     required this.achievementsUnlocked,
     required this.totalAchievements,
     required this.achievements,

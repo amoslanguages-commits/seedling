@@ -206,27 +206,18 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
     return Scaffold(
       backgroundColor: SeedlingColors.background,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
-                child: IntrinsicHeight(
-                  child: Column(
-                    children: [
-                      _buildTopBar(session),
-                      const Expanded(flex: 2, child: SizedBox(height: 16)),
-                      _buildQuestionCard(word),
-                      const Expanded(flex: 3, child: SizedBox(height: 24)),
-                      _buildOptions(word),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+          child: Column(
+            children: [
+              _buildTopBar(session),
+              const SizedBox(height: 16),
+              _buildQuestionCard(word),
+              const SizedBox(height: 16),
+              Expanded(child: _buildOptions(word)),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -247,7 +238,11 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                AudioService.haptic(HapticType.selection).ignore();
+                AudioService.instance.play(SFX.buttonTap);
+                Navigator.pop(context);
+              },
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -323,7 +318,11 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    onPressed: _playTts,
+                    onPressed: () {
+                      AudioService.haptic(HapticType.selection).ignore();
+                      AudioService.instance.play(SFX.navTap);
+                      _playTts();
+                    },
                     icon: const Icon(Icons.volume_up_rounded, color: SeedlingColors.seedlingGreen, size: 24),
                     tooltip: 'Play Pronunciation',
                   ),
@@ -351,6 +350,7 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
   Widget _buildOptions(Word word) {
     final options = word.options;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(options.length, (i) {
         final opt = options[i];
         final isSelected = _selectedIndex == i;
@@ -377,9 +377,10 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
           curve: Interval(i * 0.1, (i * 0.1 + 0.4).clamp(0, 1), curve: Curves.easeOutCubic),
         );
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: FadeTransition(
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: FadeTransition(
             opacity: stagger,
             child: SlideTransition(
               position: stagger.drive(Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)),
@@ -424,6 +425,7 @@ class _McqReviewSessionScreenState extends ConsumerState<McqReviewSessionScreen>
                           color: _isAnswered && isCorrect ? SeedlingColors.sunlight : SeedlingColors.textPrimary,
                         ),
                         textAlign: TextAlign.center,
+                      ),
                       ),
                     ),
                   ),

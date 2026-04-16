@@ -6,6 +6,8 @@ import '../providers/app_providers.dart';
 import '../screens/settings/subscription_screen.dart';
 import '../services/subscription_service.dart';
 import '../widgets/buttons.dart';
+import '../widgets/mascot.dart';
+import '../core/page_route.dart';
 
 class PremiumGateDialog extends StatelessWidget {
   final String title;
@@ -79,15 +81,21 @@ class PremiumGateDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Mascot integration
+            const SeedlingMascot(
+              state: MascotState.thinking,
+              size: 100,
+            ),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: SeedlingColors.autumnGold.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: iconSymbol != null
-                  ? Text(iconSymbol!, style: const TextStyle(fontSize: 40))
-                  : Icon(icon, color: SeedlingColors.autumnGold, size: 48),
+                  ? Text(iconSymbol!, style: const TextStyle(fontSize: 32))
+                  : Icon(icon, color: SeedlingColors.autumnGold, size: 36),
             ),
             const SizedBox(height: 24),
             Text(

@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/app_providers.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../services/subscription_service.dart';
+import '../../services/iap_service.dart';
 import '../../widgets/buttons.dart';
+import '../../widgets/notifications.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
 
@@ -19,6 +24,10 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
 class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen>
     with TickerProviderStateMixin {
   bool _isLoading = false;
+  bool _isPolling = false;
+  bool _isAutoRedirecting = false;
+  StreamSubscription? _iapStatusSub;
+  Map<String, dynamic>? _paymentConfig;
   late AnimationController _pulseController;
 
   @override
@@ -28,38 +37,112 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen>
       vsync: this,
       duration: const Duration(seconds: 4),
     )..repeat(reverse: true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      SubscriptionService().refreshSubscription();
+    
+    _iapStatusSub = IapService.instance.purchaseStatusStream.listen((status) {
+      if (status == PurchaseStatus.purchased) {
+        ref.invalidate(isPremiumProvider);
+        Navigator.pop(context);
+      }
     });
+
+    _fetchPaymentConfig();
+  }
+
+  Future<void> _fetchPaymentConfig() async {
+    try {
+      final config = await SubscriptionService().getPaymentConfig();
+      if (mounted) setState(() => _paymentConfig = config);
+    } catch (e) {
+      debugPrint('Geo-detect failed: $e');
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _iapStatusSub?.cancel();
     super.dispose();
   }
 
-  Future<void> _handleUnlock([String planId = 'premium_annual']) async {
+  /// Opens the chosen checkout provider (Lemon Squeezy or Flutterwave) in the browser.
+  /// After the user returns to the app, polls Supabase for up to 60s
+  /// waiting for the webhook to activate their subscription.
+  Future<void> _handleUnlock({
+    required String planId,
+    String? provider,
+  }) async {
     setState(() => _isLoading = true);
     try {
-      await SubscriptionService().upgradeToPremium(planId);
-      if (!mounted) return;
-      await SubscriptionService().refreshSubscription();
-      if (!mounted) return;
-      ref.invalidate(isPremiumProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Welcome to Seedling Premium! 🌱')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      // 1. Resolve checkout URL based on provider
+      String checkoutUrl;
+      final selectedProvider = provider ?? _paymentConfig?['primary_provider'] ?? 'lemonsqueezy';
+
+      switch (selectedProvider) {
+        case 'flutterwave':
+          checkoutUrl = await SubscriptionService().createFlutterwaveCheckoutSession(planId);
+          break;
+        case 'dlocal':
+          checkoutUrl = await SubscriptionService().createDLocalCheckoutSession(planId);
+          break;
+        default:
+          checkoutUrl = await SubscriptionService().createCheckoutSession(planId);
       }
+
+      if (!mounted) return;
+
+      // 2. Launch in external browser
+      final uri = Uri.parse(checkoutUrl);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw const SubscriptionException('Could not open the payment page.');
+      }
+
+      // 3. Show "waiting for payment" state while polling
+      setState(() {
+        _isLoading = false;
+        _isPolling = true;
+      });
+
+      // 4. Poll Supabase every 3s for up to 60s for webhook to fire
+      final activated = await _pollForActivation();
+      if (!mounted) return;
+
+      setState(() => _isPolling = false);
+
+      if (activated) {
+        ref.invalidate(isPremiumProvider);
+        SeedlingNotifications.showSnackBar(
+          context,
+          message: 'Welcome to Seedling Premium! 🌱',
+          isError: false,
+        );
+        Navigator.pop(context);
+      } else {
+        SeedlingNotifications.showSnackBar(
+          context,
+          message: 'Processing payment... Access will activate shortly! 🌿',
+          isError: false,
+        );
+        Navigator.pop(context);
+      }
+    } on SubscriptionException catch (e) {
+      if (mounted) SeedlingNotifications.showSnackBar(context, message: e.message);
+    } catch (e) {
+      if (mounted) SeedlingNotifications.showSnackBar(context, message: 'Something went wrong.');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() { _isLoading = false; _isPolling = false; });
     }
+  }
+
+  /// Polls Supabase every 3 seconds for up to 60 seconds for subscription activation.
+  /// Returns true if premium was detected, false if timed out.
+  Future<bool> _pollForActivation({int maxAttempts = 20}) async {
+    for (int i = 0; i < maxAttempts; i++) {
+      await Future.delayed(const Duration(seconds: 3));
+      await SubscriptionService().checkSubscription();
+      if (SubscriptionService().isPremium) return true;
+    }
+    return false;
   }
 
   Widget _staggeredSlide(int index, Widget child) {
@@ -194,12 +277,37 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen>
           _buildBgMesh(),
           SafeArea(
             child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.symmetric(
                 horizontal: 24.0,
                 vertical: 12.0,
               ),
               child: Column(
                 children: [
+                  if (SubscriptionService().isGracePeriod)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Payment issue detected. Please update your payment method within 3 days to avoid losing access.',
+                              style: SeedlingTypography.body.copyWith(
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   _staggeredSlide(
                     0,
                     AnimatedBuilder(
@@ -425,12 +533,132 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen>
           const SizedBox(height: 20),
           if (_isLoading)
             const CircularProgressIndicator(color: SeedlingColors.autumnGold)
+          else if (_isPolling)
+            Column(
+              children: [
+                const SizedBox(
+                  width: 24, height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: SeedlingColors.autumnGold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Waiting for payment confirmation…',
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Complete the payment in your browser,\nthen return here.',
+                  style: SeedlingTypography.caption.copyWith(
+                    color: SeedlingColors.textSecondary.withValues(alpha: 0.6),
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            )
           else
-            OrganicButton(
-              text: 'SELECT PLAN',
-              onPressed: () => _handleUnlock(planId),
-              width: double.infinity,
-              isPremiumActiveMode: isBestValue,
+            Column(
+              children: [
+                // 1. Native Store Button (Primary on Mobile)
+                if ((Platform.isIOS || Platform.isAndroid) && IapService.instance.products.isNotEmpty)
+                  Builder(builder: (context) {
+                    final iap = IapService.instance;
+                    final product = iap.products.firstWhere(
+                      (p) => planId == 'premium_monthly' 
+                        ? p.id == IapService.monthlyId 
+                        : p.id == IapService.annualId,
+                      orElse: () => iap.products.first,
+                    );
+
+                    return OrganicButton(
+                      text: Platform.isIOS ? ' Pay with App Store' : 'Pay with Google Play',
+                      onPressed: () => iap.buyProduct(product),
+                      width: double.infinity,
+                      isPremiumActiveMode: isBestValue,
+                    );
+                  })
+                else
+                  // Default Primary for Web/Desktop or if IAP products are not loaded
+                  OrganicButton(
+                    text: 'UPGRADE NOW',
+                    onPressed: () => _handleUnlock(planId: planId, provider: 'lemonsqueezy'),
+                    width: double.infinity,
+                    isPremiumActiveMode: isBestValue,
+                  ),
+
+                // 2. Secondary/Optional Buttons
+                const SizedBox(height: 12),
+                
+                if ((Platform.isIOS || Platform.isAndroid) && IapService.instance.products.isNotEmpty)
+                  // Show card option as secondary on mobile ONLY if IAP is available
+                  TextButton.icon(
+                    onPressed: () => _handleUnlock(planId: planId, provider: 'lemonsqueezy'),
+                    icon: const Icon(Icons.credit_card_rounded, size: 18, color: SeedlingColors.textSecondary),
+                    label: const Text('Pay with Credit Card'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: SeedlingColors.textSecondary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+
+                if (_paymentConfig != null && _paymentConfig!['local_provider'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: TextButton.icon(
+                      onPressed: () => _handleUnlock(
+                        planId: planId, 
+                        provider: _paymentConfig!['local_provider']
+                      ),
+                      icon: Icon(
+                        _paymentConfig!['local_provider'] == 'flutterwave' 
+                          ? Icons.phone_android_rounded 
+                          : Icons.local_atm_rounded,
+                        size: 18,
+                        color: SeedlingColors.seedlingGreen,
+                      ),
+                      label: Text(
+                        'Pay with ${_paymentConfig!['local_method_name']}',
+                        style: const TextStyle(
+                          color: SeedlingColors.seedlingGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                if (_paymentConfig == null) ...[
+                  const SizedBox(height: 12),
+                  // Loading shimmer for geo-detect
+                  Container(
+                    height: 48,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: SeedlingColors.textSecondary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            SeedlingColors.textSecondary.withOpacity(0.2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
         ],
       ),

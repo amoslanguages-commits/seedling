@@ -421,6 +421,8 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz>
 
   void _handleAnswer(int index) {
     if (_hasAnswered) return;
+    // Immediate tactile pop — fires before correct/wrong verdict
+    AudioService.instance.play(SFX.answerSelect);
     setState(() {
       _selectedIndex = index;
       _hasAnswered = true;
@@ -430,11 +432,15 @@ class _ForestClozeQuizState extends State<ForestClozeQuiz>
 
     if (isCorrect) {
       _bloomController.forward();
-      AudioService.instance.playCorrect();
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.playCorrect();
+      });
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);
-      AudioService.instance.play(SFX.wrongAnswer);
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.play(SFX.wrongAnswer);
+      });
       AudioService.haptic(HapticType.wrong).ignore();
     }
 

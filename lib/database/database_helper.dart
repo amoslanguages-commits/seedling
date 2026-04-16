@@ -24,7 +24,7 @@ class DatabaseHelper {
     final dbPath = path.join(await getDatabasesPath(), 'seedling.db');
     final db = await openDatabase(
       dbPath,
-      version: 17,
+      version: 19,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -42,6 +42,7 @@ class DatabaseHelper {
     await db.execute('UPDATE words SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
     
     await _addColumnIfMissing(db, 'user_progress', 'is_dirty', 'INTEGER DEFAULT 0');
+    await _addColumnIfMissing(db, 'user_progress', 'is_premium', 'INTEGER DEFAULT 0');
     await _addColumnIfMissing(db, 'user_progress', 'updated_at', 'TEXT');
     await db.execute('UPDATE user_progress SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL');
     
@@ -87,6 +88,18 @@ class DatabaseHelper {
     // 3. Ensure indexes
     await db.execute('CREATE INDEX IF NOT EXISTS idx_words_srs ON words (language_code, target_language_code, mastery_level, next_review)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_words_domain ON words (language_code, target_language_code, domain, sub_domain, mastery_level)');
+
+    // 4. Premium tracking and generic config caching
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_config(
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    
+    await _addColumnIfMissing(db, 'user_progress', 'premium_words_mastered', 'INTEGER DEFAULT 0');
+    await _addColumnIfMissing(db, 'user_progress', 'premium_sentences_played', 'INTEGER DEFAULT 0');
   }
 
   Future<void> _addColumnIfMissing(Database db, String table, String column, String type) async {
@@ -162,6 +175,8 @@ class DatabaseHelper {
         total_study_minutes INTEGER DEFAULT 0,
         total_xp INTEGER DEFAULT 0,
         is_premium INTEGER DEFAULT 0,
+        premium_words_mastered INTEGER DEFAULT 0,
+        premium_sentences_played INTEGER DEFAULT 0,
         is_dirty INTEGER DEFAULT 0,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
@@ -249,6 +264,32 @@ class DatabaseHelper {
         is_active INTEGER DEFAULT 0,
         is_dirty INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // Sentences Table
+    await db.execute('''
+      CREATE TABLE sentences(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sentence TEXT NOT NULL,
+        translation TEXT NOT NULL,
+        language_code TEXT NOT NULL,
+        target_language_code TEXT NOT NULL,
+        difficulty INTEGER DEFAULT 1,
+        complexity_level TEXT DEFAULT 'beginner', -- beginner, intermediate, advanced
+        audio_path TEXT,
+        tags TEXT,
+        is_dirty INTEGER DEFAULT 0,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+
+    // App Config (Key-Value Store)
+    await db.execute('''
+      CREATE TABLE app_config(
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     ''');
   }
@@ -511,6 +552,38 @@ class DatabaseHelper {
         // Ignore if already exists
       }
     }
+
+    if (oldVersion < 18) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sentences(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sentence TEXT NOT NULL,
+          translation TEXT NOT NULL,
+          language_code TEXT NOT NULL,
+          target_language_code TEXT NOT NULL,
+          difficulty INTEGER DEFAULT 1,
+          complexity_level TEXT DEFAULT 'beginner',
+          audio_path TEXT,
+          tags TEXT,
+          is_dirty INTEGER DEFAULT 0,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
+
+    if (oldVersion < 19) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_config(
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      try {
+        await db.execute('ALTER TABLE user_progress ADD COLUMN premium_words_mastered INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE user_progress ADD COLUMN premium_sentences_played INTEGER DEFAULT 0');
+      } catch (_) {}
+    }
   }
 
   // Word operations
@@ -558,6 +631,85 @@ class DatabaseHelper {
     );
 
     return maps.map((m) => Word.fromMap(m)).toList();
+  }
+
+  Future<List<String>> getUniqueSubThemes(String lang, String target) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT DISTINCT sub_domain 
+      FROM words 
+      WHERE language_code = ? AND target_language_code = ? AND sub_domain IS NOT NULL AND sub_domain != ""
+      ORDER BY sub_domain ASC
+    ''', [lang, target]);
+    return maps.map((m) => m['sub_domain'] as String).toList();
+  }
+
+  Future<List<Word>> getWordsBySubTheme({
+    required String lang,
+    required String target,
+    required String subTheme,
+    int? limit,
+  }) async {
+    final db = await database;
+    final maps = await db.query(
+      'words',
+      where: 'language_code = ? AND target_language_code = ? AND sub_domain = ?',
+      whereArgs: [lang, target, subTheme],
+      limit: limit,
+      orderBy: 'RANDOM()',
+    );
+    return maps.map((m) => Word.fromMap(m)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getSentencesForPodcast({
+    required String lang,
+    required String target,
+    String? level,
+    int limit = 20,
+  }) async {
+    final db = await database;
+    String where = 'language_code = ? AND target_language_code = ?';
+    List<dynamic> args = [lang, target];
+    
+    if (level != null && level != 'all') {
+      where += ' AND complexity_level = ?';
+      args.add(level);
+    }
+
+    return await db.query(
+      'sentences',
+      where: where,
+      whereArgs: args,
+      limit: limit,
+      orderBy: 'RANDOM()',
+    );
+  }
+
+  Future<void> insertMockSentencesIfEmpty() async {
+    final db = await database;
+    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM sentences')) ?? 0;
+    if (count == 0) {
+      final batch = db.batch();
+      final mockData = [
+        {'sentence': 'I am learning a new language.', 'translation': 'Ninaajifunza lugha mpya.', 'level': 'beginner'},
+        {'sentence': 'Where is the nearest library?', 'translation': 'Maktaba ya karibu iko wapi?', 'level': 'beginner'},
+        {'sentence': 'I would like to order a coffee.', 'translation': 'Ningependa kuagiza kahawa.', 'level': 'intermediate'},
+        {'sentence': 'The weather is very beautiful today.', 'translation': 'Hali ya hewa ni nzuri sana leo.', 'level': 'beginner'},
+        {'sentence': 'Could you please help me with this?', 'translation': 'Tafadhali unaweza kunisaidia na hili?', 'level': 'intermediate'},
+      ];
+      
+      for (var data in mockData) {
+        batch.insert('sentences', {
+          'sentence': data['sentence'],
+          'translation': data['translation'],
+          'language_code': 'en',
+          'target_language_code': 'sw',
+          'complexity_level': data['level'],
+          'difficulty': data['level'] == 'beginner' ? 1 : 2,
+        });
+      }
+      await batch.commit();
+    }
   }
 
 
@@ -1257,6 +1409,8 @@ class DatabaseHelper {
         'totalXP': totalXP > (result.first['total_xp'] as int? ?? 0)
             ? totalXP
             : result.first['total_xp'],
+        'premiumWordsMastered': result.first['premium_words_mastered'] ?? 0,
+        'premiumSentencesPlayed': result.first['premium_sentences_played'] ?? 0,
       };
     }
     return {
@@ -2044,6 +2198,59 @@ class DatabaseHelper {
       if (w.masteryLevel > 1) w.masteryLevel = w.masteryLevel - 1;
       return w;
     }).toList();
+  }
+
+  // App Config Cache Operations
+  Future<void> setAppConfig(String key, String value) async {
+    final db = await database;
+    await db.insert(
+      'app_config',
+      {
+        'key': key,
+        'value': value,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<String?> getAppConfig(String key) async {
+    final db = await database;
+    final maps = await db.query(
+      'app_config',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['value'] as String?;
+    }
+    return null;
+  }
+
+  // Premium Mastery Tracking
+  Future<void> incrementPremiumStat(String userId, String field) async {
+    final db = await database;
+    final progress = await getUserProgress(userId);
+    if (progress == null) return;
+    
+    await db.rawUpdate('''
+      UPDATE user_progress 
+      SET $field = $field + 1, updated_at = CURRENT_TIMESTAMP, is_dirty = 1 
+      WHERE user_id = ?
+    ''', [userId]);
+  }
+
+  Future<Map<String, dynamic>?> getUserProgress(String userId) async {
+    final db = await database;
+    final maps = await db.query(
+      'user_progress',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+    return maps.isEmpty ? null : maps.first;
   }
 
   // --- Activity & Stat Tracking ---

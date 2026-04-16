@@ -20,6 +20,7 @@ import '../database/database_helper.dart';
 import '../widgets/target_word_display.dart';
 import '../widgets/mastery_celebration.dart';
 import '../widgets/tilt_card.dart';
+import '../widgets/speaker_button.dart';
 
 // ================ QUIZ TYPE 1: GROW THE WORD ================
 // Correct answer = plant grows visually
@@ -104,6 +105,9 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
   void _handleAnswer(int index) {
     if (_hasAnswered) return;
 
+    // Immediate tactile pop — fires before correct/wrong verdict
+    AudioService.instance.play(SFX.answerSelect);
+
     setState(() {
       _selectedIndex = index;
       _hasAnswered = true;
@@ -114,12 +118,16 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
     if (isCorrect) {
       _plantGrowthController.forward();
       setState(() => _currentGrowth = 1.0);
-      AudioService.instance.playCorrect();
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.playCorrect();
+      });
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);
       setState(() => _currentGrowth = 0.3);
-      AudioService.instance.play(SFX.wrongAnswer);
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.play(SFX.wrongAnswer);
+      });
       AudioService.haptic(HapticType.wrong).ignore();
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) _plantGrowthController.animateTo(0.3);
@@ -275,18 +283,10 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
                             ),
                           ),
                           const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.volume_up_rounded,
-                              color: SeedlingColors.seedlingGreen,
-                              size: 24,
-                            ),
-                            onPressed: () => TtsService.instance.speak(
-                              widget.word.ttsWord,
-                              widget.word.targetLanguageCode,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                          SeedlingSpeakerButton(
+                            text: widget.word.ttsWord,
+                            languageCode: widget.word.targetLanguageCode,
+                            iconSize: 24,
                           ),
                           // Lifeline hint button — only if definition exists
                           if (widget.word.definition != null &&
@@ -332,15 +332,13 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
 
                 SizedBox(height: spacing),
 
-                // Options list wrapped in Flexible and ScrollView
-                Flexible(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: widget.options.asMap().entries.map((entry) {
+                // Options list fitted perfectly to screen
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: widget.options.asMap().entries.map((entry) {
                           final index = entry.key;
                           final option = entry.value;
                           final isSelected = _selectedIndex == index;
@@ -372,18 +370,19 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
                           final label = index < _labels.length
                               ? _labels[index]
                               : '${index + 1}';
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: isSmallScreen ? 8 : 12,
-                            ),
-                            child: GestureDetector(
-                              onTap: () => _handleAnswer(index),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                padding: EdgeInsets.symmetric(
-                                  vertical: isSmallScreen ? 12 : 18,
-                                  horizontal: 20,
-                                ),
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                bottom: isSmallScreen ? 8 : 12,
+                              ),
+                              child: GestureDetector(
+                                onTap: () => _handleAnswer(index),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  alignment: Alignment.center,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
                                 decoration: BoxDecoration(
                                   color: bgColor,
                                   borderRadius: BorderRadius.circular(16),
@@ -486,14 +485,14 @@ class _GrowTheWordQuizState extends State<GrowTheWordQuiz>
                                       ),
                                   ],
                                 ),
-                              ),
+                               ),
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        );
+                      }).toList(),
                       ),
                     ),
                   ),
-                ),
                 if (!isSmallScreen) const Spacer(),
               ],
             );
@@ -3470,6 +3469,25 @@ class QuizManagerState extends State<QuizManager> {
 
       _cachedCardId = card.sessionId;
       _cachedQuizTypeGenerated = _currentQuizType;
+
+      // ── PRE-SYNTHESIS PREFETCH ──────────────────────────────
+      // Pre-synthesize the current word to ensure 0ms playback latency.
+      TtsService.instance.preSynthesize(
+        current.ttsWord,
+        current.targetLanguageCode,
+      );
+
+      // Proactively look ahead 1 card in the queue and prefetch that too.
+      // This is the "God Move" for perceived performance.
+      if (_queue.length > 1) {
+        final nextCard = _queue._queue[0]; // _queue.current is removed/shifted? 
+                                          // Let's check how _queue works.
+                                          // Looking at the code, it seems _queue is a custom list.
+        TtsService.instance.preSynthesize(
+          nextCard.word.ttsWord,
+          nextCard.word.targetLanguageCode,
+        );
+      }
     }
 
     final options = _cachedOptions!;

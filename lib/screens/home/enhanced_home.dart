@@ -11,7 +11,11 @@ import '../courses/active_course_banner.dart';
 import '../sentence_session_screen.dart';
 import '../../widgets/word_library_sheet.dart';
 import '../../services/haptic_service.dart';
+import '../../services/audio_service.dart';
 import '../../widgets/premium_gate.dart';
+import '../podcast/podcast_player_screen.dart';
+import '../../services/podcast_service.dart';
+import '../podcast/podcast_browser_screen.dart';
 
 class EnhancedHomeScreen extends ConsumerStatefulWidget {
   const EnhancedHomeScreen({super.key});
@@ -38,6 +42,7 @@ class _EnhancedHomeScreenState extends ConsumerState<EnhancedHomeScreen> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           HapticService.selectionClick();
+          AudioService.instance.play(SFX.leafRustle);
           setState(() => _selectedIndex = index);
         },
         backgroundColor: SeedlingColors.background,
@@ -120,7 +125,13 @@ class _HomeTabState extends ConsumerState<_HomeTab>
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(24, 20, 24, 16),
-              child: Row(children: [Expanded(child: ActiveCourseBanner())]),
+              child: Row(
+                children: [
+                  Expanded(child: ActiveCourseBanner()),
+                  SizedBox(width: 12),
+                  _PodcastEntranceIcon(),
+                ],
+              ),
             ),
           ),
 
@@ -1369,6 +1380,103 @@ class _ShimmerStatCardState extends State<_ShimmerStatCard>
           ),
         );
       },
+    );
+  }
+}
+
+class _PodcastEntranceIcon extends ConsumerWidget {
+  const _PodcastEntranceIcon();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isPremium = ref.watch(isPremiumProvider).value ?? false;
+
+    return GestureDetector(
+      onTap: () async {
+        HapticService.heavyImpact();
+        
+        if (!isPremium) {
+          PremiumGateDialog.show(
+            context,
+            title: 'Seedling Podcast Pro',
+            message: 'Transform your language journey with immersive, hands-free study sessions. Upgrade to Pro to unlock the Podcast!',
+          );
+          return;
+        }
+
+        // Ensure service is initialized
+        final service = ref.read(podcastServiceProvider);
+        await service.initialize();
+
+        if (context.mounted) {
+           Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PodcastBrowserScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+        }
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: SeedlingColors.cardBackground,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: SeedlingColors.deepRoot.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(
+                color: isPremium 
+                  ? SeedlingColors.seedlingGreen.withValues(alpha: 0.3)
+                  : SeedlingColors.sunlight.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.podcasts_rounded,
+                color: isPremium ? SeedlingColors.seedlingGreen : SeedlingColors.sunlight,
+                size: 26,
+              ),
+            ),
+          ),
+          if (!isPremium)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.sunlight,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                    )
+                  ],
+                ),
+                child: const Text(
+                  'PRO',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -11,6 +11,8 @@ import '../services/vocabulary_service.dart';
 import 'package:twemoji/twemoji.dart';
 import 'package:confetti/confetti.dart';
 import '../widgets/animations.dart';
+import '../widgets/buttons.dart';
+import '../widgets/notifications.dart';
 import '../services/haptic_service.dart';
 
 // ============================================================================
@@ -175,11 +177,9 @@ class OnboardingController extends ChangeNotifier {
       debugPrint(stack.toString());
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error setting up your course: $e'),
-            backgroundColor: SeedlingColors.error,
-          ),
+        SeedlingNotifications.showSnackBar(
+          context,
+          message: 'Error setting up your course: $e',
         );
       }
     } finally {
@@ -475,6 +475,7 @@ class WelcomeStep extends StatelessWidget {
     return FadeInStaggered(
       index: 0,
       child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(30),
           child: Column(
@@ -929,6 +930,7 @@ class DailyGoalStep extends ConsumerWidget {
     return FadeInStaggered(
       index: 3,
       child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(30),
           child: Column(
@@ -1093,6 +1095,7 @@ class RemindersStep extends ConsumerWidget {
     return FadeInStaggered(
       index: 4,
       child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(30),
           child: Column(
@@ -1345,6 +1348,7 @@ class GetStartedStep extends ConsumerWidget {
     final controller = ref.watch(onboardingControllerProvider);
 
     return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
       child: Padding(
         padding: const EdgeInsets.all(30),
         child: Column(

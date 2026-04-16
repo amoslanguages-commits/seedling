@@ -5,6 +5,7 @@ import '../../widgets/mascot.dart';
 import '../../widgets/backgrounds.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../widgets/notifications.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -21,12 +22,78 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isSignUp = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _errorMessage = '';
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _emailController.text);
+
+    SeedlingNotifications.showDialog(
+      context,
+      title: 'Reset Password',
+      message: 'Enter your email address and we\'ll send you a link to reset your password.',
+      isError: false,
+      mascotState: MascotState.thinking,
+      buttonText: 'SEND RESET LINK',
+      onConfirm: () async {
+        final email = emailController.text.trim();
+        if (email.isEmpty) {
+          SeedlingNotifications.showSnackBar(context, message: 'Please enter your email.');
+          return;
+        }
+
+        try {
+          await AuthService().resetPassword(email);
+          if (mounted) {
+            SeedlingNotifications.showDialog(
+              context,
+              title: 'Email Sent!',
+              message: 'Check your inbox for password reset instructions.',
+              isError: false,
+              mascotState: MascotState.happy,
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            SeedlingNotifications.showSnackBar(context, message: 'Error: ${e.toString()}');
+          }
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: SeedlingTypography.body,
+            decoration: InputDecoration(
+              labelText: 'Email Address',
+              labelStyle: SeedlingTypography.caption.copyWith(color: SeedlingColors.seedlingGreen),
+              hintText: 'your@email.com',
+              hintStyle: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary.withValues(alpha: 0.5)),
+              filled: true,
+              fillColor: SeedlingColors.cardBackground.withValues(alpha: 0.5),
+              prefixIcon: const Icon(Icons.email_outlined, color: SeedlingColors.seedlingGreen, size: 20),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: SeedlingColors.seedlingGreen.withValues(alpha: 0.1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: SeedlingColors.seedlingGreen),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _handleAuth() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
     });
 
     try {
@@ -44,9 +111,10 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
+        SeedlingNotifications.showSnackBar(
+          context,
+          message: e.toString().replaceFirst('Exception: ', ''),
+        );
       }
     } finally {
       if (mounted) {
@@ -60,11 +128,13 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: SeedlingColors.background,
       body: Stack(
         children: [
           const FloatingLeavesBackground(child: SizedBox.expand()),
           SafeArea(
             child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
@@ -100,14 +170,21 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildPasswordField(),
-                  if (_errorMessage != null && _errorMessage!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: SeedlingColors.error),
+                  if (!_isSignUp)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _showForgotPasswordDialog,
+                        child: Text(
+                          'Forgot password?',
+                          style: SeedlingTypography.caption.copyWith(
+                            color: SeedlingColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
+                  const SizedBox(height: 16),
                   const SizedBox(height: 32),
                   if (_isLoading)
                     const CircularProgressIndicator(
@@ -239,12 +316,17 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ],
         ),
-        child: RichText(
-          text: const TextSpan(
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'sans-serif'),
-            children: [
-              TextSpan(text: 'G', style: TextStyle(color: Color(0xFF4285F4))),
-            ],
+        child: Image.asset(
+          'assets/icons/google_logo.png',
+          width: 24,
+          height: 24,
+          errorBuilder: (context, error, stackTrace) => const Text(
+            'G',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4285F4),
+            ),
           ),
         ),
       ),

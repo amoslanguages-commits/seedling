@@ -10,6 +10,7 @@ enum SFX {
   wrongAnswer, // Dissonant low thud
   streakBonus, // Every 3rd correct in a row
   engraveSuccess, // EngraveRoot typing mastery passed
+  answerSelect, // Crisp pop on MCQ option tap (pre-verdict)
   // ── Session events ─────────────────────────────────────────
   quizStart, // Session begins
   sessionComplete, // Full session completed
@@ -22,8 +23,13 @@ enum SFX {
   // ── Navigation & UI events ─────────────────────────────────
   buttonTap, // Generic button press
   navTap, // Tab/navigation switch
+  swipe, // Screen/tab transition leaf-rustle
   splashReveal, // Logo/splash reveal
   onboardingComplete, // Onboarding finished
+  // ── Feedback & UI Accent events ─────────────────────────────
+  leafRustle, // Organic screen transitions
+  pencilScratch, // Tactile selection for studies
+  shimmerIn, // Magical reveal/shimmer
 }
 
 /// Escalating correct-answer chord tiers — mapped from streak count.
@@ -54,10 +60,12 @@ class AudioService with WidgetsBindingObserver {
   final List<AudioPlayer> _correctPool = List.generate(4, (_) => AudioPlayer());
   late final AudioPlayer _ambientPlayer;
   late final AudioPlayer _flowPlayer;
+  late final AudioPlayer _brainwavePlayer;
 
   bool _muted = false;
   double _volume = 0.85;
   final double _ambientVolume = 0.12; // very quiet under-layer
+  final double _brainwaveVolume = 0.15; // subtle but audible
   final double _flowVolume = 0.35; // intensely louder upbeat mix
 
   bool _ambientRunning = false;
@@ -71,6 +79,7 @@ class AudioService with WidgetsBindingObserver {
     SFX.wrongAnswer: 'sfx/wrong.wav',
     SFX.streakBonus: 'sfx/streak_bonus.wav',
     SFX.engraveSuccess: 'sfx/engrave_success.wav',
+    SFX.answerSelect: 'sfx/answer_select.wav', // crisp pre-verdict tap pop
     SFX.quizStart: 'sfx/quiz_start.wav',
     SFX.sessionComplete: 'sfx/session_complete.wav',
     SFX.levelUp: 'sfx/level_up.wav',
@@ -80,8 +89,12 @@ class AudioService with WidgetsBindingObserver {
     SFX.plantGrow: 'sfx/plant_grow.wav',
     SFX.buttonTap: 'sfx/button_tap.wav',
     SFX.navTap: 'sfx/nav_tap.wav',
+    SFX.swipe: 'sfx/swipe.wav', // leaf-rustle screen transition
     SFX.splashReveal: 'sfx/splash_reveal.wav',
     SFX.onboardingComplete: 'sfx/onboarding_complete.wav',
+    SFX.leafRustle: 'sfx/swipe.wav',
+    SFX.pencilScratch: 'sfx/button_tap.wav',
+    SFX.shimmerIn: 'sfx/sparkle_ping.wav',
   };
 
   bool get muted => _muted;
@@ -89,6 +102,7 @@ class AudioService with WidgetsBindingObserver {
   bool get ambientEnabled => _ambientEnabled;
   void setAmbientEnabled(bool enabled) {
     _ambientEnabled = enabled;
+    SettingsService().setAmbientEnabled(enabled); // Persist
     if (!enabled && _ambientRunning) {
       stopAmbient();
       _stopFlowState();
@@ -100,7 +114,8 @@ class AudioService with WidgetsBindingObserver {
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
 
-    // Sync muted state with settings
+    // Sync from settings
+    _ambientEnabled = SettingsService().ambientEnabled;
     _muted = !SettingsService().soundEffectsEnabled;
 
     // Warm up standard SFX pool
@@ -135,19 +150,18 @@ class AudioService with WidgetsBindingObserver {
       await _ambientPlayer.setSourceAsset('sfx/ambient_garden.mp3');
     } catch (_) {}
 
-    // Set up flow state player
+    // Set up brainwave player
+    _brainwavePlayer = AudioPlayer();
+    await _brainwavePlayer.setReleaseMode(ReleaseMode.loop);
+    await _brainwavePlayer.setVolume(0);
+
+    // Set up flow-state player (MUST initialize — late final would crash otherwise)
     _flowPlayer = AudioPlayer();
     await _flowPlayer.setReleaseMode(ReleaseMode.loop);
     await _flowPlayer.setVolume(0);
-    await _flowPlayer.setPlaybackRate(
-      1.25,
-    ); // Faster, more intense upbeat tempo
-    try {
-      await _flowPlayer.setSourceAsset('sfx/ambient_flow.mp3');
-    } catch (_) {}
 
     debugPrint(
-      '[AudioService] initialized ${_pool.length} SFX channels + ambient + flow with pre-cached buffers.',
+      '[AudioService] initialized ${_pool.length} SFX channels + ambient + brainwave + flow with pre-cached buffers.',
     );
   }
 
@@ -168,15 +182,63 @@ class AudioService with WidgetsBindingObserver {
 
   // ── Ambient garden layer ─────────────────────────────────────
 
-  /// Start the ambient garden layer — call when a quiz session begins.
+  /// Start the study environment layers — call when a quiz session begins.
   Future<void> startAmbient() async {
     if (_muted || _ambientRunning || !_ambientEnabled) {
       return;
     }
     _ambientRunning = true;
-    await _ambientPlayer.resume(); // Use resume since source is already set
-    // Fade in gently over 2 seconds
-    _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
+
+    final ambientTrack = SettingsService().selectedAmbientTrack;
+    final brainwaveType = SettingsService().selectedBrainwaveType;
+
+    try {
+      await _ambientPlayer.setSourceAsset('sfx/ambient_$ambientTrack.mp3');
+      await _ambientPlayer.resume();
+      _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
+
+      if (brainwaveType != 'none') {
+        await _brainwavePlayer.setSourceAsset('sfx/brainwave_$brainwaveType.mp3');
+        await _brainwavePlayer.resume();
+        _brainwaveFadeTo(_brainwaveVolume, const Duration(seconds: 2));
+      }
+    } catch (e) {
+      debugPrint('[AudioService] Error starting study environment: $e');
+      // Fallback to garden if specific track fails
+      if (ambientTrack != 'garden') {
+         await _ambientPlayer.setSourceAsset('sfx/ambient_garden.mp3');
+         await _ambientPlayer.resume();
+         _ambientFadeTo(_ambientVolume, const Duration(seconds: 2));
+      }
+    }
+  }
+
+  /// Dynamically updates the audio layers if settings change during a session.
+  Future<void> updateStudyEnvironment() async {
+    if (!_ambientRunning || _muted || !_ambientEnabled) return;
+
+    final ambientTrack = SettingsService().selectedAmbientTrack;
+    final brainwaveType = SettingsService().selectedBrainwaveType;
+
+    try {
+      // Update Ambient layer
+      await _ambientFadeTo(0, const Duration(milliseconds: 500));
+      await _ambientPlayer.setSourceAsset('sfx/ambient_$ambientTrack.mp3');
+      await _ambientPlayer.resume();
+      await _ambientFadeTo(_ambientVolume, const Duration(milliseconds: 500));
+
+      // Update Brainwave layer
+      await _brainwaveFadeTo(0, const Duration(milliseconds: 500));
+      if (brainwaveType != 'none') {
+        await _brainwavePlayer.setSourceAsset('sfx/brainwave_$brainwaveType.mp3');
+        await _brainwavePlayer.resume();
+        await _brainwaveFadeTo(_brainwaveVolume, const Duration(milliseconds: 500));
+      } else {
+        await _brainwavePlayer.stop();
+      }
+    } catch (e) {
+      debugPrint('[AudioService] Error updating study environment: $e');
+    }
   }
 
   @override
@@ -194,16 +256,18 @@ class AudioService with WidgetsBindingObserver {
     }
   }
 
-  /// Stop the ambient layer — call when session ends.
+  /// Stop the ambient layers — call when session ends.
   Future<void> stopAmbient() async {
     resetFlowState();
     if (!_ambientRunning) {
       return;
     }
     _ambientRunning = false;
-    await _ambientFadeTo(0, const Duration(milliseconds: 800));
+    _ambientFadeTo(0, const Duration(milliseconds: 800));
+    _brainwaveFadeTo(0, const Duration(milliseconds: 800));
     await Future.delayed(const Duration(milliseconds: 900));
     await _ambientPlayer.stop();
+    await _brainwavePlayer.stop();
   }
 
   Future<void> _ambientFadeTo(double target, Duration dur) async {
@@ -268,10 +332,28 @@ class AudioService with WidgetsBindingObserver {
     if (!_ambientRunning || _flowRunning) {
       return;
     }
-    await _ambientPlayer.setVolume(_ambientVolume * 0.25);
-    await Future.delayed(const Duration(milliseconds: 600));
+    // Smooth duck down
+    _ambientFadeTo(_ambientVolume * 0.2, const Duration(milliseconds: 80));
+    _brainwaveFadeTo(_brainwaveVolume * 0.2, const Duration(milliseconds: 80));
+    await Future.delayed(const Duration(milliseconds: 650));
+    // Smooth restore
     if (_ambientRunning) {
-      await _ambientPlayer.setVolume(_ambientVolume);
+      _ambientFadeTo(_ambientVolume, const Duration(milliseconds: 400));
+      if (SettingsService().selectedBrainwaveType != 'none') {
+        _brainwaveFadeTo(_brainwaveVolume, const Duration(milliseconds: 400));
+      }
+    }
+  }
+
+  Future<void> _brainwaveFadeTo(double target, Duration dur) async {
+    const steps = 20;
+    final current = _brainwavePlayer.volume;
+    final stepMs = dur.inMilliseconds ~/ steps;
+    final delta = (target - current) / steps;
+    for (int i = 0; i < steps; i++) {
+      final v = (current + delta * (i + 1)).clamp(0.0, 1.0);
+      await _brainwavePlayer.setVolume(v);
+      await Future.delayed(Duration(milliseconds: stepMs));
     }
   }
 
@@ -387,6 +469,12 @@ class AudioService with WidgetsBindingObserver {
       case HapticType.selection:
         // Selection = soft UI feedback
         await HapticFeedback.selectionClick();
+      case HapticType.light:
+        await HapticFeedback.lightImpact();
+      case HapticType.medium:
+        await HapticFeedback.mediumImpact();
+      case HapticType.heavy:
+        await HapticFeedback.heavyImpact();
     }
   }
 
@@ -424,6 +512,7 @@ class AudioService with WidgetsBindingObserver {
       await p.dispose();
     }
     await _ambientPlayer.dispose();
+    await _brainwavePlayer.dispose();
     await _flowPlayer.dispose();
     _pool.clear();
   }
@@ -438,4 +527,7 @@ enum HapticType {
   levelUp,
   sessionComplete,
   selection,
+  light,
+  medium,
+  heavy,
 }

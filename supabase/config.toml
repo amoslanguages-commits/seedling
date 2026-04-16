@@ -1,0 +1,99 @@
+
+[functions.payment-config]
+enabled = true
+verify_jwt = true
+import_map = "./functions/payment-config/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/payment-config/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/payment-config/*.html" ]
+
+[functions.dlocal-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/dlocal-checkout/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/dlocal-checkout/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/dlocal-checkout/*.html" ]
+
+[functions.dlocal-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/dlocal-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/dlocal-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/dlocal-webhook/*.html" ]
+
+[functions.lemon-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/lemon-checkout/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/lemon-checkout/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/lemon-checkout/*.html" ]
+
+[functions.lemon-portal]
+enabled = true
+verify_jwt = true
+import_map = "./functions/lemon-portal/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/lemon-portal/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/lemon-portal/*.html" ]
+
+[functions.flutterwave-checkout]
+enabled = true
+verify_jwt = true
+import_map = "./functions/flutterwave-checkout/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/flutterwave-checkout/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/flutterwave-checkout/*.html" ]
+
+[functions.flutterwave-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/flutterwave-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/flutterwave-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/flutterwave-webhook/*.html" ]
+
+[functions.lemon-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/lemon-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/lemon-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/lemon-webhook/*.html" ]
+
+[functions.verify-receipt]
+enabled = true
+verify_jwt = true
+import_map = "./functions/verify-receipt/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/verify-receipt/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/verify-receipt/*.html" ]

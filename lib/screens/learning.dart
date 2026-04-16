@@ -587,6 +587,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
     // or just use standard Flutter animations.
     return Center(
       child: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 480),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),

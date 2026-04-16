@@ -10,6 +10,7 @@ import '../database/database_helper.dart';
 import 'auth_service.dart';
 import 'offline_queue_manager.dart';
 import 'settings_service.dart';
+import 'subscription_service.dart';
 
 // ================ SYNC MANAGER ================
 
@@ -279,6 +280,9 @@ class SyncManager {
 
       // Download courses
       await _downloadCourses(userId);
+
+      // Verify and sync entitlement status
+      await SubscriptionService().checkSubscription();
 
       _syncStatusController.add(SyncStatus.completed);
       debugPrint('Sync from cloud successful');

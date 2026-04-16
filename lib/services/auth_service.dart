@@ -47,17 +47,20 @@ class AuthService {
         email: email,
         password: password,
         data: {'display_name': displayName},
+        emailRedirectTo: 'https://seedlinglanguages.com/welcome.html',
       );
 
       if (response.user != null) {
-        // Create user profile in database
-        await _createUserProfile(response.user!.id, displayName, email);
-
-        // Link any onboarding data to this new user
+        // NOTE: Profiles and other user records are now created automatically 
+        // by the database trigger 'on_auth_user_created'.
+        
+        // Link any onboarding data to this new user (local DB operation)
         await DatabaseHelper().linkAnonymousDataToUser(response.user!.id);
         
-        // Initial sync to push onboarding data to cloud
-        SyncManager().syncToCloud();
+        // Push local onboarding data to cloud if user is signed in
+        if (SupabaseConfig.client.auth.currentSession != null) {
+          SyncManager().syncToCloud();
+        }
       }
 
       return response;
@@ -160,7 +163,10 @@ class AuthService {
 
   // Password Reset
   Future<void> resetPassword(String email) async {
-    await SupabaseConfig.client.auth.resetPasswordForEmail(email);
+    await SupabaseConfig.client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'https://seedlinglanguages.com/reset-password.html',
+    );
   }
 
   // Create user profile in database
@@ -169,11 +175,12 @@ class AuthService {
     String displayName,
     String email,
   ) async {
-    await SupabaseConfig.client.from('profiles').insert({
+    // We use upsert here as a fallback in case the database trigger hasn't fired yet
+    // or if we need to update existing details from the app side.
+    await SupabaseConfig.client.from('profiles').upsert({
       'id': userId,
       'display_name': displayName,
       'email': email,
-      'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     });
   }

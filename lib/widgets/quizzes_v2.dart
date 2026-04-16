@@ -104,6 +104,8 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
 
   void _handleAnswer(int index) {
     if (_hasAnswered) return;
+    // Immediate tactile pop — fires before correct/wrong verdict
+    AudioService.instance.play(SFX.answerSelect);
     setState(() {
       _selectedIndex = index;
       _hasAnswered = true;
@@ -111,11 +113,15 @@ class _DeepRootQuizState extends State<DeepRootQuiz>
     final isCorrect = widget.options[index] == widget.word.translation;
     if (isCorrect) {
       _bloomController.forward();
-      AudioService.instance.playCorrect();
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.playCorrect();
+      });
       AudioService.haptic(HapticType.correct).ignore();
     } else {
       _shakeController.forward(from: 0);
-      AudioService.instance.play(SFX.wrongAnswer);
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.play(SFX.wrongAnswer);
+      });
       AudioService.haptic(HapticType.wrong).ignore();
     }
     Future.delayed(const Duration(milliseconds: 1600), () {
@@ -1784,6 +1790,7 @@ class _EngraveRootQuizState extends State<EngraveRootQuiz>
         final isSmallScreen = constraints.maxHeight.round() < 620;
 
         return SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
           child: Column(
             children: [
               SizedBox(height: isSmallScreen ? 16 : 30),

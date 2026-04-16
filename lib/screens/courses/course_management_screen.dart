@@ -6,6 +6,7 @@ import '../../core/typography.dart';
 import '../../providers/course_provider.dart';
 import '../../models/course.dart';
 import 'package:twemoji/twemoji.dart';
+import '../../widgets/notifications.dart';
 import 'add_course_screen.dart';
 
 /// Bottom-sheet course management panel.
@@ -139,13 +140,9 @@ class _CourseListTile extends StatelessWidget {
       ),
       confirmDismiss: (_) async {
         if (isActive) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Switch to another course before deleting this one.',
-              ),
-              behavior: SnackBarBehavior.floating,
-            ),
+          SeedlingNotifications.showSnackBar(
+            context,
+            message: 'Switch to another course before deleting this one.',
           );
           return false;
         }

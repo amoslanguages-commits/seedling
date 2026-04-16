@@ -6,7 +6,9 @@ import '../../core/typography.dart';
 import '../../models/course.dart';
 import '../../providers/course_provider.dart';
 import '../../services/vocabulary_service.dart';
+import '../../services/tts_service.dart';
 import 'package:twemoji/twemoji.dart';
+import '../../widgets/notifications.dart';
 
 /// Full-page form to create a new course.
 /// Lets the user pick native language and target language,
@@ -33,11 +35,9 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
   Future<void> _save() async {
     if (_native == null || _target == null) return;
     if (_native!.code == _target!.code) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Native and target language must be different.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      SeedlingNotifications.showSnackBar(
+        context,
+        message: 'Native and target language must be different.',
       );
       return;
     }
@@ -50,6 +50,13 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
 
     // Populate the database with vocabulary for this new course pair
     await VocabularyService.populateCourse(_native!.code, _target!.code);
+
+    // Pre-fetch the offline TTS model if necessary, showing progress on this screen
+    try {
+      await TtsService.instance.ensureModelReady(_target!.code);
+    } catch (_) {
+      // Ignored: If it fails, standard fallback logic applies during gameplay
+    }
 
     await ref.read(courseProvider.notifier).addCourse(course);
     await ref.read(courseProvider.notifier).setActive(course.id);
@@ -124,13 +131,42 @@ class _AddCourseScreenState extends ConsumerState<AddCourseScreen> {
                     elevation: 0,
                   ),
                   child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: SeedlingColors.textPrimary,
-                          ),
+                      ? ValueListenableBuilder<double?>(
+                          valueListenable: TtsService.instance.downloadProgress,
+                          builder: (context, progress, child) {
+                            if (progress != null) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 100,
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      backgroundColor: SeedlingColors.cardBackground.withValues(alpha: 0.3),
+                                      valueColor: AlwaysStoppedAnimation<Color>(SeedlingColors.textPrimary),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Downloading Audio... ${(progress * 100).toInt()}%',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            return const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: SeedlingColors.textPrimary,
+                              ),
+                            );
+                          },
                         )
                       : const Text(
                           'Start Learning',

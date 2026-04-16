@@ -14,12 +14,16 @@ import 'services/audio_service.dart';
 import 'services/notification_service.dart';
 import 'services/vocabulary_service.dart';
 import 'services/settings_service.dart';
+import 'services/tts_service.dart';
+import 'services/iap_service.dart';
 import 'core/typography.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Initialize Environment
   await dotenv.load(fileName: ".env");
@@ -33,6 +37,7 @@ void main() async {
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
+    debug: true,
   );
 
   // Initialize Services
@@ -55,6 +60,9 @@ void main() async {
   // Only runs on mobile (Android/iOS) — local notifications need these platforms.
   if (Platform.isAndroid || Platform.isIOS) {
     await NotificationService.instance.initialize();
+    IapService.instance.initialize();
+    IapService.instance.loadProducts(); // Prefetch products for snappy UI
+    
     // Query live due count — language pair defaults used here since providers
     // aren't ready yet. For a real user this fires after preferences load.
     try {
@@ -70,6 +78,9 @@ void main() async {
     }
   }
 
+  // Ready to switch to the Flutter splash/home!
+  FlutterNativeSplash.remove();
+
   runApp(const ProviderScope(child: SeedlingApp()));
 }
 
@@ -81,6 +92,15 @@ class SeedlingApp extends StatelessWidget {
     return MaterialApp(
       title: 'Seedling',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            if (child != null) child,
+            const _GlobalTtsOverlay(),
+          ],
+        );
+      },
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark, // Signature Dark Forest Mode
@@ -95,6 +115,9 @@ class SeedlingApp extends StatelessWidget {
           surface: SeedlingColors.cardBackground,
           error: SeedlingColors.error,
         ),
+
+        // Global background — prevents any Scaffold from showing white
+        // scaffoldBackgroundColor was already specified above.
 
         // Global Typography Integration
         textTheme: GoogleFonts.outfitTextTheme().apply(
@@ -152,6 +175,108 @@ class SeedlingApp extends StatelessWidget {
         ),
       ),
       home: const SplashScreen(),
+    );
+  }
+}
+
+class _GlobalTtsOverlay extends StatelessWidget {
+  const _GlobalTtsOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double?>(
+      valueListenable: TtsService.instance.downloadProgress,
+      builder: (context, progress, child) {
+        if (progress == null) return const SizedBox.shrink();
+        
+        return Positioned(
+          bottom: 40,
+          left: 20,
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 300),
+              builder: (context, val, child) {
+                return Opacity(
+                  opacity: val,
+                  child: Transform.translate(
+                    offset: Offset(0, 20 * (1 - val)),
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: SeedlingColors.cardBackground,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: SeedlingColors.seedlingGreen.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: SeedlingColors.seedlingGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Downloading Voice Model',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.white.withValues(alpha: 0.1),
+                              valueColor: const AlwaysStoppedAnimation<Color>(SeedlingColors.seedlingGreen),
+                              minHeight: 4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        color: SeedlingColors.seedlingGreen,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -7,12 +7,15 @@ import '../core/typography.dart';
 import '../core/page_route.dart';
 import '../widgets/cards.dart';
 import '../widgets/buttons.dart';
+import '../widgets/notifications.dart';
+import '../widgets/mascot.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../providers/app_providers.dart';
 import '../providers/course_provider.dart';
 import '../database/database_helper.dart';
 import '../services/haptic_service.dart';
+import '../services/audio_service.dart';
 import '../services/subscription_service.dart';
 import 'settings/subscription_screen.dart';
 
@@ -115,6 +118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         title: Text('Settings', style: SeedlingTypography.heading2),
       ),
       body: ListView(
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         children: [
           _staggeredSlide(
@@ -155,12 +159,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           .read(settingsProvider.notifier)
                           .setCloudSyncEnabled(val);
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            val ? 'Cloud sync enabled' : 'Cloud sync disabled',
-                          ),
-                        ),
+                      SeedlingNotifications.showSnackBar(
+                        context,
+                        message: val ? 'Cloud sync enabled' : 'Cloud sync disabled',
+                        isError: false,
                       );
                     },
                   ),
@@ -208,10 +210,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           const SizedBox(height: 30),
 
-          // Notifications & Sound
-          _staggeredSlide(4, _buildSectionHeader('Notifications & Sound')),
+          // Study Environment
+          _staggeredSlide(4, _buildSectionHeader('Study Environment')),
           _staggeredSlide(
             4,
+            _buildStudyEnvironmentCard(settings),
+          ),
+          const SizedBox(height: 30),
+
+          // Notifications & Sound
+          _staggeredSlide(5, _buildSectionHeader('Notifications & Sound')),
+          _staggeredSlide(
+            5,
             GrowingCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -227,12 +237,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                           .read(settingsProvider.notifier)
                           .toggleNotifications(val);
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            val ? 'Reminders enabled' : 'Reminders disabled',
-                          ),
-                        ),
+                      SeedlingNotifications.showSnackBar(
+                        context,
+                        message: val ? 'Reminders enabled' : 'Reminders disabled',
+                        isError: false,
                       );
                     },
                   ),
@@ -251,6 +259,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     (val) => ref
                         .read(settingsProvider.notifier)
                         .toggleSoundEffects(val),
+                  ),
+                  _buildToggleTile(
+                    Icons.surround_sound_outlined,
+                    'Ambient Soundscapes',
+                    'Background audio during study sessions',
+                    AudioService.instance.ambientEnabled,
+                    (val) {
+                      HapticService.lightTap();
+                      AudioService.instance.setAmbientEnabled(val);
+                      if (val) {
+                        AudioService.instance.updateStudyEnvironment();
+                      }
+                      setState(() {}); // refresh toggle visual
+                    },
                   ),
                   _buildToggleTile(
                     Icons.vibration,
@@ -777,48 +799,136 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  Widget _buildStudyEnvironmentCard(SettingsState settings) {
+    return GrowingCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ambient Background',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildAmbientOption('garden', '🌿', 'Garden', settings.selectedAmbientTrack),
+                _buildAmbientOption('rain', '🌧️', 'Rain', settings.selectedAmbientTrack),
+                _buildAmbientOption('forest', '🌲', 'Forest', settings.selectedAmbientTrack),
+                _buildAmbientOption('ocean', '🌊', 'Ocean', settings.selectedAmbientTrack),
+              ],
+            ),
+          ),
+          const Divider(height: 32, color: SeedlingColors.cardBackground),
+          Text(
+            'Binaural Brainwaves',
+            style: SeedlingTypography.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Layer subtle frequencies to tune your focus.',
+            style: SeedlingTypography.caption,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: SeedlingColors.background,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _buildBrainwaveOption('none', 'None', settings.selectedBrainwaveType),
+                _buildBrainwaveOption('alpha', 'Alpha (Focus)', settings.selectedBrainwaveType),
+                _buildBrainwaveOption('beta', 'Beta (Alert)', settings.selectedBrainwaveType),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmbientOption(String id, String emoji, String label, String selectedId) {
+    final isSelected = id == selectedId;
+    return GestureDetector(
+      onTap: () {
+        HapticService.lightTap();
+        ref.read(settingsProvider.notifier).setAmbientTrack(id);
+        AudioService.instance.updateStudyEnvironment();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? SeedlingColors.seedlingGreen.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? SeedlingColors.seedlingGreen : SeedlingColors.cardBackground,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: SeedlingTypography.caption.copyWith(
+                color: isSelected ? SeedlingColors.seedlingGreen : SeedlingColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrainwaveOption(String id, String label, String selectedId) {
+    final isSelected = id == selectedId;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticService.selectionClick();
+          ref.read(settingsProvider.notifier).setBrainwaveType(id);
+          AudioService.instance.updateStudyEnvironment();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? SeedlingColors.seedlingGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: SeedlingTypography.caption.copyWith(
+              color: isSelected ? SeedlingColors.background : SeedlingColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showLanguageSelector({
     required bool isTarget,
     required String currentCode,
   }) {
     if (isTarget) {
-      // #13 — Replace dead snackbar with actionable dialog
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: SeedlingColors.cardBackground,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              const Icon(Icons.language, color: SeedlingColors.seedlingGreen),
-              const SizedBox(width: 10),
-              Text('Change Target Language', style: SeedlingTypography.heading3),
-            ],
-          ),
-          content: Text(
-            'To switch your learning language, use the Course Switcher on the Home screen.\n\nTap the active course banner at the top of the Grow tab to change or add a language.',
-            style: SeedlingTypography.body.copyWith(color: SeedlingColors.textSecondary),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Got it', style: TextStyle(color: SeedlingColors.textSecondary)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // close dialog
-                Navigator.pop(context); // close settings → back to Home
-              },
-              child: const Text(
-                'Go to Home',
-                style: TextStyle(
-                  color: SeedlingColors.seedlingGreen,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
+      SeedlingNotifications.showDialog(
+        context,
+        title: 'Switching Courses',
+        message: 'To switch your learning language, use the Course Switcher on the Home screen.\n\nTap the active course banner at the top of the Grow tab to change or add a language.',
+        isError: false,
+        mascotState: MascotState.thinking,
+        buttonText: 'GO TO HOME',
+        onConfirm: () {
+          Navigator.pop(context); // close settings → back to Home
+        },
       );
       return;
     }
@@ -869,9 +979,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ref.read(settingsProvider.notifier).setNativeLanguageCode(code);
         if (!context.mounted) return;
         Navigator.pop(context);
-        ScaffoldMessenger.of(
+        SeedlingNotifications.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('Native language set to $name')));
+          message: 'Native language set to $name',
+          isError: false,
+        );
       },
     );
   }
@@ -920,141 +1032,89 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ref.read(settingsProvider.notifier).setDailyWordGoal(goal);
         ref.invalidate(userStatsProvider); // Refresh home progress
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Daily goal set to $goal words')),
+        SeedlingNotifications.showSnackBar(
+          context,
+          message: 'Daily goal set to $goal words',
+          isError: false,
         );
       },
     );
   }
 
   void _showSignOutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text(
-          'Are you sure you want to sign out? Your local data will be synced to the cloud first.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await AuthService().signOut();
-              if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
-            },
-            child: const Text(
-              'SIGN OUT',
-              style: TextStyle(color: SeedlingColors.error),
-            ),
-          ),
-        ],
-      ),
+    SeedlingNotifications.showDialog(
+      context,
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out? Your local data will be synced to the cloud first.',
+      isError: true, // Use error (sad/worried mascot) to indicate friction
+      buttonText: 'SIGN OUT',
+      onConfirm: () async {
+        await AuthService().signOut();
+        if (context.mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      },
     );
   }
 
   void _showResetProgressDialog(dynamic activeCourse) {
     if (activeCourse == null) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: SeedlingColors.cardBackground,
-        title: const Text(
-          'Reset Course?',
-          style: TextStyle(color: SeedlingColors.textPrimary),
-        ),
-        content: Text(
-          'This will permanently wipe all Spaced Repetition mastery data for ${activeCourse.targetLanguage.name}. This cannot be undone.',
-          style: const TextStyle(color: SeedlingColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'CANCEL',
-              style: TextStyle(color: SeedlingColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: SeedlingColors.error,
-            ),
-            onPressed: () async {
-              await DatabaseHelper().resetCourseProgress(
-                activeCourse.nativeLanguage.code,
-                activeCourse.targetLanguage.code,
-              );
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Course progress reset.')),
-                );
-              }
-            },
-            child: const Text('RESET', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    SeedlingNotifications.showDialog(
+      context,
+      title: 'Reset Course?',
+      message: 'This will permanently wipe all Spaced Repetition mastery data for ${activeCourse.targetLanguage.name}. This cannot be undone.',
+      isError: true,
+      buttonText: 'RESET PROGRESS',
+      onConfirm: () async {
+        await DatabaseHelper().resetCourseProgress(
+          activeCourse.nativeLanguage.code,
+          activeCourse.targetLanguage.code,
+        );
+        if (context.mounted) {
+          SeedlingNotifications.showSnackBar(
+            context,
+            message: 'Course progress reset.',
+            isError: false,
+          );
+        }
+      },
     );
   }
 
   void _showDeleteAccountDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: SeedlingColors.cardBackground,
-        title: const Text(
-          'Delete Account Permanently?',
-          style: TextStyle(color: SeedlingColors.textPrimary),
-        ),
-        content: const Text(
-          'This will permanently delete your account and all progress from our servers. This action is irreversible and you will lose all mastered words and statistics.',
-          style: TextStyle(color: SeedlingColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'CANCEL',
-              style: TextStyle(color: SeedlingColors.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: SeedlingColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              try {
-                // 1. Delete remote account (this will cascade to profiles, user_stats, etc)
-                await AuthService().deleteAccount();
-                
-                // 2. Clear local data
-                await DatabaseHelper().clearUserData();
-                
-                if (context.mounted) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Account successfully deleted.')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error deleting account: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('DELETE PERMANENTLY'),
-          ),
-        ],
-      ),
+    SeedlingNotifications.showDialog(
+      context,
+      title: 'Delete Account Permanently?',
+      message: 'This will permanently delete your account and all progress from our servers. This action is irreversible and you will lose all mastered words and statistics.',
+      isError: true,
+      buttonText: 'DELETE PERMANENTLY',
+      onConfirm: () async {
+        try {
+          // 1. Delete remote account (this will cascade to profiles, user_stats, etc)
+          await AuthService().deleteAccount();
+          
+          // 2. Clear local data
+          await DatabaseHelper().clearUserData();
+          
+          if (context.mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            SeedlingNotifications.showSnackBar(
+              context,
+              message: 'Account successfully deleted.',
+              isError: false,
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            SeedlingNotifications.showSnackBar(
+              context,
+              message: 'Error deleting account: $e',
+              isError: true,
+            );
+          }
+        }
+      },
     );
   }
 

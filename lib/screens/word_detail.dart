@@ -63,6 +63,7 @@ class _WordDetailScreenState extends ConsumerState<WordDetailScreen>
         title: Text(widget.word.word, style: SeedlingTypography.heading2),
       ),
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [

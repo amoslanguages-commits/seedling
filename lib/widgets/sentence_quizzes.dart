@@ -64,6 +64,8 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
 
   void _handleAnswer(int index) {
     if (_hasAnswered) return;
+    // Immediate tactile pop — fires before correct/wrong verdict
+    AudioService.instance.play(SFX.answerSelect);
     final isCorrect = widget.options[index] == widget.item.targetWord;
     setState(() {
       _selectedIndex = index;
@@ -71,7 +73,9 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
     });
     if (isCorrect) {
       _bloomCtrl.forward();
-      AudioService.instance.playCorrect();
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.playCorrect();
+      });
       AudioService.haptic(HapticType.correct).ignore();
       // Speak the full sentence once answered correctly
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -82,7 +86,9 @@ class _FillTheBranchQuizState extends State<FillTheBranchQuiz>
       });
     } else {
       _shakeCtrl.forward(from: 0);
-      AudioService.instance.play(SFX.wrongAnswer);
+      Future.delayed(const Duration(milliseconds: 120), () {
+        AudioService.instance.play(SFX.wrongAnswer);
+      });
       AudioService.haptic(HapticType.wrong).ignore();
     }
     Future.delayed(const Duration(milliseconds: 1600), () {

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/course.dart';
 import '../database/database_helper.dart';
 import '../services/auth_service.dart';
+import '../services/tts_service.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,12 @@ class CourseNotifier extends StateNotifier<CourseState> {
         : state.activeCourseId;
     state = CourseState(courses: updated, activeCourseId: newActive);
     await _persist();
+
+    // Trigger TTS storage cleanup for any orphaned models
+    final activeMmsCodes = updated
+        .map((c) => TtsService.instance.mmsCodeFor(c.targetLanguage.code))
+        .toList();
+    await TtsService.instance.cleanOrphanedModels(activeMmsCodes);
   }
 
   Future<void> setActive(String id) async {

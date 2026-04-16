@@ -10,6 +10,7 @@ import 'mcq_review_session.dart';
 import '../../services/usage_service.dart';
 import '../../widgets/tilt_card.dart';
 import '../../widgets/premium_gate.dart';
+import '../../widgets/notifications.dart';
 
 class SmartReviewScreen extends ConsumerStatefulWidget {
   const SmartReviewScreen({super.key});
@@ -270,10 +271,9 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
               await ref.read(reviewSessionProvider.notifier).startSession();
               if (!mounted) return;
               if (ref.read(reviewSessionProvider).words.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No planted words to review yet. Grow a few seeds first!'),
-                  ),
+                SeedlingNotifications.showSnackBar(
+                  context,
+                  message: 'No planted words to review yet. Grow a few seeds first!',
                 );
                 return;
               }
@@ -311,10 +311,9 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
           await UsageService().clearDraftSession();
           if (mounted) {
             setState(() => _draftSession = null);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Saved session was invalid and has been cleared.'),
-              ),
+            SeedlingNotifications.showSnackBar(
+              context,
+              message: 'Saved session was invalid and has been cleared.',
             );
           }
           return;
@@ -596,12 +595,9 @@ class _SmartReviewScreenState extends ConsumerState<SmartReviewScreen>
         await ref.read(reviewSessionProvider.notifier).startSession(subDomain: cat.id);
         if (!mounted) return;
         if (ref.read(reviewSessionProvider).words.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'No reviewable words in "${cat.name}" yet (need real translation choices).',
-              ),
-            ),
+          SeedlingNotifications.showSnackBar(
+            context,
+            message: 'No reviewable words in "${cat.name}" yet.',
           );
           return;
         }

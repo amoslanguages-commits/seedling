@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seedling — My Account</title>
+  <meta name="description" content="Manage your Seedling account, subscription, and learning progress." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <style>
+    /* ── Dashboard Specific ──────────────────────────── */
+    body { background: var(--bg); min-height: 100vh; }
+
+    .dash-page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 100px 24px 80px;
+    }
+
+    /* Section header */
+    .dash-greeting {
+      margin-bottom: 40px;
+      animation: fadeUp 0.5s ease both;
+    }
+    .dash-greeting-sub {
+      font-size: 0.85rem;
+      color: var(--text-sec);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .dash-greeting-name {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .dash-greeting-name span { color: var(--green); }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+    /* Grid layout */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 680px) { .dash-grid { grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .dash-card {
+      background: rgba(20, 38, 26, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(75,174,79,0.15);
+      border-radius: var(--radius-md);
+      padding: 28px;
+      animation: fadeUp 0.5s ease both;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .dash-card:hover { border-color: rgba(75,174,79,0.3); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .dash-card.full-width { grid-column: 1 / -1; }
+    .dash-card.premium-glow {
+      border-color: rgba(129,199,132,0.35);
+      background: linear-gradient(135deg, rgba(20,38,26,0.9), rgba(30,56,36,0.7));
+      box-shadow: 0 0 40px rgba(75,174,79,0.1);
+    }
+
+    .card-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-sec);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-label-icon { font-size: 1rem; }
+
+    /* Stat items */
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 0.82rem; color: var(--text-sec); }
+
+    /* Subscription status badge */
+    .sub-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .sub-badge.free { background: rgba(158,173,148,0.12); color: var(--text-sec); border: 1px solid rgba(158,173,148,0.25); }
+    .sub-badge.premium { background: rgba(75,174,79,0.15); color: var(--green); border: 1px solid rgba(75,174,79,0.35); }
+    .sub-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .sub-plan-name { font-size: 1.4rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .sub-plan-desc { font-size: 0.83rem; color: var(--text-sec); line-height: 1.5; margin-bottom: 20px; }
+    .sub-renews { font-size: 0.75rem; color: var(--text-sec); margin-top: 8px; }
+
+    /* Progress bars */
+    .progress-bar-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .progress-item {}
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .progress-label { font-size: 0.8rem; color: var(--text-sec); }
+    .progress-val { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .progress-track {
+      height: 6px;
+      background: rgba(75,174,79,0.12);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--green), #81C784);
+      transition: width 1s cubic-bezier(0.34,1.56,0.64,1);
+      width: 0%;
+    }
+
+    /* Achievement row */
+    .achievement-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .ach-badge {
+      background: rgba(75,174,79,0.1);
+      border: 1px solid rgba(75,174,79,0.2);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .ach-badge .ach-icon { font-size: 1.1rem; }
+    .ach-badge.locked { opacity: 0.35; filter: grayscale(1); }
+
+    /* Buttons */
+    .btn-dash-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      background: linear-gradient(135deg, var(--green), #38a042);
+      color: #fff;
+      font-family: var(--font-main);
+      font-size: 0.85rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: var(--transition);
+    }
+    .btn-dash-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(75,174,79,0.35); }
+
+    .btn-dash-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      background: rgba(75,174,79,0.08);
+      color: var(--text-sec);
+      font-family: var(--font-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(75,174,79,0.2);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: var(--transition);
+    }
+    .btn-dash-secondary:hover { border-color: rgba(75,174,79,0.4); color: var(--text); }
+
+    .btn-dash-danger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      background: rgba(229,115,115,0.08);
+      color: var(--error);
+      font-family: var(--font-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(229,115,115,0.2);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: var(--transition);
+    }
+    .btn-dash-danger:hover { background: rgba(229,115,115,0.15); border-color: rgba(229,115,115,0.4); }
+
+    .dash-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(75,174,79,0.06) 25%, rgba(75,174,79,0.12) 50%, rgba(75,174,79,0.06) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* Loading state */
+    .dash-loading { text-align: center; padding: 80px 24px; color: var(--text-sec); }
+    .dash-loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(75,174,79,0.15);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Profile info */
+    .profile-avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--green), #38a042);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+      border: 2px solid rgba(75,174,79,0.3);
+    }
+    .profile-email { font-size: 0.82rem; color: var(--text-sec); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/app_logo.png" alt="Seedling Logo" class="logo-icon">
+        <span class="logo-text">Seedling</span>
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="features.html">Features</a></li>
+        <li><a href="languages.html">Languages</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="help.html">Support</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="dashboard.html" class="btn-nav-cta" id="navCta">My Account</a>
+        <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Loading state -->
+  <div id="dashLoading" class="dash-loading">
+    <div class="dash-loading-spinner"></div>
+    <p>Loading your garden…</p>
+  </div>
+
+  <!-- Main content (hidden until loaded) -->
+  <main class="dash-page" id="dashMain" style="display:none">
+
+    <!-- Greeting -->
+    <div class="dash-greeting">
+      <div class="dash-greeting-sub">🌱 Your Garden</div>
+      <div class="dash-greeting-name">Hello, <span id="dashName">Learner</span></div>
+    </div>
+
+    <div class="dash-grid">
+
+      <!-- ── Subscription Card ── -->
+      <div class="dash-card premium-glow" style="animation-delay:0.05s">
+        <div class="card-label"><span class="card-label-icon">✨</span>Subscription</div>
+        <div class="sub-badge free" id="subBadge"><span class="sub-badge-dot"></span><span id="subBadgeText">FREE PLAN</span></div>
+        <div class="sub-plan-name" id="subPlanName">Starter</div>
+        <div class="sub-plan-desc" id="subPlanDesc">Grow 1 language with the standard SRS engine.</div>
+        <div class="sub-renews" id="subRenews"></div>
+        <div class="dash-actions">
+          <button class="btn-dash-primary" id="subUpgradeBtn" onclick="startCheckout('premium_annual')" style="display:none">⬆ Upgrade to Premium</button>
+          <button class="btn-dash-secondary" id="subManageBtn" onclick="openPortal()" style="display:none">Manage Plan</button>
+        </div>
+      </div>
+
+      <!-- ── Profile Card ── -->
+      <div class="dash-card" style="animation-delay:0.10s">
+        <div class="card-label"><span class="card-label-icon">👤</span>Profile</div>
+        <div class="profile-avatar" id="profileAvatar">?</div>
+        <div class="sub-plan-name" id="profileName" style="font-size:1.1rem">—</div>
+        <div class="profile-email" id="profileEmail">—</div>
+        <div class="dash-actions" style="margin-top:16px">
+          <button class="btn-dash-danger" onclick="handleSignOut()">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- ── Statistics Card ── -->
+      <div class="dash-card" style="animation-delay:0.15s">
+        <div class="card-label"><span class="card-label-icon">📊</span>Learning Stats</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-item">
+            <div class="progress-header">
+              <span class="progress-label">Words Learned</span>
+              <span class="progress-val" id="statWords">—</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="fillWords"></div></div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header">
+              <span class="progress-label">Study Minutes</span>
+              <span class="progress-val" id="statMinutes">—</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="fillMinutes" style="background: linear-gradient(90deg, var(--water), #4FC3F7);"></div></div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-header">
+              <span class="progress-label">Current Streak</span>
+              <span class="progress-val" id="statStreak">—</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" id="fillStreak" style="background: linear-gradient(90deg, #FFB74D, #FFD54F);"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Achievements Card ── -->
+      <div class="dash-card" style="animation-delay:0.20s">
+        <div class="card-label"><span class="card-label-icon">🏆</span>Achievements</div>
+        <div class="achievement-row" id="achievementRow">
+          <!-- Populated by JS -->
+          <div class="ach-badge"><span class="ach-icon">🌱</span>First Seed</div>
+          <div class="ach-badge locked"><span class="ach-icon">🔥</span>7-Day Streak</div>
+          <div class="ach-badge locked"><span class="ach-icon">📚</span>Word Hoarder</div>
+          <div class="ach-badge locked"><span class="ach-icon">🌍</span>Polyglot</div>
+          <div class="ach-badge locked"><span class="ach-icon">⭐</span>Top Learner</div>
+        </div>
+      </div>
+
+      <!-- ── Quick Links Card ── -->
+      <div class="dash-card full-width" style="animation-delay:0.25s">
+        <div class="card-label"><span class="card-label-icon">🚀</span>Quick Actions</div>
+        <div class="dash-actions">
+          <a href="pricing.html" class="btn-dash-secondary">📋 View Plans</a>
+          <a href="help.html"    class="btn-dash-secondary">❓ Help Center</a>
+          <a href="privacy.html" class="btn-dash-secondary">🔒 Privacy</a>
+          <a href="reset-password.html" class="btn-dash-secondary">🔑 Change Password</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js?v=8"></script>
+  <script>
+    /* ── Dashboard Init ───────────────────────────── */
+    async function initDashboard() {
+      const { data: { session } } = await window.sb.auth.getSession();
+
+      if (!session) {
+        window.location.href = 'login.html?redirect=dashboard.html';
+        return;
+      }
+
+      const user = session.user;
+
+      // Profile
+      const name = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Learner';
+      document.getElementById('dashName').textContent = name;
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('profileEmail').textContent = user.email;
+      document.getElementById('profileAvatar').textContent = name.charAt(0).toUpperCase();
+
+      // Load subscription + stats in parallel
+      const [subData, statsData] = await Promise.allSettled([
+        window.sb.from('subscriptions').select('*').eq('user_id', user.id).maybeSingle(),
+        window.sb.from('user_stats').select('*').eq('user_id', user.id).maybeSingle(),
+      ]);
+
+      // ── Subscription ──
+      const sub = subData.status === 'fulfilled' ? subData.value.data : null;
+      const isPremium = sub && sub.status === 'active';
+
+      const badge   = document.getElementById('subBadge');
+      const badgeTx = document.getElementById('subBadgeText');
+      const planNm  = document.getElementById('subPlanName');
+      const planDs  = document.getElementById('subPlanDesc');
+      const renews  = document.getElementById('subRenews');
+      const upBtn   = document.getElementById('subUpgradeBtn');
+      const manBtn  = document.getElementById('subManageBtn');
+
+      if (isPremium) {
+        badge.className = 'sub-badge premium';
+        badgeTx.textContent = 'PREMIUM ✓';
+        planNm.textContent = sub.plan_id === 'premium_annual' ? 'Premium Annual' : 'Premium Monthly';
+        planDs.textContent = 'Full garden access. Unlimited languages, offline mode, cloud sync, and advanced stats.';
+        if (sub.current_period_end) {
+          const d = new Date(sub.current_period_end);
+          renews.textContent = `Renews on ${d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}`;
+        }
+        manBtn.style.display = 'inline-flex';
+        upBtn.style.display  = 'none';
+      } else {
+        badge.className = 'sub-badge free';
+        badgeTx.textContent = 'FREE PLAN';
+        planNm.textContent = 'Starter';
+        planDs.textContent = 'Grow 1 language with the standard SRS engine. Upgrade for unlimited access.';
+        upBtn.style.display  = 'inline-flex';
+        manBtn.style.display = 'none';
+      }
+
+      // ── Stats ──
+      const stats = statsData.status === 'fulfilled' ? statsData.value.data : null;
+      if (stats) {
+        const words   = stats.total_words_learned || 0;
+        const mins    = stats.total_study_minutes  || 0;
+        const streak  = stats.current_streak       || 0;
+
+        document.getElementById('statWords').textContent   = words.toLocaleString();
+        document.getElementById('statMinutes').textContent = mins.toLocaleString() + ' min';
+        document.getElementById('statStreak').textContent  = streak + ' days 🔥';
+
+        // Animate bars
+        setTimeout(() => {
+          document.getElementById('fillWords').style.width   = Math.min(words / 5, 100) + '%';
+          document.getElementById('fillMinutes').style.width = Math.min(mins  / 10, 100) + '%';
+          document.getElementById('fillStreak').style.width  = Math.min(streak / 30 * 100, 100) + '%';
+        }, 300);
+      } else {
+        document.getElementById('statWords').textContent   = '0';
+        document.getElementById('statMinutes').textContent = '0 min';
+        document.getElementById('statStreak').textContent  = '0 days';
+      }
+
+      // Show page
+      document.getElementById('dashLoading').style.display = 'none';
+      document.getElementById('dashMain').style.display    = 'block';
+    }
+
+    async function openPortal() {
+      const btn = document.getElementById('subManageBtn');
+      btn.textContent = 'Opening…';
+      btn.disabled = true;
+      try {
+        const { data, error } = await window.sb.functions.invoke('create-portal-session', {});
+        if (error) throw error;
+        if (data?.url) window.open(data.url, '_blank');
+      } catch {
+        alert('Subscription portal not available yet. Please contact support.');
+      } finally {
+        btn.textContent = 'Manage Plan';
+        btn.disabled = false;
+      }
+    }
+
+    initDashboard();
+  </script>
+</body>
+</html>

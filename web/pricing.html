@@ -26,7 +26,7 @@
         <li><a href="help.html">Support</a></li>
       </ul>
       <div class="nav-actions">
-        <a href="pricing.html" class="btn-nav-cta" id="navCta">Open App</a>
+        <a href="login.html" class="btn-nav-cta" id="navCta">Sign In</a>
         <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
           <span></span><span></span><span></span>
         </button>
@@ -41,6 +41,9 @@
       <p>Invest in your future fluency with our simple, transparent plans.</p>
     </div>
   </header>
+
+  <!-- ── Payment success banner (shown after redirect) ── -->
+  <div id="pricingBanner" style="display:none; background:rgba(102,187,106,0.12); border:1px solid rgba(102,187,106,0.3); color:#66BB6A; padding:14px 24px; border-radius:12px; text-align:center; font-size:0.9rem; font-weight:600; margin:24px auto 0; max-width:800px;"></div>
 
   <!-- ══════════════════════════════════ PRICING ═══ -->
   <section class="pricing-section" id="pricing">
@@ -81,7 +84,7 @@
           </div>
         </div>
 
-        <a href="#" class="btn-secondary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">START FREE</a>
+        <a href="login.html?tab=signup" data-plan-cta="free" class="btn-secondary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">START FREE</a>
       </div>
 
       <!-- Monthly Plan -->
@@ -114,7 +117,11 @@
           </div>
         </div>
 
-        <a href="#" class="btn-secondary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">SELECT PLAN</a>
+        <a href="#" data-plan-cta="premium_monthly" onclick="handlePlanClick(event,'premium_monthly')" class="btn-secondary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">SELECT PLAN</a>
+        
+        <div data-local-container="premium_monthly" style="display: none; margin-top: 12px; text-align: center;">
+          <a href="#" data-flut-cta="premium_monthly" onclick="handleLocalClick(event,'premium_monthly')" style="font-size: 0.75rem; color: var(--text-sec); text-decoration: underline;">Local Payment</a>
+        </div>
       </div>
 
       <!-- Annual Plan -->
@@ -148,7 +155,11 @@
           </div>
         </div>
 
-        <a href="#" class="btn-primary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">START GROWING</a>
+        <a href="#" data-plan-cta="premium_annual" onclick="handlePlanClick(event,'premium_annual')" class="btn-primary" style="width: 100%; margin-top: 32px; justify-content: center; border-radius: var(--radius-md);">START GROWING</a>
+
+        <div data-local-container="premium_annual" style="display: none; margin-top: 12px; text-align: center;">
+          <a href="#" data-flut-cta="premium_annual" onclick="handleLocalClick(event,'premium_annual')" style="font-size: 0.75rem; color: rgba(255,255,255,0.7); text-decoration: underline;">Local Payment</a>
+        </div>
       </div>
     </div>
   </section>
@@ -189,6 +200,58 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/main.js?v=8"></script>
+  <script id="pricingCtas">
+    async function handlePlanClick(e, planId) {
+      e.preventDefault();
+      const { data: { session } } = await window.sb.auth.getSession();
+      if (!session) {
+        window.location.href = `login.html?tab=signup&redirect=pricing.html&plan=${planId}`;
+      } else {
+        startCheckout(planId);
+      }
+    }
+
+    let currentConfig = null;
+
+    async function initPricing() {
+      currentConfig = await fetchPaymentConfig();
+      if (currentConfig && currentConfig.local_provider) {
+        document.querySelectorAll('[data-local-container]').forEach(el => el.style.display = 'block');
+        document.querySelectorAll('[data-flut-cta]').forEach(el => {
+          el.textContent = `Pay with ${currentConfig.local_method_name}`;
+        });
+      }
+    }
+
+    async function handleLocalClick(e, planId) {
+      e.preventDefault();
+      const { data: { session } } = await window.sb.auth.getSession();
+      if (!session) {
+        window.location.href = `login.html?tab=signup&redirect=pricing.html&plan=${planId}&method=local`;
+      } else {
+        if (currentConfig.local_provider === 'flutterwave') {
+          startFlutterwaveCheckout(planId);
+        } else if (currentConfig.local_provider === 'dlocal') {
+          startDLocalCheckout(planId);
+        }
+      }
+    }
+
+    initPricing();
+
+    // Show success banner if returning from payment
+    const urlP = new URLSearchParams(window.location.search);
+    const payment = urlP.get('payment');
+    if (payment === 'success' || payment === 'flut_success') {
+      const banner = document.getElementById('pricingBanner');
+      banner.textContent = '🎉 Payment successful! Your Premium subscription is now active. Check your dashboard.';
+      banner.style.display = 'block';
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
+    }
+  </script>
 </body>
 </html>

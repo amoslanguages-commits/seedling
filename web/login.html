@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seedling — Sign In</title>
+  <meta name="description" content="Sign in or create your Seedling account to access premium features and manage your subscription." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=8" />
+  <style>
+    /* ── Auth Page Specific ───────────────────── */
+    body { background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+
+    .auth-page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 100px 24px 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animated orbs */
+    .auth-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .auth-orb-1 { width: 500px; height: 500px; background: var(--green); opacity: 0.12; top: -100px; right: -100px; animation: floatOrb1 18s infinite alternate ease-in-out; }
+    .auth-orb-2 { width: 400px; height: 400px; background: var(--water); opacity: 0.10; bottom: -80px; left: -80px; animation: floatOrb2 22s infinite alternate ease-in-out; }
+    @keyframes floatOrb1 { from { transform: translate(0,0) scale(1); } to { transform: translate(40px, 30px) scale(1.1); } }
+    @keyframes floatOrb2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-30px, -40px) scale(1.15); } }
+
+    /* Card */
+    .auth-card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      background: rgba(20, 38, 26, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(75,174,79,0.2);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(75,174,79,0.08);
+      animation: cardAppear 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes cardAppear {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    .auth-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .auth-logo img { width: 38px; height: 38px; }
+    .auth-logo span { font-family: var(--font-main); font-size: 1.4rem; font-weight: 800; color: var(--text); }
+
+    /* Tabs */
+    .auth-tabs {
+      display: flex;
+      background: rgba(7,20,11,0.6);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+      margin-bottom: 32px;
+      gap: 4px;
+    }
+    .auth-tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      transition: var(--transition);
+      letter-spacing: 0.02em;
+      border: none;
+      background: none;
+    }
+    .auth-tab.active {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(75,174,79,0.35);
+    }
+
+    /* Forms */
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .auth-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text);
+      margin: 0 0 6px;
+      text-align: center;
+    }
+    .auth-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-sec);
+      text-align: center;
+      margin: 0 0 28px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-sec);
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .form-input {
+      width: 100%;
+      background: rgba(7,20,11,0.7);
+      border: 1.5px solid rgba(75,174,79,0.2);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      transition: var(--transition);
+      box-sizing: border-box;
+    }
+    .form-input::placeholder { color: rgba(158,173,148,0.5); }
+    .form-input:focus {
+      border-color: var(--green);
+      background: rgba(7,20,11,0.9);
+      box-shadow: 0 0 0 3px rgba(75,174,79,0.12);
+    }
+    .form-input.error { border-color: var(--error); }
+
+    .form-error {
+      font-size: 0.78rem;
+      color: var(--error);
+      margin-top: 6px;
+      display: none;
+    }
+    .form-error.visible { display: block; }
+
+    /* Password toggle */
+    .input-wrapper { position: relative; }
+    .input-wrapper .form-input { padding-right: 44px; }
+    .toggle-pw {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-sec);
+      font-size: 1.1rem;
+      padding: 4px;
+      transition: var(--transition);
+    }
+    .toggle-pw:hover { color: var(--text); }
+
+    /* Submit button */
+    .btn-auth {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--green), #38a042);
+      color: #fff;
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .btn-auth:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(75,174,79,0.4); }
+    .btn-auth:active { transform: translateY(0); }
+    .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-auth .btn-spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    .btn-auth.loading .btn-text { display: none; }
+    .btn-auth.loading .btn-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Divider */
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0;
+      color: rgba(158,173,148,0.4);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(75,174,79,0.15);
+    }
+
+    /* Social login */
+    .btn-social {
+      width: 100%;
+      padding: 13px;
+      background: rgba(7,20,11,0.6);
+      border: 1.5px solid rgba(75,174,79,0.2);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font-main);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: var(--transition);
+      margin-bottom: 10px;
+    }
+    .btn-social:hover { border-color: var(--green); background: rgba(75,174,79,0.08); transform: translateY(-1px); }
+    .btn-social svg { flex-shrink: 0; }
+
+    /* Forgot password */
+    .forgot-link {
+      display: block;
+      text-align: right;
+      font-size: 0.78rem;
+      color: var(--text-sec);
+      margin-top: -8px;
+      margin-bottom: 16px;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+    .forgot-link:hover { color: var(--green); }
+
+    /* Success state */
+    .auth-success {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .auth-success.visible { display: block; }
+    .success-icon { font-size: 3rem; margin-bottom: 16px; }
+    .success-title { font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .success-text { font-size: 0.88rem; color: var(--text-sec); line-height: 1.6; }
+
+    /* Global error banner */
+    .auth-banner {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .auth-banner.error { display: block; background: rgba(229,115,115,0.12); border: 1px solid rgba(229,115,115,0.3); color: var(--error); }
+    .auth-banner.success { display: block; background: rgba(102,187,106,0.12); border: 1px solid rgba(102,187,106,0.3); color: var(--success); }
+
+    /* Redirect note */
+    .auth-redirect-note {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-sec);
+      margin-top: 24px;
+      line-height: 1.5;
+    }
+    .auth-redirect-note a { color: var(--green); text-decoration: none; }
+    .auth-redirect-note a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <img src="assets/app_logo.png" alt="Seedling Logo" class="logo-icon">
+        <span class="logo-text">Seedling</span>
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="features.html">Features</a></li>
+        <li><a href="languages.html">Languages</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="help.html">Support</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="pricing.html" class="btn-nav-cta" id="navCta">Open App</a>
+        <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="auth-orb auth-orb-1"></div>
+  <div class="auth-orb auth-orb-2"></div>
+
+  <main class="auth-page">
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="auth-logo">
+        <img src="assets/app_logo.png" alt="Seedling">
+        <span>Seedling</span>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" id="tabSignIn" role="tab" onclick="switchTab('signin')">Sign In</button>
+        <button class="auth-tab" id="tabSignUp" role="tab" onclick="switchTab('signup')">Create Account</button>
+      </div>
+
+      <!-- Global banner -->
+      <div class="auth-banner" id="authBanner"></div>
+
+      <!-- ── Sign In Form ── -->
+      <div class="auth-form active" id="formSignIn">
+        <h1 class="auth-title">Welcome back 🌱</h1>
+        <p class="auth-subtitle">Sign in to continue growing your vocabulary.</p>
+
+        <div class="form-group">
+          <label class="form-label" for="siEmail">Email</label>
+          <input class="form-input" type="email" id="siEmail" placeholder="you@example.com" autocomplete="email" />
+          <div class="form-error" id="siEmailErr">Please enter a valid email.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="siPassword">Password</label>
+          <div class="input-wrapper">
+            <input class="form-input" type="password" id="siPassword" placeholder="Your password" autocomplete="current-password" />
+            <button class="toggle-pw" type="button" onclick="togglePw('siPassword', this)" aria-label="Toggle password visibility">👁</button>
+          </div>
+          <div class="form-error" id="siPasswordErr">Password is required.</div>
+        </div>
+
+        <a href="reset-password.html" class="forgot-link">Forgot password?</a>
+
+        <button class="btn-auth" id="btnSignIn" onclick="handleSignIn()">
+          <div class="btn-spinner"></div>
+          <span class="btn-text">SIGN IN</span>
+        </button>
+
+        <div class="auth-divider">OR CONTINUE WITH</div>
+
+        <button class="btn-social" onclick="handleGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+      </div>
+
+      <!-- ── Sign Up Form ── -->
+      <div class="auth-form" id="formSignUp">
+        <h1 class="auth-title">Start your garden 🌿</h1>
+        <p class="auth-subtitle">Free forever. No credit card needed.</p>
+
+        <div class="auth-success" id="signupSuccess">
+          <div class="success-icon">📬</div>
+          <div class="success-title">Check your email!</div>
+          <p class="success-text">We sent a confirmation link to <strong id="signupEmail"></strong>.<br/>Click it to activate your account, then sign in.</p>
+        </div>
+
+        <div id="signupFields">
+          <div class="form-group">
+            <label class="form-label" for="suName">Display Name</label>
+            <input class="form-input" type="text" id="suName" placeholder="Your name" autocomplete="name" />
+            <div class="form-error" id="suNameErr">Please enter your name.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="suEmail">Email</label>
+            <input class="form-input" type="email" id="suEmail" placeholder="you@example.com" autocomplete="email" />
+            <div class="form-error" id="suEmailErr">Please enter a valid email.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="suPassword">Password</label>
+            <div class="input-wrapper">
+              <input class="form-input" type="password" id="suPassword" placeholder="Min. 8 characters" autocomplete="new-password" />
+              <button class="toggle-pw" type="button" onclick="togglePw('suPassword', this)" aria-label="Toggle password visibility">👁</button>
+            </div>
+            <div class="form-error" id="suPasswordErr">Password must be at least 8 characters.</div>
+          </div>
+
+          <button class="btn-auth" id="btnSignUp" onclick="handleSignUp()">
+            <div class="btn-spinner"></div>
+            <span class="btn-text">CREATE ACCOUNT</span>
+          </button>
+
+          <div class="auth-divider">OR</div>
+
+          <button class="btn-social" onclick="handleGoogleAuth()">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Sign up with Google
+          </button>
+        </div>
+
+        <p class="auth-redirect-note" id="signupNote">
+          By creating an account you agree to our
+          <a href="terms.html">Terms</a> &amp; <a href="privacy.html">Privacy Policy</a>.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/main.js?v=8"></script>
+  <script>
+    // Read ?tab=signup from URL to pre-select tab
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'signup') switchTab('signup');
+
+    // If already logged in, redirect to dashboard
+    window.sb.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = 'dashboard.html';
+    });
+  </script>
+</body>
+</html>

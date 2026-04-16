@@ -12,6 +12,7 @@ import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter/foundation.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../services/podcast_service.dart';
 import '../core/supabase_config.dart';
 
 final settingsService = SettingsService();
@@ -24,6 +25,8 @@ class SettingsState {
   final bool cloudSyncEnabled;
   final TimeOfDay reminderTime;
   final String nativeLanguageCode;
+  final String selectedAmbientTrack;
+  final String selectedBrainwaveType;
 
   SettingsState({
     required this.notificationsEnabled,
@@ -33,6 +36,8 @@ class SettingsState {
     required this.cloudSyncEnabled,
     required this.reminderTime,
     required this.nativeLanguageCode,
+    required this.selectedAmbientTrack,
+    required this.selectedBrainwaveType,
   });
 
   factory SettingsState.initial() => SettingsState(
@@ -43,6 +48,8 @@ class SettingsState {
     cloudSyncEnabled: settingsService.cloudSyncEnabled,
     reminderTime: settingsService.reminderTime,
     nativeLanguageCode: settingsService.nativeLanguageCode,
+    selectedAmbientTrack: settingsService.selectedAmbientTrack,
+    selectedBrainwaveType: settingsService.selectedBrainwaveType,
   );
 
   SettingsState copyWith({
@@ -53,6 +60,8 @@ class SettingsState {
     bool? cloudSyncEnabled,
     TimeOfDay? reminderTime,
     String? nativeLanguageCode,
+    String? selectedAmbientTrack,
+    String? selectedBrainwaveType,
   }) => SettingsState(
     notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     soundEffectsEnabled: soundEffectsEnabled ?? this.soundEffectsEnabled,
@@ -61,6 +70,8 @@ class SettingsState {
     cloudSyncEnabled: cloudSyncEnabled ?? this.cloudSyncEnabled,
     reminderTime: reminderTime ?? this.reminderTime,
     nativeLanguageCode: nativeLanguageCode ?? this.nativeLanguageCode,
+    selectedAmbientTrack: selectedAmbientTrack ?? this.selectedAmbientTrack,
+    selectedBrainwaveType: selectedBrainwaveType ?? this.selectedBrainwaveType,
   );
 }
 
@@ -138,6 +149,18 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> setNativeLanguageCode(String code) async {
     await settingsService.setNativeLanguageCode(code);
     state = state.copyWith(nativeLanguageCode: code);
+    _triggerSync();
+  }
+
+  Future<void> setAmbientTrack(String track) async {
+    await settingsService.setSelectedAmbientTrack(track);
+    state = state.copyWith(selectedAmbientTrack: track);
+    _triggerSync();
+  }
+
+  Future<void> setBrainwaveType(String type) async {
+    await settingsService.setSelectedBrainwaveType(type);
+    state = state.copyWith(selectedBrainwaveType: type);
     _triggerSync();
   }
 
@@ -357,4 +380,8 @@ final dailyChallengesProvider = FutureProvider<List<DailyChallenge>>((
   if (stats == null) return [];
 
   return await DailyChallengeManager.getDailyChallenges();
+});
+
+final podcastServiceProvider = ChangeNotifierProvider<PodcastService>((ref) {
+  return PodcastService.instance;
 });
